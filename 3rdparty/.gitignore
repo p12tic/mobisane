@@ -23,6 +23,7 @@ osi
 clp
 alicevision
 assimp
+glm
 fmt
 bzip2
 leptonica

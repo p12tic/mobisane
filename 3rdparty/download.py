@@ -62,6 +62,7 @@ known_dependencies = [
     ('clp', 'https://github.com/alicevision/Clp', '4da587acebc65343faafea8a134c9f251efab5b9'),
     ('alicevision', 'https://github.com/p12tic/aliceVision', '789fecbe4132d9e85d712230be78784f24e134e5'),
     ('assimp', 'https://github.com/assimp/assimp', 'e477533a6d0953d0a2f93cfaaaa2304620cc0229'),
+    ('glm', 'https://github.com/g-truc/glm', '48e1ff3feecb34159880f915801ffcb3b96ebbd0'),
     ('fmt', 'https://github.com/fmtlib/fmt', '9.1.0'),
     ('bzip2', 'https://gitlab.com/bzip2/bzip2', '2d8393924b9f3e014000c7420c7da7c3ddb74e2c'),
     ('leptonica', 'https://github.com/danbloomberg/leptonica', '1.82.0'),
