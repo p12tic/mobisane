@@ -53,6 +53,7 @@ known_dependencies = [
     ('tbb', 'https://github.com/oneapi-src/oneTBB', '3c91aea522427b3a0cd6022b2d3a142acaa8136d'),
     ('opencv', 'https://github.com/opencv/opencv', '46d988e2cb98f55bdcd8713c21a3df6c83087ecc'),
     ('freetype', 'https://github.com/freetype/freetype', 'VER-2-10-4'),
+    ('fontconfig', 'https://gitlab.freedesktop.org/fontconfig/fontconfig', '2.14.0'),
 ]
 
 
