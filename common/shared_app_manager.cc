@@ -52,6 +52,7 @@
 #include <sanescanocr/ocr/ocr_point.h>
 #include <sanescanocr/ocr/ocr_pipeline_run.h>
 #include <sanescanocr/ocr/pdf.h>
+#include <sanescanocr/ocr/tesseract_data_utils.h>
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/matching/io.hpp>
 #include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
@@ -183,6 +184,8 @@ struct SharedAppManager::Data
 
     std::string vfs_root_name = "//mobisane";
     vfs::path vfs_project_path = "//mobisane/alicevision";
+    std::string root_resource_path;
+    std::string tessdata_root;
 
     std::uint64_t curr_session_id = 0;
     std::uint64_t next_image_id = 0;
@@ -303,12 +306,19 @@ void SharedAppManager::init(const std::string& root_resource_path)
     vfs::create_directories(d_->get_path_to_current_session_feature_matches_folder());
     vfs::create_directories(d_->get_path_to_current_session_sfm_folder());
 
+    d_->root_resource_path = root_resource_path;
+
     std::string sensor_db_path;
     if (root_resource_path.empty()) {
         sensor_db_path = (vfs::path(aliceVision::image::getAliceVisionRoot()) /
                 "share/aliceVision/cameraSensors.db").string();
+        auto tesseract_datasets = get_known_tesseract_datasets();
+        if (!tesseract_datasets.empty()) {
+            d_->tessdata_root = tesseract_datasets.front().path;
+        }
     } else {
         sensor_db_path = (vfs::path(root_resource_path) / "cameraSensors.db").string();
+        d_->tessdata_root = root_resource_path;
     }
 
     d_->sensor_db = parse_sensor_database(sensor_db_path);
@@ -1131,6 +1141,7 @@ void SharedAppManager::detect_text()
 
     OcrOptions options;
     options.language = "eng";
+    options.tessdata_path = d_->tessdata_root;
     OcrPipelineRun run{d_->unfolded_image, options, options, {}};
     run.execute();
     d_->ocr_results = run.results();
