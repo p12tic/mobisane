@@ -21,6 +21,7 @@ import argparse
 import enum
 import multiprocessing
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -33,21 +34,24 @@ class LibType(enum.Enum):
     SHARED = 2
 
 
+class TargetPlatform(enum.Enum):
+    LINUX = 1
+    APPLE = 2
+
+
+class TargetArch(enum.Enum):
+    X86_64 = 1
+    ARM64 = 2
+
+
 @attr.s
 class Settings:
     prefix = attr.ib(converter=str)
     parallel = attr.ib(converter=int)
     libtype = attr.ib()
-    cc = attr.ib()
-    cxx = attr.ib()
-    target = attr.ib(default=None)
+    target_platform = attr.ib()
+    target_arch = attr.ib()
     has_ccache = attr.ib(default=False)
-
-    def get_arch(self):
-        return self.target.split('-')[0]
-
-    def get_platform(self):
-        return self.target.split('-')[1]
 
 
 def sh(cmd, cwd, env=None):
@@ -80,15 +84,6 @@ def sh_with_cwd(cwd):
     def sh_wrapper(cmd, env=None):
         return sh(cmd, cwd, env=env)
     return sh_wrapper
-
-
-def detect_target(cc):
-    output = subprocess.check_output([cc, '-v'], stderr=subprocess.STDOUT)
-    output = output.decode('utf-8', errors='replace')
-    for line in output.split('\n'):
-        if line.startswith('Target:'):
-            return line[7:].strip()
-    raise Exception("Could not detect target triple")
 
 
 def cmake_flags_from_settings(settings):
@@ -227,7 +222,7 @@ def build_mpfr(srcdir, builddir, settings):
 
 
 def build_lapack(srcdir, builddir, settings):
-    if settings.get_platform() == 'apple':
+    if settings.target_platform == TargetPlatform.APPLE:
         return
 
     bsh = sh_with_cwd(builddir)
@@ -515,10 +510,10 @@ def build_tesseract(srcdir, builddir, settings):
 def build_geogram(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
 
-    if settings.get_platform() == 'linux':
+    if settings.target_platform == TargetPlatform.LINUX:
         platform = 'Linux64-gcc-dynamic'
-    elif settings.get_platform() == 'apple':
-        if settings.get_arch() == 'arm64':
+    elif settings.target_platform == TargetPlatform.APPLE:
+        if settings.target_arch == TargetArch.ARM64:
             platform = 'Darwin-aarch64-clang-dynamic'
         else:
             platform = 'Darwin-clang-dynamic'
@@ -620,9 +615,9 @@ def build_taskflow(srcdir, builddir, settings):
 
 def build_alicevision(srcdir, builddir, settings):
     extra_flags = []
-    if settings.get_platform() == 'apple':
+    if settings.target_platform == TargetPlatform.APPLE:
         extra_flags += ['-DALICEVISION_USE_OPENMP=OFF']
-    if settings.get_arch() == 'arm64':
+    if settings.target_arch == TargetArch.ARM64:
         extra_flags += ['-DVL_DISABLE_SSE2=1']
 
     bsh = sh_with_cwd(builddir)
@@ -684,6 +679,55 @@ known_dependencies = [
 ]
 
 
+def parse_platform(platform_arg):
+    if platform_arg is None:
+        system_to_target_platform = {
+            'Linux': TargetPlatform.LINUX,
+            'Darwin': TargetPlatform.APPLE,
+        }
+        if platform.system() not in system_to_target_platform:
+            print(f'Unknown system for platform detection {platform.system()}')
+            sys.exit(1)
+
+        target_platform = system_to_target_platform[platform.system()]
+        print(f'Autodetected platform {target_platform}')
+        return target_platform
+
+    arg_to_target_platform = {
+        'linux': TargetPlatform.LINUX,
+        'darwin': TargetPlatform.APPLE,
+    }
+    return arg_to_target_platform[platform_arg]
+
+
+def parse_archs(archs):
+    if archs is None:
+        machine_to_target_arch = {
+            'arm64': TargetArch.ARM64,
+            'x86_64': TargetArch.X86_64,
+        }
+        if platform.machine() not in machine_to_target_arch:
+            print(f'Unknown machine for architecture detection {platform.machine()}')
+            sys.exit(1)
+
+        target_arch = machine_to_target_arch[platform.machine()]
+        print(f'Autodetected architecture {target_arch}')
+        return [target_arch]
+
+    arch_to_target_arch = {
+        'arm64': TargetArch.ARM64,
+        'x86_64': TargetArch.X86_64,
+    }
+    target_archs = []
+    for arch in archs.split(','):
+        if arch not in arch_to_target_arch:
+            print(f'Unknown target arch {arch}')
+            sys.exit(1)
+
+        target_archs.append(arch_to_target_arch[arch])
+    return target_archs
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('prefix', type=str, help="Output prefix")
@@ -694,6 +738,12 @@ def main():
                         help='Parallelism to use')
     parser.add_argument('--libtype', type=str, default='static', choices=['shared', 'static'],
                         help='Library type')
+    parser.add_argument('--platform', type=str, default=None, choices=['linux', 'apple'],
+                        help='Target platform type. Must be set when cross compiling')
+    parser.add_argument('--archs', type=str, default=None,
+                        help='A comma-separated string of target architectures. '
+                        'Must be set when cross compiling')
+
     args = parser.parse_args()
 
     known_dependency_names = [name for name, _ in known_dependencies]
@@ -709,22 +759,25 @@ def main():
 
     src_path_root = os.path.dirname(os.path.abspath(__file__))
 
-    settings = Settings(
-        parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count(),
-        prefix=args.prefix,
-        libtype=LibType.STATIC if args.libtype == 'static' else LibType.SHARED,
-        cc='gcc',
-        cxx='g++',
-        target=detect_target('gcc'),
-        has_ccache=can_call_cmd(['ccache', '-V']),
-    )
+    target_platform = parse_platform(args.platform)
+    target_archs = parse_archs(args.archs)
 
-    for name, fn in build_deps:
-        builddir = os.path.join(args.builddir, name)
-        print(f'Building {name} in {builddir}')
+    for target_arch in target_archs:
+        settings = Settings(
+            parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count(),
+            prefix=args.prefix,
+            libtype=LibType.STATIC if args.libtype == 'static' else LibType.SHARED,
+            target_platform=target_platform,
+            target_arch=target_arch,
+            has_ccache=can_call_cmd(['ccache', '-V']),
+        )
 
-        recreate_dir(builddir)
-        fn(os.path.join(src_path_root, name), builddir, settings)
+        for name, fn in build_deps:
+            builddir = os.path.join(args.builddir, name)
+            print(f'Building {name} in {builddir}')
+
+            recreate_dir(builddir)
+            fn(os.path.join(src_path_root, name), builddir, settings)
 
 
 if __name__ == '__main__':
