@@ -19,6 +19,7 @@
 #include "image_debug_utils.h"
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <aliceVision/system/Logger.hpp>
 #include <filesystem>
 
 namespace sanescan {
@@ -27,7 +28,11 @@ void write_debug_image(const std::string& debug_folder_path, const std::string& 
                        const cv::Mat& image)
 {
     auto path = std::filesystem::path{debug_folder_path} / filename;
-    cv::imwrite(path.c_str(), image);
+    if (image.empty()) {
+        ALICEVISION_LOG_DEBUG("Not writing empty matrix to " << path.c_str());
+    } else {
+        cv::imwrite(path.c_str(), image);
+    }
 }
 
 void write_image_with_mask_overlay(const std::string& debug_folder_path, const std::string& filename,
