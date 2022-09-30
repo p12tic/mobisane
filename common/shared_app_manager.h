@@ -74,6 +74,7 @@ private:
     void match_images();
     void match_features();
     void compute_structure_from_motion();
+    void compute_edge_structure_from_motion();
 
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,

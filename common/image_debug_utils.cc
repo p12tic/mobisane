@@ -20,6 +20,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <aliceVision/system/Logger.hpp>
+#include <Eigen/Geometry>
 #include <filesystem>
 
 namespace sanescan {
@@ -30,6 +31,43 @@ cv::Scalar hsv_to_rgb(cv::Vec3f color)
     mat.at<cv::Vec3f>(0, 0) = color;
     cv::cvtColor(mat, mat, cv::COLOR_HSV2BGR);
     return mat.at<cv::Vec3f>(0, 0);
+}
+
+void draw_infinite_line(cv::Mat& image, const Eigen::Vector3d& line, const cv::Scalar& color,
+                        int thickness)
+{
+    double size_x = image.size().width;
+    double size_y = image.size().height;
+
+    std::array<Eigen::Vector3d, 4> bounding_lines =
+    {{
+        {0, 1, 0},
+        {1, 0, 0},
+        {0, 1, -size_y},
+        {1, 0, -size_x}
+    }};
+
+    std::vector<cv::Point> intersections;
+
+    for (const auto& bounding_line : bounding_lines) {
+        Eigen::Vector3d hpoint = bounding_line.cross(line);
+        if (hpoint(2) == 0) {
+            continue;
+        }
+        cv::Point point{static_cast<int>(hpoint(0) / hpoint(2)),
+                        static_cast<int>(hpoint(1) / hpoint(2))};
+
+        if (point.x < -1 || point.x > size_x || point.y < -1 || point.y > size_y) {
+            continue;
+        }
+        intersections.push_back(point);
+    }
+
+    if (intersections.size() < 2) {
+        return;
+    }
+
+    cv::line(image, intersections.front(), intersections.back(), color, thickness);
 }
 
 void write_debug_image(const std::string& debug_folder_path, const std::string& filename,
@@ -102,12 +140,8 @@ void write_image_with_edges(const std::string& debug_folder_path, const std::str
     write_debug_image(debug_folder_path, filename, output);
 }
 
-void write_image_with_edges_precise(const std::string& debug_folder_path,
-                                    const std::string& filename,
-                                    const cv::Mat& image,
-                                    const std::vector<std::vector<cv::Point>>& edges)
+void draw_edges_precise(cv::Mat& image, const std::vector<std::vector<cv::Point>>& edges)
 {
-    auto output = image.clone();
     auto color = cv::Scalar{0, 0, 255};
 
     for (auto& edge : edges) {
@@ -116,11 +150,20 @@ void write_image_with_edges_precise(const std::string& debug_folder_path,
         }
 
         for (std::size_t i = 1; i < edge.size(); ++i) {
-            cv::circle(output, edge[i - 1], 2, cv::Scalar{0, 255, 255}, cv::FILLED);
-            cv::line(output, edge[i - 1], edge[i], color, 1);
+            cv::circle(image, edge[i - 1], 2, cv::Scalar{0, 255, 255}, cv::FILLED);
+            cv::line(image, edge[i - 1], edge[i], color, 1);
         }
+        cv::circle(image, edge.back(), 2, cv::Scalar{0, 128, 255}, cv::FILLED);
     }
+}
 
+void write_image_with_edges_precise(const std::string& debug_folder_path,
+                                    const std::string& filename,
+                                    const cv::Mat& image,
+                                    const std::vector<std::vector<cv::Point>>& edges)
+{
+    auto output = image.clone();
+    draw_edges_precise(output, edges);
     write_debug_image(debug_folder_path, filename, output);
 }
 

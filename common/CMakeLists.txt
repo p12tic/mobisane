@@ -26,9 +26,40 @@ set(SOURCES
     flood_fill_utils.cc
     image_debug_utils.cc
     image_utils.cc
+    edge_sfm.cc
     edge_utils.cc
     segment_calculator_precise.cc
     shared_app_manager.cc
+
+    edgegraph3d/plgs/polyline_2d.cpp
+    edgegraph3d/plgs/graph_adjacency_set_undirected_no_type_weighted.cpp
+    edgegraph3d/plgs/graph_adjacency_set_no_type.cpp
+    edgegraph3d/plgs/polyline_3d.cpp
+    edgegraph3d/plgs/polyline_graph_2d_hmap_impl.cpp
+    edgegraph3d/plgs/polyline_graph_3d.cpp
+    edgegraph3d/plgs/polyline_graph_3d_hmap_impl.cpp
+    edgegraph3d/plgs/graph_no_type.cpp
+    edgegraph3d/plgs/polyline_graph_2d.cpp
+    edgegraph3d/plgs/graph_adjacency_set_undirected_no_type.cpp
+    edgegraph3d/utils/edge_graph_3d_utilities.cpp
+    edgegraph3d/utils/triangulation.cpp
+    edgegraph3d/utils/geometric_utilities.cpp
+    edgegraph3d/utils/drawing_utilities.cpp
+    edgegraph3d/matching/plg_matching/plg_matching.cpp
+    edgegraph3d/matching/plg_matching/polyline_matching.cpp
+    edgegraph3d/matching/plg_matching/plg_matches_manager.cpp
+    edgegraph3d/matching/plg_matching/polyLine_2d_map.cpp
+    edgegraph3d/matching/plg_matching/pipelines.cpp
+    edgegraph3d/matching/plg_matching/polyLine_2d_map_search.cpp
+    edgegraph3d/matching/plg_matching/plg_matching_from_refpoints.cpp
+    edgegraph3d/matching/polyline_matching/polyline_matcher.cpp
+    edgegraph3d/matching/consensus_manager/plgp_consensus_manager.cpp
+    edgegraph3d/matching/consensus_manager/plgpcm_3views_plg_following.cpp
+    edgegraph3d/filtering/gauss_newton.cpp
+    edgegraph3d/filtering/outliers_filtering.cpp
+    edgegraph3d/filtering/filtering_close_plgps.cpp
+    edgegraph3d/plg_edge_manager.cpp
+    edgegraph3d/io/input/convert_edge_images_pixel_to_segment.cpp
 )
 
 set(PUBLIC_HEADERS
@@ -36,6 +67,7 @@ set(PUBLIC_HEADERS
     bounds_detection_params.h
     bounds_detection_pipeline.h
     edge_calculator_precise.h
+    edge_sfm.h
     edge_utils.h
     feature_extraction_job.h
     flood_fill_utils.h
@@ -45,11 +77,51 @@ set(PUBLIC_HEADERS
     mean_flood_fill.h
     segment_calculator_precise.h
     shared_app_manager.h
+
+    edgegraph3d/plg_edge_manager.hpp
+    edgegraph3d/filtering/filtering_close_plgps.hpp
+    edgegraph3d/filtering/gauss_newton.hpp
+    edgegraph3d/filtering/outliers_filtering.hpp
+    edgegraph3d/matching/consensus_manager/plgpcm_3views_plg_following.hpp
+    edgegraph3d/matching/consensus_manager/plgp_consensus_manager.hpp
+    edgegraph3d/matching/plg_matching/pipelines.hpp
+    edgegraph3d/matching/plg_matching/plg_matches_manager.hpp
+    edgegraph3d/matching/plg_matching/plg_matching_from_refpoints.hpp
+    edgegraph3d/matching/plg_matching/plg_matching.hpp
+    edgegraph3d/matching/plg_matching/polyline_2d_map.hpp
+    edgegraph3d/matching/plg_matching/polyline_2d_map_search.hpp
+    edgegraph3d/matching/plg_matching/polyline_matching.hpp
+    edgegraph3d/matching/polyline_matching/polyline_matcher.hpp
+    edgegraph3d/plgs/graph_adjacency_list.hpp
+    edgegraph3d/plgs/graph_adjacency_set_no_type.hpp
+    edgegraph3d/plgs/graph_adjacency_set_undirected_no_type.hpp
+    edgegraph3d/plgs/graph_adjacency_set_undirected_no_type_weighted.hpp
+    edgegraph3d/plgs/graph.hpp
+    edgegraph3d/plgs/graph_no_type.hpp
+    edgegraph3d/plgs/polyline_2d.hpp
+    edgegraph3d/plgs/polyline_3d.hpp
+    edgegraph3d/plgs/polyline_graph_2d_hmap_impl.hpp
+    edgegraph3d/plgs/polyline_graph_2d.hpp
+    edgegraph3d/plgs/polyline_graph_3d_hmap_impl.hpp
+    edgegraph3d/plgs/polyline_graph_3d.hpp
+    edgegraph3d/plgs/polyline_graph_point_2d.hpp
+    edgegraph3d/plgs/polyline_interval_2d.hpp
+    edgegraph3d/plgs/polyline_point_2d.hpp
+    edgegraph3d/sfm_data.h
+    edgegraph3d/types.hpp
+    edgegraph3d/utils/data_bundle.hpp
+    edgegraph3d/utils/datatypes.hpp
+    edgegraph3d/utils/drawing_utilities.hpp
+    edgegraph3d/utils/edge_graph_3d_utilities.hpp
+    edgegraph3d/utils/geometric_utilities.hpp
+    edgegraph3d/utils/triangulation.hpp
+    edgegraph3d/utils/globals/global_defines.hpp
 )
 
 find_package(OpenCV REQUIRED)
 find_package(AliceVision REQUIRED)
 find_package(Taskflow REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 # FIXME: fix AliceVision config to impor OpenEXR
 find_package(OpenEXR REQUIRED)
@@ -58,7 +130,8 @@ add_library(mobisanecommon ${SOURCES})
 
 target_include_directories(mobisanecommon PUBLIC
     $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/common>)
 
 target_link_libraries(mobisanecommon PUBLIC
     ${OpenCV_LIBS}

@@ -24,11 +24,22 @@
 */
 
 #include "shared_app_manager.h"
+#include "edge_sfm.h"
 #include "edge_utils.h"
 #include "feature_extraction_job.h"
 #include "finally.h"
 #include "image_debug_utils.h"
 #include "image_utils.h"
+#include <common/edgegraph3d/io/input/convert_edge_images_pixel_to_segment.hpp>
+#include <common/edgegraph3d/plg_edge_manager.hpp>
+#include <common/edgegraph3d/filtering/outliers_filtering.hpp>
+#include <common/edgegraph3d/matching/consensus_manager/plgpcm_3views_plg_following.hpp>
+#include <common/edgegraph3d/matching/plg_matching/polyline_2d_map_search.hpp>
+#include <common/edgegraph3d/matching/plg_matching/pipelines.hpp>
+#include <common/edgegraph3d/matching/plg_matching/plg_matches_manager.hpp>
+#include <common/edgegraph3d/plgs/polyline_graph_3d_hmap_impl.hpp>
+#include <common/edgegraph3d/utils/geometric_utilities.hpp>
+#include <common/edgegraph3d/utils/data_bundle.hpp>
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/imageMatching/ImageMatching.hpp>
@@ -113,6 +124,22 @@ namespace {
         }
         return features_per_view;
     }
+
+    aliceVision::IndexT get_unused_landmark_id(const aliceVision::sfmData::Landmarks& landmarks)
+    {
+        if (landmarks.empty()) {
+            return 1;
+        }
+        std::mt19937_64 rng(landmarks.size());
+        std::uniform_int_distribution<aliceVision::IndexT> dist;
+
+        aliceVision::IndexT index = dist(rng);
+        while (landmarks.find(index) != landmarks.end()) {
+            index = dist(rng);
+        }
+        return index;
+    }
+
 } // namespace
 
 struct PhotoData
@@ -176,6 +203,9 @@ struct SharedAppManager::Data
     // Only single image describer is supported because there is not enough processing power for
     // multiple.
     std::shared_ptr<aliceVision::feature::ImageDescriber> image_describer;
+
+    // Extra debugging data
+    std::vector<cv::Mat> edge_match_debug_images;
 
     Data(tbb::task_arena& task_arena) :
         task_arena{task_arena},
@@ -419,6 +449,7 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
     {
+        int i = 0;
         for (const auto& match : d_->pairwise_final_matches) {
             auto view_a_id = match.first.first;
             auto view_b_id = match.first.second;
@@ -436,6 +467,16 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                             match.second,
                                             features_per_view,
                                             d_->sfm_data.getLandmarks());
+        }
+    }));
+
+    d_->task_arena.enqueue(print_tasks.defer([&]()
+    {
+        for (std::size_t i = 0; i < d_->edge_match_debug_images.size(); ++i) {
+            auto& image = d_->edge_match_debug_images[i];
+            draw_edges_precise(image, d_->submitted_data[i]->bounds_pipeline.precise_edges);
+            write_debug_image(debug_folder_path, "edge_intersections_" + std::to_string(i) + ".png",
+                              image);
         }
     }));
 
@@ -530,6 +571,7 @@ void SharedAppManager::serial_detect()
     match_images();
     match_features();
     compute_structure_from_motion();
+    compute_edge_structure_from_motion();
 }
 
 void SharedAppManager::match_images()
@@ -745,6 +787,102 @@ void SharedAppManager::compute_structure_from_motion()
     d_->sfm_data = sfm_engine.getSfMData();
 
     ALICEVISION_LOG_TRACE("compute_structure_from_motion(): End");
+}
+
+void SharedAppManager::compute_edge_structure_from_motion()
+{
+    std::vector<aliceVision::IndexT> orig_view_ids;
+    for (const auto& image_data : d_->submitted_data) {
+        orig_view_ids.push_back(image_data->view_id);
+    }
+
+    // the order of edge_sfm_data.camerasList_ corresponds to views in d_->submitted_data
+    auto edge_sfm_data = edge_sfm_from_av_sfm_data(orig_view_ids, d_->sfm_data);
+    auto initial_points_count = edge_sfm_data.landmarks_.size();
+
+    std::vector<edgegraph3d::PolyLineGraph2DHMapImpl> graphs;
+
+    for (const auto& image_data : d_->submitted_data) {
+        graphs.push_back(build_polyline_graph_for_boundaries(
+                             image_data->bounds_pipeline.precise_edges));
+    }
+
+    float starting_detection_dist = 400;
+
+    std::vector<edgegraph3d::PolyLine2DMapSearch> pl_maps;
+    for (std::size_t i = 0; i < graphs.size(); ++i) {
+        auto image_data = d_->submitted_data.at(i);
+        pl_maps.push_back(edgegraph3d::PolyLine2DMapSearch(graphs[i], image_data->image.size(),
+                                                           starting_detection_dist));
+    }
+
+    edgegraph3d::PolyLineGraph3DHMapImpl plg3d;
+    edgegraph3d::PLGMatchesManager plgmm(graphs, plg3d);
+
+    Vector2D<Mat3f> fundamental_matrices(d_->sfm_data.getViews().size(),
+                                         d_->sfm_data.getViews().size(), {});
+    for (int i = 0; i < d_->submitted_data.size(); i++) {
+        for (int j = 0; j < d_->submitted_data.size(); j++) {
+            if (i == j) {
+                fundamental_matrices(i, j).fill(0);
+            } else {
+                auto fmat = get_fundamental_for_views(d_->sfm_data,
+                                                      d_->submitted_data[i]->view_id,
+                                                      d_->submitted_data[j]->view_id);
+                fundamental_matrices(i, j) = fmat.cast<float>();
+            }
+        }
+    }
+
+    if ((d_->options & COLLECT_DEBUG_INFO) != 0) {
+        for (const auto& image_data : d_->submitted_data) {
+            d_->edge_match_debug_images.push_back(image_data->image.clone());
+        }
+    }
+
+    edgegraph3d::PLGEdgeManager em(edge_sfm_data, fundamental_matrices, graphs,
+                                   starting_detection_dist,
+                                   DETECTION_CORRESPONDENCES_MULTIPLICATION_FACTOR);
+    em.set_debug_images(d_->edge_match_debug_images);
+
+    edgegraph3d::PLGPCM3ViewsPLGFollowing consensus_manager(edge_sfm_data,
+                                                            fundamental_matrices,
+                                                            graphs, pl_maps);
+    edgegraph3d::DataBundle mfc;
+    mfc.em = &em;
+    mfc.cm = &consensus_manager;
+    mfc.sfmd = &edge_sfm_data;
+    mfc.original_img_size = d_->submitted_data[0]->image.size();
+    mfc.all_fundamental_matrices = fundamental_matrices;
+    mfc.plgs = graphs;
+
+    int first_edgepoint = edge_sfm_data.landmarks_.size();
+
+    // Run edge reconstruction pipeline
+    edgegraph3d::edge_reconstruction_pipeline(graphs, edge_sfm_data, &mfc,
+                                              plgmm, pl_maps);
+
+
+    auto& landmarks = d_->sfm_data.getLandmarks();
+
+    for (std::size_t i = initial_points_count; i < edge_sfm_data.landmarks_.size(); ++i) {
+        const auto& landmark_wrapper = edge_sfm_data.landmarks_[i];
+        if (landmark_wrapper.observations.empty()) {
+            continue;
+        }
+
+        aliceVision::sfmData::Landmark landmark;
+        landmark.X = landmark_wrapper.X.cast<double>();
+
+        for (std::size_t i_obs = 0; i_obs < landmark_wrapper.observations.size(); ++i_obs) {
+            auto& observation_wrapper = landmark_wrapper.observations[i_obs];
+            auto view_id = d_->submitted_data.at(observation_wrapper.view_id)->view_id;
+            landmark.observations[view_id] =
+                    aliceVision::sfmData::Observation(observation_wrapper.x.cast<double>(), 0, 0.0);
+        }
+
+        landmarks[get_unused_landmark_id(landmarks)] = std::move(landmark);
+    }
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,

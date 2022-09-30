@@ -25,6 +25,11 @@
 
 namespace sanescan {
 
+cv::Scalar hsv_to_rgb(cv::Vec3f color);
+
+/// Just like cv::Line, but draws an infinite line across image
+void draw_infinite_line(cv::Mat& image, const Eigen::Vector3d& line, const cv::Scalar& color,
+                        int thickness = 1);
 
 void write_debug_image(const std::string& debug_folder_path, const std::string& filename,
                        const cv::Mat& image);
@@ -35,6 +40,8 @@ void write_image_with_mask_overlay(const std::string& debug_folder_path,
 
 void write_image_with_edges(const std::string& debug_folder_path, const std::string& filename,
                             const cv::Mat& image, const std::vector<std::vector<cv::Point>>& edges);
+
+void draw_edges_precise(cv::Mat& image, const std::vector<std::vector<cv::Point>>& edges);
 
 void write_image_with_edges_precise(const std::string& debug_folder_path,
                                     const std::string& filename,
