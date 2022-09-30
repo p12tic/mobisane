@@ -99,7 +99,8 @@ private:
     void on_image_available(AImageReader* reader);
     void on_preview_image_available(AImageReader* reader);
 
-    void process_received_image(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached);
+    void process_received_image(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached,
+                                bool skip_callback);
 
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
@@ -150,6 +151,7 @@ private:
     cv::Mat image_cached_mat_;
     ImageCallback preview_captured_cb_;
     cv::Mat preview_cached_mat_;
+    std::uint64_t preview_counter_ = 0;
 };
 
 } // namespace sanescan
