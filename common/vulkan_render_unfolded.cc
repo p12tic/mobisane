@@ -40,6 +40,10 @@
     THE SOFTWARE.
 */
 
+#ifdef __APPLE__
+#define VK_ENABLE_BETA_EXTENSIONS
+#endif
+
 #include "vulkan_render_unfolded.h"
 #include "vulkan_utils.h"
 #include "vkutils/VulkanBuffer.h"
@@ -376,6 +380,16 @@ public:
                 break;
             }
         }
+
+#if defined(__APPLE__)
+        if (std::find(enabled_extensions_.begin(), enabled_extensions_.end(),
+                      VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME) ==
+                enabled_extensions_.end())
+        {
+            enabled_extensions_.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+        }
+#endif
+
     }
 
     void create_instance()
