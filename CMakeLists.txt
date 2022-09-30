@@ -21,12 +21,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(MOBISANE_VERSION 0.0.1)
 
-project(mobisane VERSION ${MOBISANE_VERSION})
+project(Mobisane VERSION ${MOBISANE_VERSION})
 
 option(MOBISANE_BUILD_CLI "Enable building of cli tool" ON)
 option(MOBISANE_BUILD_TESTS "Enable building of tests" ON)
 
 include(GNUInstallDirs)
+
+set(INSTALL_INCLUDE_DIR ${CMAKE_INSTALL_INCLUDEDIR}/mobisane)
+set(INSTALL_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 if(MOBISANE_BUILD_CLI)
     add_subdirectory(cli)
@@ -35,3 +38,26 @@ add_subdirectory(common)
 if(MOBISANE_BUILD_TESTS)
     add_subdirectory(test)
 endif()
+
+install(TARGETS mobisanecommon
+        EXPORT "MobisaneTargets"
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin)
+
+include(CMakePackageConfigHelpers)
+
+set(VERSION_CONFIG "${CMAKE_CURRENT_BINARY_DIR}/temp/MobisaneConfigVersion.cmake")
+set(PROJECT_CONFIG "${CMAKE_CURRENT_BINARY_DIR}/temp/MobisaneConfig.cmake")
+
+write_basic_package_version_file(${VERSION_CONFIG} COMPATIBILITY SameMajorVersion)
+
+configure_package_config_file("Config.cmake.in" ${PROJECT_CONFIG}
+                              INSTALL_DESTINATION "${INSTALL_CMAKE_DIR}")
+
+install(FILES ${PROJECT_CONFIG} ${VERSION_CONFIG}
+        DESTINATION ${INSTALL_CMAKE_DIR})
+
+install(EXPORT MobisaneTargets
+        NAMESPACE Mobisane::
+        DESTINATION ${INSTALL_CMAKE_DIR})

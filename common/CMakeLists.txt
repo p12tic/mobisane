@@ -38,7 +38,11 @@ set(PUBLIC_HEADERS
 
 find_package(OpenCV REQUIRED)
 
-add_library(mobisanecommon OBJECT ${SOURCES})
+add_library(mobisanecommon ${SOURCES})
+
+target_include_directories(mobisanecommon PUBLIC
+    $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
 
 target_link_libraries(mobisanecommon PUBLIC
     ${OpenCV_LIBS}
