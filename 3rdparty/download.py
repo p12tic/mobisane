@@ -66,6 +66,7 @@ known_dependencies = [
     ('assimp', 'https://github.com/assimp/assimp', 'e477533a6d0953d0a2f93cfaaaa2304620cc0229'),
     ('glm', 'https://github.com/g-truc/glm', '48e1ff3feecb34159880f915801ffcb3b96ebbd0'),
     ('taskflow', 'https://github.com/p12tic/taskflow', '2da55683f9b7f90459b657ee8f3f29fb3ce7129f'),
+    ('moltenvk', 'https://github.com/KhronosGroup/MoltenVK', 'v1.1.11'),
     ('fmt', 'https://github.com/fmtlib/fmt', '9.1.0'),
     ('bzip2', 'https://gitlab.com/bzip2/bzip2', '2d8393924b9f3e014000c7420c7da7c3ddb74e2c'),
     ('leptonica', 'https://github.com/danbloomberg/leptonica', '1598abc30054bc3db70b2e8302bbcb5f95c20bb8'),
