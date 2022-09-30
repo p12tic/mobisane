@@ -480,6 +480,33 @@ def build_clp(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_alicevision(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        "-DALICEVISION_USE_CUDA=OFF",
+        "-DALICEVISION_BUILD_DOC=OFF",
+        "-DALICEVISION_BUILD_TESTS=OFF",
+        "-DALICEVISION_USE_OPENCV=ON",
+        "-DALICEVISION_USE_ALEMBIC=OFF",
+        "-DALICEVISION_BUILD_EXAMPLES=OFF",
+        "-DALICEVISION_USE_OPENCV=OFF",
+        "-DALICEVISION_USE_OPENGV=OFF",
+        "-DALICEVISION_USE_APRILTAG=OFF",
+        "-DALICEVISION_USE_UNCERTAINTYTE=OFF",
+        '-DALICEVISION_USE_MESHSDFILTER=OFF',
+        "-DALICEVISION_REQUIRE_CERES_WITH_SUITESPARSE=OFF",
+        "-DAV_EIGEN_MEMORY_ALIGNMENT=ON",
+        srcdir
+    ])
+    # Alicevision uses relatively large amounts of RAM per compilation unit
+    bsh(['ninja', f'-j{settings.parallel // 2}'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -504,6 +531,7 @@ known_dependencies = [
     ('coinutils', build_coinutils),
     ('osi', build_osi),
     ('clp', build_clp),
+    ('alicevision', build_alicevision),
 ]
 
 
