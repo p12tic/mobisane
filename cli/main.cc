@@ -16,10 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "common/bounds_detection_pipeline.h"
 #include "common/edge_utils.h"
-#include "common/mean_flood_fill.h"
-#include "common/flood_fill_utils.h"
-#include "common/bounds_detection_params.h"
 #include <sanescanocr/ocr/ocr_point.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -305,9 +303,6 @@ input_path and output_path options can be passed either as positional or named a
         if (image.empty()) {
             throw std::invalid_argument("Image has not been found");
         }
-        if (image.channels() != 3 || image.elemSize1() != 1) {
-            throw std::invalid_argument("Only 8-bit RGB images are supported");
-        }
 
         auto size_x = image.size.p[1];
         auto size_y = image.size.p[0];
@@ -322,124 +317,33 @@ input_path and output_path options can be passed either as positional or named a
                                           size_x, size_y));
         }
 
-        cv::Mat small_for_fill;
-        if (bounds_params.initial_point_image_shrink != 1) {
-            cv::resize(image, small_for_fill,
-                       cv::Size(size_x / bounds_params.initial_point_image_shrink,
-                                size_y / bounds_params.initial_point_image_shrink),
-                       1.0 / bounds_params.initial_point_image_shrink,
-                       1.0 / bounds_params.initial_point_image_shrink,
-                       cv::INTER_AREA);
-            for (auto& area : bounds_params.flood_params.start_areas) {
-                area.x1 /= bounds_params.initial_point_image_shrink;
-                area.x2 /= bounds_params.initial_point_image_shrink;
-                area.y1 /= bounds_params.initial_point_image_shrink;
-                area.y2 /= bounds_params.initial_point_image_shrink;
-            }
-            bounds_params.flood_params.search_size /= bounds_params.initial_point_image_shrink;
-            bounds_params.flood_params.nofill_border_size /= bounds_params.initial_point_image_shrink;
-            bounds_params.edge_simplify_pos_approx /= bounds_params.initial_point_image_shrink;
-        } else {
-            small_for_fill = image;
-        }
-
-        cv::Mat hsv_small_for_fill;
-        cv::cvtColor(small_for_fill, hsv_small_for_fill, cv::COLOR_BGR2HSV);
-
-        auto target_object_unfilled_mask = sanescan::mean_flood_fill(hsv_small_for_fill,
-                                                                     bounds_params.flood_params);
-
-        // Extract straight lines bounding the area of interest. We perform a combination of erosion
-        // and dilation as a simple way to straighten up the contour. These introduce additional
-        // defects around corners and in similar areas. Fortunately, we only care about lines
-        // without any image features nearby. Areas with features are better handled by point
-        // feature detectors.
-
-        cv::Mat target_object_mask;
-        sanescan::fill_flood_fill_internals(target_object_unfilled_mask, target_object_mask);
-        cv::erode(target_object_mask, target_object_mask,
-                   cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3)), cv::Point(-1, -1), 4);
-        cv::dilate(target_object_mask, target_object_mask,
-                   cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3)), cv::Point(-1, -1), 24);
-        cv::erode(target_object_mask, target_object_mask,
-                   cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3)), cv::Point(-1, -1), 20);
+        sanescan::BoundsDetectionPipeline bp;
+        bp.params = bounds_params;
+        bp.run(image);
 
         if (!debug_folder_path.empty()) {
             write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
-                                          small_for_fill, target_object_unfilled_mask);
+                                          bp.small_for_fill, bp.target_object_unfilled_mask);
             write_image_with_mask_overlay(debug_folder_path, "target_object.png",
-                                          small_for_fill, target_object_mask);
-        }
+                                          bp.small_for_fill, bp.target_object_mask);
 
-        // Get contours and optimize them to reduce the number of segments by accepting position
-        // error of several pixels.
-        std::vector<std::vector<cv::Point>> contours;
-        cv::findContours(target_object_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-        if (bounds_params.edge_simplify_pos_approx != 0) {
-            for (auto& contour : contours) {
-                cv::approxPolyDP(contour, contour, bounds_params.edge_simplify_pos_approx, true);
-            }
-        }
-
-        // Split contours into mostly straight lines. Short segments are removed as the next steps
-        // require at least approximate information about edge direction. Short segments will be
-        // mostly in areas of edge direction change which we don't care about anyway.
-        std::vector<std::vector<cv::Point>> edges;
-        for (auto& contour : contours) {
-            sanescan::split_contour_to_straight_edges(contour, edges,
-                                                      bounds_params.edge_min_length,
-                                                      bounds_params.edge_max_angle_diff_deg,
-                                                      bounds_params.edge_segment_min_length);
-        }
-
-        // Convert edges back to the space of the input image
-        for (auto& edge : edges) {
-            for (auto& point : edge) {
-                point.x *= bounds_params.initial_point_image_shrink;
-                point.y *= bounds_params.initial_point_image_shrink;
-            }
-        }
-
-        if (!debug_folder_path.empty()) {
             write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
-                                   image, edges);
-        }
-
-        // TODO: note that we need to process only the part of the image that contains edges.
-        // This can be done by splitting image into tiles that overlap by the amount size of
-        // Gaussian kernel, processing each tile independently and then joining them with a mask.
-        cv::Mat hsv;
-        cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
-
-        cv::Mat hsv_blurred;
-        cv::GaussianBlur(hsv, hsv_blurred, cv::Size{7, 7}, 0);
-
-        cv::Mat hsv_derivatives;
-        sanescan::compute_edge_directional_2nd_deriv(hsv_blurred, hsv_derivatives, edges,
-                                                     bounds_params.edge_precise_search_radius);
-
-        if (!debug_folder_path.empty()) {
+                                   image, bp.edges);
             cv::Mat colored_derivatives_h;
             cv::Mat colored_derivatives_s;
             cv::Mat colored_derivatives_v;
-            sanescan::edge_directional_deriv_to_color(hsv_derivatives, colored_derivatives_h, 0);
-            sanescan::edge_directional_deriv_to_color(hsv_derivatives, colored_derivatives_s, 1);
-            sanescan::edge_directional_deriv_to_color(hsv_derivatives, colored_derivatives_v, 2);
+            sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_h, 0);
+            sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_s, 1);
+            sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_v, 2);
             write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_h.png",
                               colored_derivatives_h);
             write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_s.png",
                               colored_derivatives_s);
             write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
                               colored_derivatives_v);
-        }
 
-        auto precise_edges = sanescan::compute_precise_edges(hsv_derivatives, edges,
-                                                             bounds_params.edge_precise_search_radius,
-                                                             20, 2, 2.5f, 0.5);
-
-        if (!debug_folder_path.empty()) {
             write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
-                                           image, precise_edges);
+                                           image, bp.precise_edges);
         }
 
         cv::imwrite(output_path, image);

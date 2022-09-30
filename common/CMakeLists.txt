@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set(SOURCES
+    bounds_detection_pipeline.cc
     edge_calculator_precise.cc
     longest_line_recognizer.cc
     mean_flood_fill.cc
@@ -26,6 +27,7 @@ set(SOURCES
 
 set(PUBLIC_HEADERS
     bounds_detection_params.h
+    bounds_detection_pipeline.h
     edge_calculator_precise.h
     edge_utils.h
     flood_fill_utils.h
