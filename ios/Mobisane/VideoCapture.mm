@@ -29,39 +29,45 @@
 
 - (instancetype) init
 {
-    NSError* error = nil;
-
     self = [super init];
     if (!self) {
         return self;
     }
 
+    _session = [[AVCaptureSession alloc] init];
     _sessionQueue = dispatch_queue_create("VideoCapture", DISPATCH_QUEUE_SERIAL);
 
-    _session = [[AVCaptureSession alloc] init];
-    _session.sessionPreset = AVCaptureSessionPreset1280x720;
+    dispatch_async(_sessionQueue, ^{
+        NSError* error = nil;
 
-    auto* device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
-    auto* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
-    if (!input) {
-        NSLog(@"Error creating video device: %@", error);
-        return self;
-    }
+        self.session.sessionPreset = AVCaptureSessionPreset1280x720;
 
-    [_session addInput:input];
-    [_session commitConfiguration];
+        auto* device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
+        auto* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
+        if (!input) {
+            NSLog(@"Error creating video device: %@", error);
+            return;
+        }
+
+        [self.session addInput:input];
+        [self.session commitConfiguration];
+    });
 
     return self;
 }
 
 - (void) start
 {
-    [self.session startRunning];
+    dispatch_async(_sessionQueue, ^{
+        [self.session startRunning];
+    });
 }
 
 - (void) stop
 {
-    [self.session stopRunning];
+    dispatch_async(_sessionQueue, ^{
+        [self.session stopRunning];
+    });
 }
 
 - (void) setCameraView:(CameraView*)view
