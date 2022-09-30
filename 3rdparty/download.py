@@ -40,6 +40,7 @@ known_dependencies = [
     ('zlib', 'https://github.com/madler/zlib', 'v1.2.12'),
     ('libpng', 'https://github.com/glennrp/libpng', 'v1.6.35'),
     ('eigen', 'https://gitlab.com/libeigen/eigen', '3.4.0'),
+    ('gmp', 'https://github.com/alisw/GMP', 'v6.2.1'),
 ]
 
 
