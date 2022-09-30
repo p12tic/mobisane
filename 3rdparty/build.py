@@ -514,7 +514,7 @@ def build_alicevision(srcdir, builddir, settings):
         ] + cmake_flags_from_settings(settings)
     )
     # Alicevision uses relatively large amounts of RAM per compilation unit
-    bsh(['ninja', f'-j{settings.parallel // 2}'])
+    bsh(['ninja', f'-j{settings.parallel // 4 + 1}'])
     bsh(['ninja', 'install'])
 
 
