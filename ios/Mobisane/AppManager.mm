@@ -23,8 +23,8 @@
 
 sanescan::SharedAppManager& get_app_manager()
 {
-    static tbb::task_arena task_arena;
-    static sanescan::SharedAppManager app_manager{task_arena};
+    static tf::Executor executor;
+    static sanescan::SharedAppManager app_manager(executor);
     return app_manager;
 }
 
