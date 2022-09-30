@@ -16,14 +16,14 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#import "CameraView.h"
-@import UIKit;
+@import AVFoundation;
 
-@interface VideoCapture : NSObject
+@interface ImageCaptureConsumer : NSObject<AVCapturePhotoCaptureDelegate>
 
-- (void) start;
-- (void) stop;
-- (void) setCameraView:(CameraView*) view;
-- (void) captureImage;
+- (instancetype) initWithId:(int)identifier
+      didFinishCapturePhoto:(void (^)(void))didFinishCapturePhoto;
+
+@property (nonatomic) int identifier;
 
 @end
+

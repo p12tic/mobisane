@@ -21,6 +21,8 @@
 		1C1CD09928DEB0E000C70EC8 /* CameraView.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09828DEB0E000C70EC8 /* CameraView.h */; };
 		1C1CD09B28DEB6C400C70EC8 /* VideoCapture.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09A28DEB6C400C70EC8 /* VideoCapture.mm */; };
 		1C1CD09D28DEB6D000C70EC8 /* VideoCapture.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09C28DEB6D000C70EC8 /* VideoCapture.h */; };
+		1C1CD09F28E077EB00C70EC8 /* ImageCaptureConsumer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09E28E077EB00C70EC8 /* ImageCaptureConsumer.mm */; };
+		1C1CD0A128E077FF00C70EC8 /* ImageCaptureConsumer.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0A028E077FF00C70EC8 /* ImageCaptureConsumer.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +64,8 @@
 		1C1CD09828DEB0E000C70EC8 /* CameraView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CameraView.h; sourceTree = "<group>"; };
 		1C1CD09A28DEB6C400C70EC8 /* VideoCapture.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = VideoCapture.mm; sourceTree = "<group>"; };
 		1C1CD09C28DEB6D000C70EC8 /* VideoCapture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VideoCapture.h; sourceTree = "<group>"; };
+		1C1CD09E28E077EB00C70EC8 /* ImageCaptureConsumer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ImageCaptureConsumer.mm; sourceTree = "<group>"; };
+		1C1CD0A028E077FF00C70EC8 /* ImageCaptureConsumer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ImageCaptureConsumer.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,6 +131,8 @@
 				1C1CD09828DEB0E000C70EC8 /* CameraView.h */,
 				1C1CD09A28DEB6C400C70EC8 /* VideoCapture.mm */,
 				1C1CD09C28DEB6D000C70EC8 /* VideoCapture.h */,
+				1C1CD09E28E077EB00C70EC8 /* ImageCaptureConsumer.mm */,
+				1C1CD0A028E077FF00C70EC8 /* ImageCaptureConsumer.h */,
 			);
 			path = Mobisane;
 			sourceTree = "<group>";
@@ -278,9 +284,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1C1CD09F28E077EB00C70EC8 /* ImageCaptureConsumer.mm in Sources */,
 				1C1CD06928DC1F0100C70EC8 /* ViewController.mm in Sources */,
 				1C1CD06328DC1F0100C70EC8 /* AppDelegate.mm in Sources */,
 				1C1CD09728DEB0A100C70EC8 /* CameraView.mm in Sources */,
+				1C1CD0A128E077FF00C70EC8 /* ImageCaptureConsumer.h in Sources */,
 				1C1CD07428DC1F0100C70EC8 /* main.mm in Sources */,
 				1C1CD09D28DEB6D000C70EC8 /* VideoCapture.h in Sources */,
 				1C1CD09B28DEB6C400C70EC8 /* VideoCapture.mm in Sources */,

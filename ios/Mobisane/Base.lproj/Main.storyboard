@@ -19,10 +19,30 @@
                         <subviews>
                             <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="o47-wz-J8n" userLabel="CameraView" customClass="CameraView">
                                 <rect key="frame" x="0.0" y="0.0" width="414" height="896"/>
+                                <subviews>
+                                    <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="Qwu-V1-IiZ">
+                                        <rect key="frame" x="174.5" y="789" width="65" height="65"/>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="65" id="GPu-Hv-xg1"/>
+                                            <constraint firstAttribute="height" constant="65" id="Ul3-d9-GK9"/>
+                                        </constraints>
+                                        <state key="normal" title="Button"/>
+                                        <buttonConfiguration key="configuration" style="plain" title="">
+                                            <backgroundConfiguration key="background" image="record.circle" catalog="system"/>
+                                        </buttonConfiguration>
+                                        <connections>
+                                            <action selector="captureImage:" destination="BYZ-38-t0r" eventType="primaryActionTriggered" id="Iqr-ND-M3e"/>
+                                        </connections>
+                                    </button>
+                                </subviews>
                                 <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                                <constraints>
+                                    <constraint firstItem="Qwu-V1-IiZ" firstAttribute="bottom" secondItem="o47-wz-J8n" secondAttribute="bottomMargin" id="Dos-w8-VBF"/>
+                                    <constraint firstItem="Qwu-V1-IiZ" firstAttribute="centerX" secondItem="o47-wz-J8n" secondAttribute="centerX" id="uJh-cM-EGf"/>
+                                </constraints>
                             </view>
                         </subviews>
-                        <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
+                        <viewLayoutGuide key="safeArea" id="25P-TK-DaQ"/>
                         <color key="backgroundColor" systemColor="systemBackgroundColor"/>
                         <constraints>
                             <constraint firstItem="o47-wz-J8n" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="8eF-3a-G0p"/>
@@ -41,6 +61,7 @@
         </scene>
     </scenes>
     <resources>
+        <image name="record.circle" catalog="system" width="128" height="121"/>
         <systemColor name="systemBackgroundColor">
             <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
         </systemColor>

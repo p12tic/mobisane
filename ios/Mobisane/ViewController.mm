@@ -20,7 +20,7 @@
 #import "VideoCapture.h"
 
 @interface ViewController ()
-@property (nonatomic, strong) VideoCapture* capture;
+@property(nonatomic, strong) VideoCapture* capture;
 @end
 
 AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientation)
@@ -65,6 +65,11 @@ AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientati
         self.cameraView.previewLayer.connection.videoOrientation =
             deviceOrientationToVideo(deviceOrientation);
     }
+}
+
+- (IBAction) captureImage:(id)sender
+{
+    [_capture captureImage];
 }
 
 @end
