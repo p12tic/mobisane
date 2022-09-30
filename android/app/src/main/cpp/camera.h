@@ -16,6 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include "anativewindow_ref.h"
 #include <opencv2/core/mat.hpp>
 #include <camera/NdkCameraDevice.h>
