@@ -36,6 +36,7 @@
 #include "parallel_alicevision.h"
 #include "sfm_refpoints.h"
 #include "time_logger.h"
+#include "vulkan_render_unfolded.h"
 #include <common/edgegraph3d/io/input/convert_edge_images_pixel_to_segment.hpp>
 #include <common/edgegraph3d/plg_edge_manager.hpp>
 #include <common/edgegraph3d/filtering/outliers_filtering.hpp>
@@ -210,6 +211,9 @@ struct SharedAppManager::Data
 
     // Results from unfold_object_mesh()
     aliceVision::sfmData::Landmarks sfm_landmarks_unfolded;
+
+    // Results from render_object_mesh()
+    cv::Mat unfolded_image;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -432,10 +436,10 @@ void SharedAppManager::perform_detection()
 
 void SharedAppManager::wait_for_tasks()
 {
-    d_->executor.loop_until([&](){
+    // HACK: waiting for taskflow deadlocks
+    while (d_->running_taskflows_any) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        return d_->running_taskflows_any == 0;
-    });
+    }
 }
 
 void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image)
@@ -516,6 +520,11 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
     taskflow.emplace([&]()
     {
+        write_debug_image(debug_folder_path, "unfolded.png", d_->unfolded_image);
+    });
+
+    taskflow.emplace([&]()
+    {
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points.ply",
                    d_->sfm_landmarks_exact, {});
 
@@ -530,6 +539,9 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         write_mesh_debug_2d_image(debug_folder_path, "sfm_mesh_horiz_2d.png",
                                   d_->sfm_landmarks_filtered_horiz, d_->mesh_triangles_filtered);
+
+        write_mesh_debug_2d_image(debug_folder_path, "sfm_mesh_unfolded_hz.png",
+                                  d_->sfm_landmarks_unfolded, d_->mesh_triangles_filtered);
 
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_unfolded_hz.ply",
                    d_->sfm_landmarks_unfolded, {});
@@ -607,6 +619,7 @@ void SharedAppManager::serial_detect()
     compute_object_bounds();
     compute_object_mesh();
     unfold_object_mesh();
+    render_object_mesh();
 }
 
 void SharedAppManager::match_images()
@@ -726,7 +739,7 @@ void SharedAppManager::compute_edge_structure_from_motion()
 
     auto min_size = std::min(d_->submitted_data.front()->image.size().width,
                              d_->submitted_data.front()->image.size().height);
-    float starting_detection_dist = 0.02 * min_size;
+    float starting_detection_dist = 0.04 * min_size;
 
     std::vector<edgegraph3d::PolyLine2DMapSearch> pl_maps;
     for (std::size_t i = 0; i < graphs.size(); ++i) {
@@ -972,6 +985,21 @@ void SharedAppManager::unfold_object_mesh()
         landmark_copy.X.z() = 0;
         d_->sfm_landmarks_unfolded.emplace(id, landmark_copy);
     }
+}
+
+void SharedAppManager::render_object_mesh()
+{
+    TimeLogger time_logger{"render_object_mesh()"};
+
+    std::vector<cv::Mat> images;
+    for (const auto& image_data : d_->submitted_data) {
+        images.push_back(image_data->image);
+    }
+    auto info = build_unfolded_info_for_rendering(d_->get_view_ids(), images, 3072,
+                                                  d_->sfm_data, d_->sfm_landmarks_exact,
+                                                  d_->sfm_landmarks_unfolded,
+                                                  d_->mesh_triangles_filtered);
+    d_->unfolded_image = render_unfolded_images(info);
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,

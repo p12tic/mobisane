@@ -267,7 +267,7 @@ input_path and output_path options can be passed either as positional or named a
                                                                        "image_common"));
             });
 
-            executor.run_and_wait(taskflow);
+            executor.run(taskflow).wait();
         }
     } catch (const std::exception& e) {
         std::cerr << "Failed to do OCR: " << e.what() << "\n";

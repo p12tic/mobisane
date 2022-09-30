@@ -33,6 +33,7 @@ set(SOURCES
     segment_calculator_precise.cc
     sfm_refpoints.cc
     shared_app_manager.cc
+    vulkan_render_unfolded.cc
 
     bff/Bff.cpp
     bff/Corner.cpp
@@ -73,6 +74,11 @@ set(SOURCES
     edgegraph3d/filtering/filtering_close_plgps.cpp
     edgegraph3d/plg_edge_manager.cpp
     edgegraph3d/io/input/convert_edge_images_pixel_to_segment.cpp
+
+    vkutils/VulkanAndroid.cpp
+    vkutils/VulkanBuffer.cpp
+    vkutils/VulkanDebug.cpp
+    vkutils/VulkanDevice.cpp
 )
 
 set(PUBLIC_HEADERS
@@ -93,6 +99,7 @@ set(PUBLIC_HEADERS
     segment_calculator_precise.h
     sfm_refpoints.h
     shared_app_manager.h
+    vulkan_render_unfolded.h
 
     bff/Bff.h
     bff/Cholesky.h
@@ -149,6 +156,12 @@ set(PUBLIC_HEADERS
     edgegraph3d/utils/geometric_utilities.hpp
     edgegraph3d/utils/triangulation.hpp
     edgegraph3d/utils/globals/global_defines.hpp
+
+    vkutils/VulkanAndroid.h
+    vkutils/VulkanBuffer.h
+    vkutils/VulkanDebug.h
+    vkutils/VulkanDevice.h
+    vkutils/VulkanInitializers.h
 )
 
 find_package(OpenCV REQUIRED)
@@ -164,6 +177,10 @@ add_library(mobisanecommon ${SOURCES})
 # Disable openmp support
 target_compile_definitions(mobisanecommon PRIVATE -DEIGEN_DONT_PARALLELIZE=1)
 
+if(MOBISANE_ENABLE_VULKAN_VALIDATION)
+    target_compile_definitions(mobisanecommon PRIVATE -DMOBISANE_ENABLE_VULKAN_VALIDATION=1)
+endif()
+
 target_include_directories(mobisanecommon PUBLIC
     $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
@@ -176,6 +193,7 @@ target_link_libraries(mobisanecommon PUBLIC
     aliceVision_matchingImageCollection
     aliceVision_sfm
     aliceVision_vfs
+    vulkan
 )
 target_link_directories(mobisanecommon PUBLIC ${CMAKE_PREFIX_PATH}/lib)
 

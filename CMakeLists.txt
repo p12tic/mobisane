@@ -25,6 +25,7 @@ project(Mobisane VERSION ${MOBISANE_VERSION})
 
 option(MOBISANE_BUILD_CLI "Enable building of cli tool" ON)
 option(MOBISANE_BUILD_TESTS "Enable building of tests" ON)
+option(MOBISANE_ENABLE_VULKAN_VALIDATION "Enable Vulkan validation layers" ON)
 
 include(GNUInstallDirs)
 
