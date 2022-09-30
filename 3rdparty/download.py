@@ -63,6 +63,7 @@ known_dependencies = [
     ('alicevision', 'https://github.com/p12tic/aliceVision', '789fecbe4132d9e85d712230be78784f24e134e5'),
     ('assimp', 'https://github.com/assimp/assimp', 'e477533a6d0953d0a2f93cfaaaa2304620cc0229'),
     ('fmt', 'https://github.com/fmtlib/fmt', '9.1.0'),
+    ('bzip2', 'https://gitlab.com/bzip2/bzip2', '2d8393924b9f3e014000c7420c7da7c3ddb74e2c'),
 ]
 
 
