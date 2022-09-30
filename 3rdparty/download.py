@@ -49,6 +49,7 @@ known_dependencies = [
     ('imath', 'https://github.com/AcademySoftwareFoundation/Imath.git', 'v3.1.5'),
     ('openexr', 'https://github.com/AcademySoftwareFoundation/openexr', 'v3.1.2'),
     ('libtiff', 'https://gitlab.com/libtiff/libtiff', 'd66540a28f024adc7833275a164a77c9f8a12b9c'),
+    ('openimageio', 'https://github.com/OpenImageIO/oiio', 'd66540a28f024adc7833275a164a77c9f8a12b9c'),
 ]
 
 
