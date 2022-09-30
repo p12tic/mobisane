@@ -30,6 +30,7 @@
 #include <edgegraph3d/utils/edge_graph_3d_utilities.hpp>
 #include <edgegraph3d/utils/globals/global_defines.hpp>
 #include <edgegraph3d/plgs/polyline_graph_point_2d.hpp>
+#include <edgegraph3d/plgs/polyline_graph_2d.hpp>
 
 namespace sanescan::edgegraph3d {
 
@@ -92,7 +93,7 @@ public:
 	void remove_polyline(ulong polyline_id);
     bool has_loop(ulong node_id) const;
     void set_observations(ulong node_id, const std::vector<PolyLineGraph3DObservation>& obs);
-    void set_observations(ulong node_id, const std::vector<PolylineGraphPoint2DObservation>& obs);
+    void set_observations(ulong node_id, const PolylineGraphPoint2DObservationVector& obs);
 
 	/* Hub, either:
 	 * - >= 3 connected polylines

@@ -37,12 +37,12 @@ namespace sanescan::edgegraph3d {
 
 void compute_3d_point_coords(
         const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2DObservation> &selected_2d_reprojections,
+        const PolylineGraphPoint2DObservationVector &selected_2d_reprojections,
         Vec3f &new_point_data,
         bool &valid);
 
 void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2DObservation> &all_2d_reprojections,
+        const PolylineGraphPoint2DObservationVector &all_2d_reprojections,
 		int min_combinations,
         std::vector<bool> &selected,
 		Vec3f &new_point_data,
@@ -55,7 +55,7 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 
 void em_estimate3Dpositions(
         const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+        const PolylineGraphPoint2DObservationVector& selected_2d_reprojections,
         Vec3f &triangulated_point, bool &valid);
 
 bool compatible_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
@@ -78,13 +78,13 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 void em_add_new_observation_to_3Dpositions(
         const SfMDataWrapper &sfmd,
         const Vec3f &current_point_coords,
-        const std::vector<PolylineGraphPoint2DObservation> &current_point_observations,
+        const PolylineGraphPoint2DObservationVector &current_point_observations,
         const PolylineGraphPoint2DObservation& new_observation,
         Vec3f &triangulated_point,
         bool &valid);
 
 void compute_3d_point(const SfMDataWrapper &sfmd,
-                      const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+                      const PolylineGraphPoint2DObservationVector& selected_2d_reprojections,
                       ReprejectedPoint3dData &new_point_data,
                       bool &valid);
 

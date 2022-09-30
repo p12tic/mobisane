@@ -110,7 +110,7 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<int> &selected_2d_
 	}
 
 	bool valid;
-    std::vector<PolylineGraphPoint2DObservation> selected_2d_reprojections;
+    PolylineGraphPoint2DObservationVector selected_2d_reprojections;
     selected_2d_reprojections.push_back({{0, next_plp_a}, selected_2d_reprojections_ids[0]});
     selected_2d_reprojections.push_back({{0, next_plp_b}, selected_2d_reprojections_ids[1]});
     selected_2d_reprojections.push_back({{0, next_plp_c}, selected_2d_reprojections_ids[2]});
@@ -433,12 +433,12 @@ void find_directions_3view_firstlast(const SfMDataWrapper &sfmd,
 
 		valid_points_direction1.clear();
 		for(auto &vpt : valid_points_direction1_t) {
-            std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+            PolylineGraphPoint2DObservationVector selected_plgps;
             selected_plgps.push_back({vpt.first.a, vpt.second.reprojection_ids[0]});
             selected_plgps.push_back({vpt.first.b, vpt.second.reprojection_ids[1]});
             selected_plgps.push_back({vpt.first.c, vpt.second.reprojection_ids[2]});
 
-            valid_points_direction1.push_back({vpt.second.pos, selected_plgps});
+            valid_points_direction1.push_back({vpt.second.pos, std::move(selected_plgps)});
 		}
 
         direction2 = std::vector<ulong>(plgs.size());
@@ -448,12 +448,12 @@ void find_directions_3view_firstlast(const SfMDataWrapper &sfmd,
 		if(direction2_valid) {
 			valid_points_direction2.clear();
 			for(auto &vpt : valid_points_direction2_t) {
-                std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+                PolylineGraphPoint2DObservationVector selected_plgps;
                 selected_plgps.push_back({vpt.first.a, vpt.second.reprojection_ids[0]});
                 selected_plgps.push_back({vpt.first.b, vpt.second.reprojection_ids[1]});
                 selected_plgps.push_back({vpt.first.c, vpt.second.reprojection_ids[2]});
 
-                valid_points_direction2.push_back({vpt.second.pos, selected_plgps});
+                valid_points_direction2.push_back({vpt.second.pos, std::move(selected_plgps)});
             }
 		}
 	}
@@ -586,7 +586,7 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
     {
 		// cout << "Checking next point compatibility\n";
         int starting_plg_id = current_plgp.reprojected[starting_plg_index].id;
-        std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+        PolylineGraphPoint2DObservationVector selected_plgps;
 
 		// Get next plgp on starting plg (by distance)
 		bool reached_polyline_extreme;
@@ -665,18 +665,18 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
 				valid);
 
             if(valid) {
-                std::vector<PolylineGraphPoint2DObservation> actually_selected_plgps;
+                PolylineGraphPoint2DObservationVector actually_selected_plgps;
                 for(int i= 0; i < selected_plgps.size(); i++) {
 					if(selected[i]) {
 						actually_selected_plgps.push_back(selected_plgps[i]);
                     }
                 }
-				selected_plgps = actually_selected_plgps;
+                std::swap(selected_plgps, actually_selected_plgps);
 			}
 		}
 
 		if(valid) {
-            new_point_data = {new_3d_coords, selected_plgps};
+            new_point_data = {new_3d_coords, std::move(selected_plgps)};
 
 			return true;
 		}
@@ -1229,12 +1229,12 @@ std::pair<std::vector<Pglp3dPointMatches>,
             const DirectionPlgps2DSet &p_plgps = p.first;
             const ReprejectedPoint3dData &p3d = p.second;
 
-            std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+            PolylineGraphPoint2DObservationVector selected_plgps;
             selected_plgps.push_back({p_plgps.a, p3d.reprojection_ids[0]});
             selected_plgps.push_back({p_plgps.b, p3d.reprojection_ids[1]});
             selected_plgps.push_back({p_plgps.c, p3d.reprojection_ids[2]});
 
-            points_dir1.push_back({p3d.pos, selected_plgps});
+            points_dir1.push_back({p3d.pos, std::move(selected_plgps)});
 		}
 
 	    std::vector<ulong> directions1(plgs.size());
@@ -1251,12 +1251,12 @@ std::pair<std::vector<Pglp3dPointMatches>,
             const DirectionPlgps2DSet &p_plgps = p.first;
             const ReprejectedPoint3dData &p3d = p.second;
 
-            std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+            PolylineGraphPoint2DObservationVector selected_plgps;
             selected_plgps.push_back({p_plgps.a, p3d.reprojection_ids[0]});
             selected_plgps.push_back({p_plgps.b, p3d.reprojection_ids[1]});
             selected_plgps.push_back({p_plgps.c, p3d.reprojection_ids[2]});
 
-            points_dir2.push_back({p3d.pos, selected_plgps});
+            points_dir2.push_back({p3d.pos, std::move(selected_plgps)});
 		}
 
 	    std::vector<ulong> directions2(plgs.size());

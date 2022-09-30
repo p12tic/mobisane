@@ -176,7 +176,7 @@ int em_GaussNewton(const std::vector<Mat4f> &cameras, const std::vector<Vec2f> &
 
 void em_estimate3Dpositions(
         const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+        const PolylineGraphPoint2DObservationVector& selected_2d_reprojections,
         Vec3f &triangulated_point, bool &valid)
 {
     auto [min_ind, max_ind] = minmax_element_i_by_value(selected_2d_reprojections.begin(),
@@ -382,7 +382,7 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 void em_add_new_observation_to_3Dpositions(
         const SfMDataWrapper &sfmd,
         const Vec3f &current_point_coords,
-        const std::vector<PolylineGraphPoint2DObservation> &current_point_observations,
+        const PolylineGraphPoint2DObservationVector &current_point_observations,
         const PolylineGraphPoint2DObservation& new_observation,
         Vec3f &triangulated_point, bool &valid)
 {
@@ -431,7 +431,7 @@ void em_add_new_observation_to_3Dpositions(
 
 void compute_3d_point_coords(
         const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2DObservation> &selected_2d_reprojections,
+        const PolylineGraphPoint2DObservationVector &selected_2d_reprojections,
         Vec3f &new_point_data,
 		bool &valid) {
 	valid = false;
@@ -460,7 +460,7 @@ void compute_unique_potential_3d_points_3views_plg_following_newpoint_compatibil
 
     bool tvalid;
 
-    std::vector<PolylineGraphPoint2DObservation> new_plgps;
+    PolylineGraphPoint2DObservationVector new_plgps;
 
     for(const auto &plgp0 : all_2d_reprojections_3views.a)
         for(const auto &plgp1 : all_2d_reprojections_3views.b)
@@ -476,7 +476,7 @@ void compute_unique_potential_3d_points_3views_plg_following_newpoint_compatibil
 				if(tvalid) {
 					// Try following PLG from the new point
 
-                    potential_new_point = {triangulated_point, new_plgps};
+                    potential_new_point = {triangulated_point, std::move(new_plgps)};
 
                     if(compatible_new_plg_point(sfmd, all_fundamental_matrices, plgs,
                                                 potential_new_point,
@@ -517,7 +517,7 @@ void compute_findfirst_potential_3d_points_3views_plg_following_newpoint_compati
 
     bool tvalid;
 
-    std::vector<PolylineGraphPoint2DObservation> new_plgps;
+    PolylineGraphPoint2DObservationVector new_plgps;
 
     for(const auto &plgp0 : all_2d_reprojections_3views.a)
         for(const auto &plgp1 : all_2d_reprojections_3views.b)
@@ -531,7 +531,7 @@ void compute_findfirst_potential_3d_points_3views_plg_following_newpoint_compati
                 em_estimate3Dpositions(sfmd, new_plgps, triangulated_point, tvalid);
 
 				if(tvalid) {
-                    potential_new_point = {triangulated_point, new_plgps};
+                    potential_new_point = {triangulated_point, std::move(new_plgps)};
 
                     if(compatible_new_plg_point(sfmd, all_fundamental_matrices, plgs,
                                                 potential_new_point, directions1, direction1_valid,
@@ -911,7 +911,7 @@ std::vector<Pglp3dPointMatches>
 }
 
 void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2DObservation> &all_2d_reprojections,
+        const PolylineGraphPoint2DObservationVector &all_2d_reprojections,
 		int min_combinations,
 	    std::vector<bool> &selected,
         Vec3f &new_point_data,
@@ -921,7 +921,7 @@ void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
     selected.resize(all_2d_reprojections.size());
 	std::fill(selected.begin() + min_combinations, selected.end(), false);
     std::fill(selected.begin(), selected.begin() + min_combinations, true);
-    std::vector<PolylineGraphPoint2DObservation> selected_2d_reprojections;
+    PolylineGraphPoint2DObservationVector selected_2d_reprojections;
     selected_2d_reprojections.reserve(all_2d_reprojections.size());
 
     do {
@@ -959,7 +959,7 @@ void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
 }
 
 void compute_3d_point(const SfMDataWrapper &sfmd,
-                      const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+                      const PolylineGraphPoint2DObservationVector& selected_2d_reprojections,
                       ReprejectedPoint3dData &new_point_data, bool &valid)
 {
 	valid = false;

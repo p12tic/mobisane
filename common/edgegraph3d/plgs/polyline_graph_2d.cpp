@@ -1417,7 +1417,7 @@ std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2
 	return coords;
 }
 
-std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2DObservation> &plgps)
+std::vector<Vec2f> convert_vecplgp_to_vec2(const PolylineGraphPoint2DObservationVector &plgps)
 {
     std::vector<Vec2f> coords;
     for(const auto &plgp : plgps)

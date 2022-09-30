@@ -166,7 +166,7 @@ void PolyLineGraph3D::set_observations(ulong node_id,
 }
 
 void PolyLineGraph3D::set_observations(ulong node_id,
-                                       const std::vector<PolylineGraphPoint2DObservation>& obs)
+                                       const PolylineGraphPoint2DObservationVector& obs)
 {
     auto& cur_obs = observations[node_id];
     cur_obs.clear();

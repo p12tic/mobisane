@@ -36,6 +36,8 @@
 #include <edgegraph3d/utils/edge_graph_3d_utilities.hpp>
 #include <edgegraph3d/utils/globals/global_defines.hpp>
 
+#include <boost/container/small_vector.hpp>
+
 namespace sanescan::edgegraph3d {
 
 struct ray2d;
@@ -240,9 +242,12 @@ private:
 
 };
 
+using PolylineGraphPoint2DObservationVector =
+    boost::container::small_vector<PolylineGraphPoint2DObservation, 8>;
+
 struct Pglp3dPointMatches {
     Vec3f pos;
-    std::vector<PolylineGraphPoint2DObservation> reprojected;
+    PolylineGraphPoint2DObservationVector reprojected;
 };
 
 struct DirectionPlgps2DSet {
@@ -302,7 +307,7 @@ bool one_or_zero_correspondences(const std::pair<PolylineGraphPoint2D,std::vecto
 int amount_of_total_2d_correspondences(const std::pair<PolylineGraphPoint2D,std::vector<std::vector<PolylineGraphPoint2D>>> &p);
 
 std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2D> &plgps);
-std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2DObservation> &plgps);
+std::vector<Vec2f> convert_vecplgp_to_vec2(const PolylineGraphPoint2DObservationVector &plgps);
 
 std::pair<std::vector<Vec2f>, std::vector<int>>
     convert_plgpoint_correspondences(const std::vector<int> &cams,
