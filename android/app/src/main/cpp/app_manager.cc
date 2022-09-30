@@ -107,6 +107,13 @@ void AppManager::on_preview_captured(const cv::Mat& image, const std::function<v
 
     ANativeWindow_unlockAndPost(preview_win_.get());
 
+    if (shared_manager_.get_status() == SharedAppManager::SceneAnalysis) {
+        // set zeroes for the next time
+        cached_preview_dst_mat_.setTo(cv::Scalar(0, 0, 0, 0));
+        cb();
+        return;
+    }
+
     cached_preview_dst_mat_.create(image.size(), CV_8UC4);
     shared_manager_.schedule_calculate_bounds_overlay(image, cached_preview_dst_mat_, cb);
 }
