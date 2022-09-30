@@ -32,8 +32,4 @@ edgegraph3d::SfMDataWrapper
 edgegraph3d::PolyLineGraph2DHMapImpl
     build_polyline_graph_for_boundaries(const std::vector<std::vector<cv::Point>>& edges);
 
-aliceVision::Mat3 get_fundamental_for_views(const aliceVision::sfmData::SfMData& sfm_data,
-                                            aliceVision::IndexT view_a_id,
-                                            aliceVision::IndexT view_b_id);
-
 } // namespace sanescan

@@ -19,6 +19,7 @@
 #pragma once
 
 #include "matrix_types.h"
+#include "vector2d.h"
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <opencv2/imgproc.hpp>
 #include <vector>
@@ -46,5 +47,12 @@ public:
 };
 
 std::pair<Vec3, Vec3> minmax_landmark_coords(const aliceVision::sfmData::Landmarks& landmarks);
+
+Mat3 get_fundamental_for_views(const aliceVision::sfmData::SfMData& sfm_data,
+                               aliceVision::IndexT view_a_id,
+                               aliceVision::IndexT view_b_id);
+
+ Vector2D<Mat3f> get_fundamental_for_all_views(const aliceVision::sfmData::SfMData& sfm_data,
+                                               const std::vector<aliceVision::IndexT>& view_ids);
 
 } // namespace sanescan

@@ -72,4 +72,43 @@ std::pair<Vec3, Vec3> minmax_landmark_coords(const aliceVision::sfmData::Landmar
     return {min, max};
 }
 
+Mat3 get_fundamental_for_views(const aliceVision::sfmData::SfMData& sfm_data,
+                               aliceVision::IndexT view_a_id,
+                               aliceVision::IndexT view_b_id)
+{
+    const auto& view_a = sfm_data.getView(view_a_id);
+    const auto& view_b = sfm_data.getView(view_b_id);
+    const auto& transform_a = sfm_data.getPose(view_a).getTransform();
+    const auto& transform_b = sfm_data.getPose(view_b).getTransform();
+    auto intrinsic_a_base = sfm_data.getIntrinsicsharedPtr(view_a.getIntrinsicId());
+    auto intrinsic_b_base = sfm_data.getIntrinsicsharedPtr(view_b.getIntrinsicId());
+    auto intrinsic_a = std::dynamic_pointer_cast<aliceVision::camera::Pinhole>(intrinsic_a_base);
+    auto intrinsic_b = std::dynamic_pointer_cast<aliceVision::camera::Pinhole>(intrinsic_b_base);
+    if (!intrinsic_a || !intrinsic_b) {
+        throw std::runtime_error("Unsupported camera intrinsic type for fundamental matrix calc");
+    }
+
+    auto P_a = intrinsic_a->getProjectiveEquivalent(transform_a);
+    auto P_b = intrinsic_b->getProjectiveEquivalent(transform_b);
+
+    return aliceVision::F_from_P(P_a, P_b);
+}
+
+Vector2D<Mat3f> get_fundamental_for_all_views(const aliceVision::sfmData::SfMData& sfm_data,
+                                              const std::vector<aliceVision::IndexT>& view_ids)
+{
+    Vector2D<Mat3f> matrices(view_ids.size(), view_ids.size(), {});
+    for (int i = 0; i < view_ids.size(); i++) {
+        for (int j = 0; j < view_ids.size(); j++) {
+            if (i == j) {
+                matrices(i, j).fill(0);
+            } else {
+                auto fmat = get_fundamental_for_views(sfm_data, view_ids[i], view_ids[j]);
+                matrices(i, j) = fmat.cast<float>();
+            }
+        }
+    }
+    return matrices;
+}
+
 } // namespace sanescan

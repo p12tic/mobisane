@@ -256,6 +256,15 @@ struct SharedAppManager::Data
         return get_path_to_current_session() / "sfm";
     }
 
+    std::vector<aliceVision::IndexT> get_view_ids()
+    {
+        std::vector<aliceVision::IndexT> res;
+        for (const auto& image_data : submitted_data) {
+            res.push_back(image_data->view_id);
+        }
+        return res;
+    }
+
     Vec3 orig_to_working_plane(const Vec3& point)
     {
         return orig_plane_rotation_matrix * (point - orig_plane_centroid);
@@ -884,20 +893,7 @@ void SharedAppManager::compute_edge_structure_from_motion()
     edgegraph3d::PolyLineGraph3DHMapImpl plg3d;
     edgegraph3d::PLGMatchesManager plgmm(graphs, plg3d);
 
-    Vector2D<Mat3f> fundamental_matrices(d_->sfm_data.getViews().size(),
-                                         d_->sfm_data.getViews().size(), {});
-    for (int i = 0; i < d_->submitted_data.size(); i++) {
-        for (int j = 0; j < d_->submitted_data.size(); j++) {
-            if (i == j) {
-                fundamental_matrices(i, j).fill(0);
-            } else {
-                auto fmat = get_fundamental_for_views(d_->sfm_data,
-                                                      d_->submitted_data[i]->view_id,
-                                                      d_->submitted_data[j]->view_id);
-                fundamental_matrices(i, j) = fmat.cast<float>();
-            }
-        }
-    }
+    auto fundamental_matrices = get_fundamental_for_all_views(d_->sfm_data, d_->get_view_ids());
 
     if ((d_->options & COLLECT_DEBUG_INFO) != 0) {
         for (const auto& image_data : d_->submitted_data) {
