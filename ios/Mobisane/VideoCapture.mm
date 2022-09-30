@@ -19,13 +19,16 @@
 #import "VideoCapture.h"
 @import AVFoundation;
 #import "ImageCaptureConsumer.h"
+#import "PreviewCaptureConsumer.h"
 #include <unordered_map>
 
 @interface VideoCapture ()
 @property (nonatomic) dispatch_queue_t sessionQueue;
 @property (nonatomic, strong) AVCaptureSession* session;
 @property (nonatomic, strong) AVCapturePhotoOutput* photoOutput;
+@property (nonatomic, strong) AVCaptureVideoDataOutput* videoOutput;
 @property (nonatomic, weak) CameraView* displayView;
+@property (nonatomic, strong) PreviewCaptureConsumer* previewConsumer;
 @end
 
 @implementation VideoCapture
@@ -51,6 +54,7 @@
         [self.session beginConfiguration];
 
         self.session.sessionPreset = AVCaptureSessionPresetPhoto;
+        self.previewConsumer = [[PreviewCaptureConsumer alloc] init];
 
         auto* device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
         auto* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
@@ -73,6 +77,19 @@
         self.photoOutput.depthDataDeliveryEnabled = NO;
         self.photoOutput.portraitEffectsMatteDeliveryEnabled = NO;
         self.photoOutput.maxPhotoQualityPrioritization = AVCapturePhotoQualityPrioritizationQuality;
+
+        self.videoOutput = [[AVCaptureVideoDataOutput alloc] init];
+        self.videoOutput.videoSettings = @{
+            (NSString*)kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32BGRA)
+        };
+        self.videoOutput.alwaysDiscardsLateVideoFrames = YES;
+        if (!self.videoOutput || ![self.session canAddOutput:self.videoOutput]) {
+            NSLog(@"Error creating video output");
+            [self.session commitConfiguration];
+            return;
+        };
+        [self.session addOutput:self.videoOutput];
+        [self.videoOutput setSampleBufferDelegate:self.previewConsumer queue:self.sessionQueue];
 
         [self.session commitConfiguration];
     });
