@@ -94,6 +94,7 @@ def cmake_flags_from_settings(settings):
     is_shared = 'ON' if settings.libtype == LibType.SHARED else 'OFF'
 
     flags = [
+        '-DCMAKE_BUILD_TYPE=RelWithDebInfo',
         f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
         f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         f'-DBUILD_SHARED_LIBS={is_shared}',
