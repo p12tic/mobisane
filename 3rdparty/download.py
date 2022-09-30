@@ -46,6 +46,7 @@ known_dependencies = [
     ('openblas', 'https://github.com/xianyi/OpenBLAS', 'v0.3.21'),
     ('ceres', 'https://github.com/ceres-solver/ceres-solver', '31008453fe979f947e594df15a7e254d6631881b'),
     ('libjpeg-turbo', 'https://github.com/libjpeg-turbo/libjpeg-turbo', '2.1.1'),
+    ('pugixml', 'https://github.com/zeux/pugixml', 'v1.12.1'),
     ('boost', 'https://github.com/boostorg/boost', 'boost-1.76.0'),
     ('imath', 'https://github.com/AcademySoftwareFoundation/Imath.git', 'v3.1.5'),
     ('openexr', 'https://github.com/AcademySoftwareFoundation/openexr', 'v3.1.2'),

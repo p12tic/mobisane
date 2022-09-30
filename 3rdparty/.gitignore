@@ -13,6 +13,7 @@ mpfr
 openblas
 ceres
 libjpeg-turbo
+pugixml
 boost
 imath
 openexr
