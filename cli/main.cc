@@ -51,6 +51,7 @@ struct Options {
     static constexpr const char* EDGE_MIN_LENGTH = "edge-min-length";
     static constexpr const char* EDGE_MAX_ANGLE_DIFF = "edge-max-angle-diff";
     static constexpr const char* EDGE_SEGMENT_MIN_LENGTH = "edge-segment-min-length";
+    static constexpr const char* EDGE_SIMPLIFY_POS_APPROX = "edge-simplify-pos-approx";
 };
 
 sanescan::OcrPoint parse_initial_point(const std::string& value)
@@ -149,6 +150,7 @@ input_path and output_path options can be passed either as positional or named a
     unsigned edge_min_length = 20;
     double edge_max_angle_diff_deg = 30;
     unsigned edge_segment_min_length = 4;
+    unsigned edge_simplify_pos_approx = initial_point_image_shrink * 2;
 
     ocr_options_desc.add_options()
             (Options::INITIAL_POINT,
@@ -183,6 +185,8 @@ input_path and output_path options can be passed either as positional or named a
              "maximum difference between angles of segments within detected edge, in degrees")
             (Options::EDGE_SEGMENT_MIN_LENGTH, po::value(&edge_segment_min_length),
              "minimum length of segments within detected edges")
+            (Options::EDGE_SIMPLIFY_POS_APPROX, po::value(&edge_simplify_pos_approx),
+             "the position deviation to allow during edge simplification")
     ;
 
     po::options_description all_options_desc;
@@ -265,6 +269,7 @@ input_path and output_path options can be passed either as positional or named a
             }
             flood_params.search_size /= initial_point_image_shrink;
             flood_params.nofill_border_size /= initial_point_image_shrink;
+            edge_simplify_pos_approx /= initial_point_image_shrink;
         } else {
             small_for_fill = image;
         }
@@ -300,8 +305,10 @@ input_path and output_path options can be passed either as positional or named a
         // error of several pixels.
         std::vector<std::vector<cv::Point>> contours;
         cv::findContours(target_object_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-        for (auto& contour : contours) {
-            cv::approxPolyDP(contour, contour, 2, true);
+        if (edge_simplify_pos_approx != 0) {
+            for (auto& contour : contours) {
+                cv::approxPolyDP(contour, contour, edge_simplify_pos_approx, true);
+            }
         }
 
         // Split contours into mostly straight lines. Short segments are removed as the next steps
