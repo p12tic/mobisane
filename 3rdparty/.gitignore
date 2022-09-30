@@ -24,6 +24,7 @@ clp
 alicevision
 assimp
 glm
+taskflow
 fmt
 bzip2
 leptonica
