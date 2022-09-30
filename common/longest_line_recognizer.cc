@@ -159,7 +159,7 @@ std::vector<cv::Point> LongestLineRecognizer::find_path_to_farthest_point(NodeIn
                                NodeIndex node_index)
     {
         NodeIndex new_path_index = path.size();
-        path.emplace_back(previous_path_index, node_index);
+        path.emplace_back(PathNode{previous_path_index, node_index});
         next_pending.push_back({new_path_index, previous_node_index, node_index});
     };
 
