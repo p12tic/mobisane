@@ -45,6 +45,7 @@ known_dependencies = [
     ('lapack', 'https://github.com/Reference-LAPACK/lapack', 'v3.10.0'),
     ('ceres', 'https://github.com/ceres-solver/ceres-solver', '31008453fe979f947e594df15a7e254d6631881b'),
     ('libjpeg-turbo', 'https://github.com/libjpeg-turbo/libjpeg-turbo', '2.1.1'),
+    ('boost', 'https://github.com/boostorg/boost', 'boost-1.76.0'),
 ]
 
 
