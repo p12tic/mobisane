@@ -352,6 +352,22 @@ def build_opencv(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_freetype(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DFT_DISABLE_BZIP2=ON',
+        '-DFT_DISABLE_HARFBUZZ=ON',
+        '-DFT_DISABLE_BROTLI=ON',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -368,6 +384,7 @@ known_dependencies = [
     ('openimageio', build_openimageio),
     ('tbb', build_tbb),
     ('opencv', build_opencv),
+    ('freetype', build_freetype),
 ]
 
 
