@@ -49,10 +49,13 @@ public:
     void set_bounds_detection_params(const BoundsDetectionParams& params);
     void set_options(Options options);
 
+    void start_new_session(const std::string& dest_path);
     void submit_photo(const cv::Mat& rgb_image);
 
     void start_scene_analysis();
     void wait_for_tasks();
+    bool is_scene_analysis_finished() const;
+    bool is_success() const;
 
     /** Schedules bounds overlay calculation. The calculation happens asynchronously, upon
         completion the given `cb` will be called. `dst_image` is assumed to be in BGRA format.

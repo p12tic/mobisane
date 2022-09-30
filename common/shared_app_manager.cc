@@ -190,6 +190,9 @@ struct SharedAppManager::Data
     std::uint64_t curr_session_id = 0;
     std::uint64_t next_image_id = 0;
 
+    std::string dest_path;
+    bool is_success = false;
+
     Options options = Options::NONE;
     int random_seed = 1;
 
@@ -301,11 +304,6 @@ void SharedAppManager::init(const std::string& root_resource_path)
 
     vfs::create_directories(d_->vfs_project_path);
     vfs::current_path(d_->vfs_project_path);
-    vfs::create_directories(d_->get_path_to_current_session());
-    vfs::create_directories(d_->get_path_to_current_session_features_folder());
-    vfs::create_directories(d_->get_path_to_current_session_feature_matches_folder());
-    vfs::create_directories(d_->get_path_to_current_session_sfm_folder());
-
     d_->root_resource_path = root_resource_path;
 
     std::string sensor_db_path;
@@ -348,6 +346,48 @@ void SharedAppManager::set_bounds_detection_params(const BoundsDetectionParams& 
 void SharedAppManager::set_options(Options options)
 {
     d_->options = options;
+}
+
+void SharedAppManager::start_new_session(const std::string& dest_path)
+{
+    ALICEVISION_LOG_INFO("Starting new scanning session with destination: " << dest_path);
+    wait_for_tasks();
+    d_->current_status = "";
+    d_->progress_tasks_total = 0;
+    d_->progress_tasks_finished = 0;
+    d_->serial_detection_requested = 0;
+    d_->submitted_data.clear();
+    d_->submitted_data_by_view_id.clear();
+    d_->sfm_data = {};
+    d_->sfm_landmarks_exact.clear();
+    d_->sfm_landmarks_inexact.clear();
+    d_->sfm_landmarks_bounds.clear();
+    d_->curr_session_id++;
+    d_->dest_path = dest_path;
+    d_->is_success = false;
+    d_->next_image_id = 0;
+    // FIXME: delete paths in vfs
+    d_->features_per_view = {};
+    d_->regions_per_view = {};
+    d_->matched_image_pairs.clear();
+    d_->pairwise_putative_matches.clear();
+    d_->pairwise_geometric_matches.clear();
+    d_->pairwise_final_matches.clear();
+    d_->orig_plane_centroid = {};
+    d_->orig_plane_normal = {};
+    d_->orig_plane_rotation_matrix = {};
+    d_->sfm_landmarks_filtered_horiz.clear();
+    d_->working_plane_2d_bounds.clear();
+    d_->mesh_triangles_filtered.clear();
+    d_->sfm_landmarks_unfolded.clear();
+    d_->unfolded_image = cv::Mat();
+    d_->ocr_results = {};
+    d_->edge_match_debug_images.clear();
+
+    vfs::create_directories(d_->get_path_to_current_session());
+    vfs::create_directories(d_->get_path_to_current_session_features_folder());
+    vfs::create_directories(d_->get_path_to_current_session_feature_matches_folder());
+    vfs::create_directories(d_->get_path_to_current_session_sfm_folder());
 }
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
@@ -506,6 +546,16 @@ void SharedAppManager::wait_for_tasks()
     while (d_->running_taskflows_any) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
+}
+
+bool SharedAppManager::is_scene_analysis_finished() const
+{
+    return !d_->running_taskflows_any;
+}
+
+bool SharedAppManager::is_success() const
+{
+    return d_->is_success;
 }
 
 void SharedAppManager::schedule_calculate_bounds_overlay(const cv::Mat& rgb_image,
@@ -1158,6 +1208,17 @@ void SharedAppManager::detect_text()
     d_->ocr_results = run.results();
     if (!d_->ocr_results.success) {
         ALICEVISION_LOG_WARNING("Failed to perform OCR: " << d_->ocr_results.error_text);
+        return;
+    }
+
+    ALICEVISION_LOG_INFO("Writing scanned PDF to " << d_->dest_path);
+
+    std::ofstream stream_pdf(d_->dest_path);
+    write_pdf(stream_pdf, d_->ocr_results.adjusted_image, d_->ocr_results.adjusted_paragraphs,
+              WritePdfFlags::NONE);
+
+    if (stream_pdf.good()) {
+        d_->is_success = true;
     }
 }
 
