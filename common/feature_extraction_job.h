@@ -24,7 +24,7 @@
 namespace sanescan {
 
 struct FeatureExtractionParams {
-    std::string session_path;
+    std::string output_path;
     aliceVision::feature::ConfigurationPreset config_preset;
     std::shared_ptr<aliceVision::feature::ImageDescriber> describer;
 };

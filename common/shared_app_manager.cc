@@ -131,6 +131,11 @@ struct SharedAppManager::Data
     {
         return get_path_for_session(vfs_project_path, curr_session_id);
     }
+
+    vfs::path get_path_to_current_session_features_folder()
+    {
+        return get_path_to_current_session() / "features";
+    }
 };
 
 SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
@@ -215,12 +220,14 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
 
     const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
     started_feature_extraction_task();
-    d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, &attached_sfm_view, session_path]()
+    d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, &attached_sfm_view]()
     {
         auto on_finish = finally([&](){ finished_feature_extraction_task(); });
 
+        vfs::create_directories(d_->get_path_to_current_session_features_folder());
+
         FeatureExtractionJob feature_job;
-        feature_job.params.session_path = session_path.string();
+        feature_job.params.output_path = d_->get_path_to_current_session_features_folder().string();
         feature_job.params.config_preset.gridFiltering = true;
         feature_job.params.config_preset.quality = aliceVision::feature::EFeatureQuality::NORMAL;
         feature_job.params.config_preset.descPreset =

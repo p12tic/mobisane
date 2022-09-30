@@ -25,7 +25,7 @@ namespace sanescan {
 
 void FeatureExtractionJob::run(const aliceVision::sfmData::View& view)
 {
-    aliceVision::feature::FeatureExtractorViewJob job{view, params.session_path};
+    aliceVision::feature::FeatureExtractorViewJob job{view, params.output_path};
 
     aliceVision::image::Image<float> image_gray;
     aliceVision::image::readImage(view.getImagePath(), image_gray,
