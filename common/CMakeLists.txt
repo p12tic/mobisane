@@ -25,6 +25,7 @@ set(SOURCES
 )
 
 set(PUBLIC_HEADERS
+    bounds_detection_params.h
     edge_calculator_precise.h
     edge_utils.h
     flood_fill_utils.h
