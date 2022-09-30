@@ -95,6 +95,8 @@ struct SharedAppManager::Data
     std::uint32_t running_feature_extraction_tasks = 0;
     std::uint32_t running_bounds_calculation_tasks = 0;
 
+    tbb::task_handle serial_detection_task;
+
     // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
     // to allow thread-safe concurrent modification of the array.
     std::vector<std::shared_ptr<PhotoData>> submitted_data;
@@ -270,9 +272,26 @@ const BoundsDetectionPipeline&
     return d_->submitted_data.at(index)->bounds_pipeline;
 }
 
-void SharedAppManager::wait_for_photo_tasks()
+void SharedAppManager::perform_detection()
 {
-    d_->pipeline_tasks.wait();
+    std::lock_guard lock{d_->task_status_mutex};
+    if (d_->serial_detection_task) {
+        throw std::invalid_argument("Detection task is already queued");
+    }
+
+    d_->serial_detection_task = d_->pipeline_tasks.defer([this]()
+    {
+        serial_detect();
+    });
+    maybe_on_photo_tasks_finished();
+}
+
+void SharedAppManager::wait_for_tasks()
+{
+    d_->task_arena.execute([&]()
+    {
+        d_->pipeline_tasks.wait();
+    });
 }
 
 void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image)
@@ -306,6 +325,7 @@ void SharedAppManager::finished_feature_extraction_task()
 {
     std::lock_guard lock{d_->task_status_mutex};
     d_->running_feature_extraction_tasks--;
+    maybe_on_photo_tasks_finished();
 }
 
 void SharedAppManager::started_bounds_calculation_task()
@@ -318,6 +338,21 @@ void SharedAppManager::finished_bounds_calculation_task()
 {
     std::lock_guard lock{d_->task_status_mutex};
     d_->running_bounds_calculation_tasks--;
+    maybe_on_photo_tasks_finished();
+}
+
+void SharedAppManager::maybe_on_photo_tasks_finished()
+{
+    if (d_->running_bounds_calculation_tasks == 0 &&
+        d_->running_feature_extraction_tasks == 0 &&
+        d_->serial_detection_task)
+    {
+        d_->task_arena.enqueue(std::move(d_->serial_detection_task));
+    }
+}
+
+void SharedAppManager::serial_detect()
+{
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,

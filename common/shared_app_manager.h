@@ -48,7 +48,8 @@ public:
     const cv::Mat& get_photo(std::size_t index) const;
     const BoundsDetectionPipeline& get_bounds_detection_pipeline(std::size_t index) const;
 
-    void wait_for_photo_tasks();
+    void perform_detection();
+    void wait_for_tasks();
 
     // dst_image is assumed to be in BGRA format
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
@@ -62,6 +63,10 @@ private:
 
     void started_bounds_calculation_task();
     void finished_bounds_calculation_task();
+
+    void maybe_on_photo_tasks_finished();
+
+    void serial_detect();
 
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,
