@@ -24,6 +24,17 @@
 
 namespace sanescan {
 
+void BoundsDetectionPipeline::clear_intermediate_data()
+{
+    small_for_fill = cv::Mat();
+    hsv_small_for_fill = cv::Mat();
+    target_object_unfilled_mask = cv::Mat();
+    target_object_mask = cv::Mat();
+    hsv = cv::Mat();
+    hsv_blurred = cv::Mat();
+    hsv_derivatives = cv::Mat();
+}
+
 void BoundsDetectionPipeline::run(const cv::Mat& input_image)
 {
     if (input_image.channels() != 3 || input_image.elemSize1() != 1) {

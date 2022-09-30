@@ -55,6 +55,8 @@ struct BoundsDetectionPipeline {
     // result at that location is unspecified.
     cv::Mat hsv_derivatives;
 
+    void clear_intermediate_data();
+
     void run(const cv::Mat& input_image);
 };
 
