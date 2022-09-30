@@ -171,6 +171,31 @@ def build_ceres(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_boost(srcdir, builddir, settings):
+    bsh = sh_with_cwd(srcdir)
+    bsh([
+        './bootstrap.sh',
+        f'--prefix={settings.prefix}',
+        '--with-libraries=atomic,container,date_time,exception,filesystem,graph,log,math,program_options,regex,serialization,system,test,thread,stacktrace,timer',
+    ])
+    bsh([
+        './b2',
+        f'--prefix={settings.prefix}',
+        'variant=release',
+        'link=shared',
+        'threading=multi',
+        f'-j{settings.parallel}',
+    ])
+    bsh([
+        './b2',
+        f'--prefix={settings.prefix}',
+        'variant=release',
+        'link=shared',
+        'threading=multi',
+        'install',
+    ])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -180,6 +205,7 @@ known_dependencies = [
     ('lapack', build_lapack),
     ('eigen', build_eigen),
     ('ceres', build_ceres),
+    ('boost', build_boost),
 ]
 
 
