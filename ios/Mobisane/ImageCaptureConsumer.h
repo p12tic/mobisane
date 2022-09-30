@@ -23,7 +23,7 @@
 
 - (instancetype) initWithId:(int)identifier
            willCapturePhoto:(void (^)(void))willCapturePhoto
-      didFinishCapturePhoto:(void (^)(void))didFinishCapturePhoto;
+      didFinishCapturePhoto:(void (^)(CVPixelBufferRef image))didFinishCapturePhoto;
 
 @property (nonatomic) int identifier;
 

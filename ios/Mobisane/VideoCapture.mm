@@ -20,6 +20,7 @@
 @import AVFoundation;
 #import "ImageCaptureConsumer.h"
 #import "PreviewCaptureConsumer.h"
+#include "Utils.h"
 #include <unordered_map>
 
 @interface VideoCapture ()
@@ -139,18 +140,26 @@
         photoSettings.photoQualityPrioritization = AVCapturePhotoQualityPrioritizationQuality;
         int identifier = self->nextConsumerId++;
         auto* captureConsumer = [[ImageCaptureConsumer alloc] initWithId:identifier
-                                                       willCapturePhoto:^{
+                                                         willCapturePhoto:^{
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.displayView.previewLayer.opacity = 0.0;
                 [UIView animateWithDuration:0.15 animations:^{
                     self.displayView.previewLayer.opacity = 1.0;
                 }];
             });
-       } didFinishCapturePhoto:^{
-           dispatch_async(self.sessionQueue, ^{
-               self->consumers.erase(identifier);
-           });
-       }];
+        } didFinishCapturePhoto:^(CVPixelBufferRef image) {
+            CVPixelBufferLockBaseAddress(image, 0);
+            cv::Mat mat = CVImageBufferRef_to_cv_bgr_mat(image);
+            cv::Mat copy = mat.clone();
+            CVPixelBufferUnlockBaseAddress(image, 0);
+
+            dispatch_async(self.sessionQueue, ^{
+                if (!copy.empty()) {
+                    [self.manager onImageCaptured:copy];
+                }
+                self->consumers.erase(identifier);
+            });
+        }];
         self->consumers[captureConsumer.identifier] = captureConsumer;
         [self.photoOutput capturePhotoWithSettings:photoSettings delegate:captureConsumer];
     });

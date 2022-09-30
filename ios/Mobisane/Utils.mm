@@ -22,6 +22,11 @@
 cv::Mat CVImageBufferRef_to_cv_bgr_mat(const CVImageBufferRef& image_buffer)
 {
     const auto* ptr = CVPixelBufferGetBaseAddress(image_buffer);
+    if (!ptr) {
+        NSLog(@"Got empty CVImageBufferRef");
+        CVPixelBufferUnlockBaseAddress(image_buffer, 0);
+        return {};
+    }
     auto width = CVPixelBufferGetWidth(image_buffer);
     auto height = CVPixelBufferGetHeight(image_buffer);
     auto bytes_per_row = CVPixelBufferGetBytesPerRow(image_buffer);

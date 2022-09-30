@@ -18,15 +18,20 @@
 
 @import CoreVideo;
 @import QuartzCore;
+@import UIKit;
+#include <opencv2/core/mat.hpp>
 
 @class ViewController;
 
-@interface AppManager : NSObject
+@interface AppManager : NSObject<UIDocumentInteractionControllerDelegate>
 
 - (instancetype) initWithViewController:(ViewController*)view_controler;
 - (void) prepareSetupWithCallback:(void(^)())callback;
 - (void) onPreviewCaptured:(CVImageBufferRef)imageBuffer;
 - (void) setPreviewLayer:(CALayer*)layer;
+- (void) onImageCaptured:(const cv::Mat&)image;
+- (void) startAnalysis;
+
 
 @end
 

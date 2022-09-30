@@ -22,6 +22,10 @@
 @interface ViewController : UIViewController
 
 @property (nonatomic, weak) IBOutlet CameraView* cameraView;
+@property (nonatomic, weak) IBOutlet UILabel* infoTextLabel;
+@property (nonatomic, weak) IBOutlet UIProgressView* progressBar;
+@property (nonatomic, weak) IBOutlet UIButton* analyzeImagesButton;
+
 
 @end
 

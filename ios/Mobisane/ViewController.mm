@@ -39,7 +39,7 @@ AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientati
 
 @implementation ViewController
 {
-    bool is_shown = false; // between viewDidAppear and viewDidDisappear
+    bool is_shown; // between viewDidAppear and viewDidDisappear
 }
 
 - (void)viewDidLoad {
@@ -50,10 +50,12 @@ AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientati
 - (void) viewDidAppear:(BOOL)animated
 {
     is_shown = true;
+    [_infoTextLabel setText:@"Loading resources..."];
     [_manager prepareSetupWithCallback:^{
-        if (!self.is_shown) {
+        if (!self->is_shown) {
             return;
         }
+        [self.infoTextLabel setText:@""];
         self.capture = [[VideoCapture alloc] init];
         [self.capture setAppManager:self.manager];
         [self.capture setCameraView:self.cameraView];
@@ -86,6 +88,11 @@ AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientati
 - (IBAction) captureImage:(id)sender
 {
     [_capture captureImage];
+}
+
+- (IBAction) analyzeImages:(id)sender
+{
+    [_manager startAnalysis];
 }
 
 @end

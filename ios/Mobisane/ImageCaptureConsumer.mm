@@ -24,7 +24,7 @@
 @interface ImageCaptureConsumer ()
 
 @property (nonatomic) void (^willCapturePhoto)();
-@property (nonatomic) void (^didFinishCapturePhoto)();
+@property (nonatomic) void (^didFinishCapturePhoto)(CVPixelBufferRef image);
 
 @end
 
@@ -32,7 +32,7 @@
 
 - (instancetype) initWithId:(int)identifier
            willCapturePhoto:(void (^)(void))willCapturePhoto
-      didFinishCapturePhoto:(void (^)(void))didFinishCapturePhoto
+      didFinishCapturePhoto:(void (^)(CVPixelBufferRef image))didFinishCapturePhoto
 {
     self = [super init];
     if (!self) {
@@ -60,15 +60,7 @@
         return;
     }
 
-    auto pixelBuffer = photo.pixelBuffer;
-    NSLog(@"Got pixel buffer %zu %zu", CVPixelBufferGetWidth(pixelBuffer), CVPixelBufferGetHeight(pixelBuffer));
-}
-
-- (void) captureOutput:(AVCapturePhotoOutput*)captureOutput
-    didFinishCaptureForResolvedSettings:(AVCaptureResolvedPhotoSettings*)resolvedSettings
-                 error:(NSError*)error
-{
-    self.didFinishCapturePhoto();
+    self.didFinishCapturePhoto(photo.pixelBuffer);
 }
 
 @end
