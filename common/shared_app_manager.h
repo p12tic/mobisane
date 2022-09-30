@@ -53,6 +53,7 @@ public:
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
 
     void print_debug_info(std::ostream& stream);
+    void print_debug_images(const std::string& debug_folder_path);
     void print_debug_images_for_photo(const std::string& debug_folder_path,
                                       std::size_t index) const;
 

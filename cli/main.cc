@@ -77,6 +77,18 @@ sanescan::OcrBox create_start_area(const sanescan::OcrPoint& point, unsigned siz
     };
 }
 
+std::string prepare_debug_subfolder(const std::string& debug_folder_path,
+                                    const std::string& subdir_name)
+{
+    auto folder_path = std::filesystem::path(debug_folder_path) / subdir_name;
+
+    if (std::filesystem::exists(folder_path)) {
+        std::filesystem::remove_all(folder_path);
+    }
+    std::filesystem::create_directories(folder_path);
+    return folder_path;
+}
+
 int main(int argc, char* argv[])
 {
     namespace po = boost::program_options;
@@ -234,26 +246,25 @@ input_path and output_path options can be passed either as positional or named a
         if (!debug_folder_path.empty()) {
             app_manager.print_debug_info(std::cout);
 
-            task_arena.execute([&]()
+            tbb::task_group debug_write_tasks;
+
+            for (std::size_t i = 0; i < input_paths.size(); ++i) {
+                task_arena.enqueue(debug_write_tasks.defer([&, i]()
+                {
+                    app_manager.print_debug_images_for_photo(
+                                prepare_debug_subfolder(debug_folder_path,
+                                                        "image_" + std::to_string(i)),
+                                i);
+                }));
+            }
+
+            task_arena.enqueue(debug_write_tasks.defer([&]()
             {
-                tbb::task_group debug_write_tasks;
+                app_manager.print_debug_images(prepare_debug_subfolder(debug_folder_path,
+                                                                       "image_common"));
+            }));
 
-                for (std::size_t i = 0; i < input_paths.size(); ++i) {
-                    debug_write_tasks.run([&, i]()
-                    {
-                        auto image_folder_path = std::filesystem::path(debug_folder_path) /
-                                ("image_" + std::to_string(i));
-
-                        if (std::filesystem::exists(image_folder_path)) {
-                            std::filesystem::remove_all(image_folder_path);
-                        }
-                        std::filesystem::create_directories(image_folder_path);
-
-                        app_manager.print_debug_images_for_photo(image_folder_path, i);
-                    });
-                }
-                debug_write_tasks.wait();
-            });
+            debug_write_tasks.wait();
         }
     } catch (const std::exception& e) {
         std::cerr << "Failed to do OCR: " << e.what() << "\n";

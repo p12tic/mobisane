@@ -24,6 +24,14 @@
 
 namespace sanescan {
 
+cv::Scalar hsv_to_rgb(cv::Vec3f color)
+{
+    cv::Mat mat(1, 1, CV_32FC3);
+    mat.at<cv::Vec3f>(0, 0) = color;
+    cv::cvtColor(mat, mat, cv::COLOR_HSV2BGR);
+    return mat.at<cv::Vec3f>(0, 0);
+}
+
 void write_debug_image(const std::string& debug_folder_path, const std::string& filename,
                        const cv::Mat& image)
 {
@@ -126,6 +134,48 @@ void write_features_debug_image(const std::string& debug_folder_path,
         for (const auto& feature : feature_type.second) {
             cv::circle(output, cv::Point(feature.x(), feature.y()),
                        2, cv::Scalar{0, 255, 255}, cv::FILLED);
+        }
+    }
+
+    write_debug_image(debug_folder_path, filename, output);
+}
+
+void write_feature_match_debug_image(
+        const std::string& debug_folder_path,
+        const std::string& filename,
+        const cv::Mat& image_a,
+        const cv::Mat& image_b,
+        aliceVision::IndexT view_a_id,
+        aliceVision::IndexT view_b_id,
+        const aliceVision::matching::MatchesPerDescType& matches_by_type,
+        const aliceVision::feature::FeaturesPerView& features_per_view)
+{
+    cv::Mat output(std::max(image_a.size().height, image_b.size().height),
+                   image_a.size().width + image_b.size().width, image_a.type());
+
+    auto offset_x = image_a.size().width;
+
+    image_a.copyTo(output(cv::Rect(cv::Point(0, 0), image_a.size())));
+    image_b.copyTo(output(cv::Rect(cv::Point(offset_x, 0), image_b.size())));
+
+    int color_counter = 0;
+
+    for (const auto& [descriptor_type, matches] : matches_by_type) {
+        const auto& features_a = features_per_view.getFeatures(view_a_id, descriptor_type);
+        const auto& features_b = features_per_view.getFeatures(view_b_id, descriptor_type);
+
+        for (const auto& match : matches) {
+            const auto& feature_a = features_a[match._i];
+            const auto& feature_b = features_b[match._j];
+
+            auto color = hsv_to_rgb({color_counter++ * 17.39f, 1.0f, 0.6f}) * 255.0f;
+
+            auto pos_a = cv::Point(feature_a.x(), feature_a.y());
+            auto pos_b = cv::Point(feature_b.x() + offset_x, feature_b.y());
+
+            cv::circle(output, pos_a, 3, color, cv::FILLED);
+            cv::line(output, pos_a, pos_b, color, 1);
+            cv::circle(output, pos_b, 3, color, cv::FILLED);
         }
     }
 

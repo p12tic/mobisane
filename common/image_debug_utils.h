@@ -19,6 +19,7 @@
 #pragma once
 
 #include <aliceVision/feature/FeaturesPerView.hpp>
+#include <aliceVision/matching/IndMatch.hpp>
 #include <opencv2/core/mat.hpp>
 
 namespace sanescan {
@@ -43,5 +44,15 @@ void write_features_debug_image(const std::string& debug_folder_path,
                                 const std::string& filename,
                                 const aliceVision::feature::MapFeaturesPerDesc& features_by_type,
                                 const cv::Mat& base_image);
+
+void write_feature_match_debug_image(
+        const std::string& debug_folder_path,
+        const std::string& filename,
+        const cv::Mat& image_a,
+        const cv::Mat& image_b,
+        aliceVision::IndexT view_a_id,
+        aliceVision::IndexT view_b_id,
+        const aliceVision::matching::MatchesPerDescType& matches_by_type,
+        const aliceVision::feature::FeaturesPerView& features_per_view);
 
 } // namespace sanescan

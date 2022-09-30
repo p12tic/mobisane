@@ -116,6 +116,7 @@ namespace {
 
 struct PhotoData
 {
+    std::uint64_t image_id = 0;
     aliceVision::IndexT view_id = 0;
     cv::Mat image;
     BoundsDetectionPipeline bounds_pipeline;
@@ -236,7 +237,6 @@ void SharedAppManager::set_options(Options options)
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
     auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
-
     tbb::task_group cloning_task_group;
     d_->task_arena.enqueue(cloning_task_group.defer([&]()
     {
@@ -247,6 +247,8 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     }));
 
     auto image_id = d_->next_image_id++;
+    curr_photo_data->image_id = image_id;
+
     auto session_path = d_->get_path_to_current_session();
     auto image_path = get_path_for_input_image(session_path, image_id);
 
@@ -405,6 +407,37 @@ void SharedAppManager::print_debug_info(std::ostream& stream)
     print_matches(d_->pairwise_putative_matches, "putative matches");
     print_matches(d_->pairwise_geometric_matches, "geometric matches");
     print_matches(d_->pairwise_final_matches, "geometric matches after grid filtering");
+}
+
+void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
+{
+    auto features_per_view = load_features_per_view(
+                d_->sfm_data, d_->get_path_to_current_session_features_folder().string());
+
+    tbb::task_group print_tasks;
+
+    d_->task_arena.enqueue(print_tasks.defer([&]()
+    {
+        for (const auto& match : d_->pairwise_final_matches) {
+            auto view_a_id = match.first.first;
+            auto view_b_id = match.first.second;
+
+            const auto& submitted_data_a = d_->submitted_data_by_view_id.at(view_a_id);
+            const auto& submitted_data_b = d_->submitted_data_by_view_id.at(view_b_id);
+
+            auto path = "feature_match_" + std::to_string(submitted_data_a->image_id) + "_" +
+                        std::to_string(submitted_data_b->image_id) + ".png";
+
+            write_feature_match_debug_image(debug_folder_path, path,
+                                            submitted_data_a->image,
+                                            submitted_data_b->image,
+                                            view_a_id, view_b_id,
+                                            match.second,
+                                            features_per_view);
+        }
+    }));
+
+    print_tasks.wait();
 }
 
 void SharedAppManager::print_debug_images_for_photo(const std::string& debug_folder_path,
