@@ -38,6 +38,13 @@ public:
         COLLECT_DEBUG_INFO = 2,
     };
 
+    enum Status {
+        Idle,
+        PerImageAnalysis,
+        SceneAnalysis,
+        Completed
+    };
+
     SharedAppManager(tf::Executor& executor);
     ~SharedAppManager();
 
@@ -54,7 +61,7 @@ public:
 
     void start_scene_analysis();
     void wait_for_tasks();
-    bool is_scene_analysis_finished() const;
+    Status get_status() const;
     bool is_success() const;
 
     /** Schedules bounds overlay calculation. The calculation happens asynchronously, upon

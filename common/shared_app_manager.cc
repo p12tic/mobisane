@@ -192,6 +192,7 @@ struct SharedAppManager::Data
 
     std::string dest_path;
     bool is_success = false;
+    Status curr_status = Status::Idle;
 
     Options options = Options::NONE;
     int random_seed = 1;
@@ -365,6 +366,7 @@ void SharedAppManager::start_new_session(const std::string& dest_path)
     d_->curr_session_id++;
     d_->dest_path = dest_path;
     d_->is_success = false;
+    d_->curr_status = Idle;
     d_->next_image_id = 0;
     // FIXME: delete paths in vfs
     d_->features_per_view = {};
@@ -400,6 +402,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 
     tf::Taskflow taskflow;
 
+    d_->curr_status = PerImageAnalysis;
     d_->running_taskflows_any++;
     d_->running_taskflows_per_image++;
 
@@ -532,6 +535,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 void SharedAppManager::start_scene_analysis()
 {
     std::lock_guard lock{d_->task_status_mutex};
+    d_->curr_status = SceneAnalysis;
     if (d_->serial_detection_requested) {
         throw std::invalid_argument("Detection task is already queued");
     }
@@ -548,9 +552,9 @@ void SharedAppManager::wait_for_tasks()
     }
 }
 
-bool SharedAppManager::is_scene_analysis_finished() const
+SharedAppManager::Status SharedAppManager::get_status() const
 {
-    return !d_->running_taskflows_any;
+    return d_->curr_status;
 }
 
 bool SharedAppManager::is_success() const
@@ -732,6 +736,7 @@ void SharedAppManager::maybe_on_photo_tasks_finished()
         });
         d_->executor.run(std::move(taskflow), [this]()
         {
+            d_->curr_status = Completed;
             d_->running_taskflows_any--;
         });
     }

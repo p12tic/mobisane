@@ -53,7 +53,7 @@ void AppManager::start_new_session(const std::string& dest_path)
 
 bool AppManager::is_scene_analysis_finished() const
 {
-    return shared_manager_.is_scene_analysis_finished();
+    return shared_manager_.get_status() == SharedAppManager::Completed;
 }
 
 bool AppManager::is_success() const
