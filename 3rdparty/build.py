@@ -175,7 +175,19 @@ def build_gmp(srcdir, builddir, settings):
 def build_mpfr(srcdir, builddir, settings):
     # Both static and shared libraries are built by default
     bsh = sh_with_cwd(builddir)
-    sh(['./autogen.sh'], cwd=srcdir)
+
+    # The following is what's roughly in autogen.sh. We can't use that script because it runs
+    # autoreconf with --warnings=all,error and fails build on too new autotools
+    restore_files = ['INSTALL', 'doc/texinfo.tex']
+    for fn in restore_files:
+        shutil.copy(os.path.join(srcdir, fn), os.path.join(srcdir, fn + '.tmptmp'))
+
+    sh(['autoreconf', '-fiv'], cwd=srcdir)
+
+    for fn in restore_files:
+        os.remove(os.path.join(srcdir, fn))
+        shutil.move(os.path.join(srcdir, fn + '.tmptmp'), os.path.join(srcdir, fn))
+
     bsh([
         os.path.join(srcdir, 'configure'),
         f'--prefix={settings.prefix}',
