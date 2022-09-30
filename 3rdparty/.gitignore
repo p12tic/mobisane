@@ -1,3 +1,6 @@
+build-android-tmp-arm64
+build-android-prefix-arm64
+
 zlib
 libpng
 eigen

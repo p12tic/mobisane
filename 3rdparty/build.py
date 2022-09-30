@@ -36,7 +36,8 @@ class LibType(enum.Enum):
 
 class TargetPlatform(enum.Enum):
     LINUX = 1
-    APPLE = 2
+    ANDROID = 2
+    APPLE = 3
 
 
 class TargetArch(enum.Enum):
@@ -51,6 +52,8 @@ class Settings:
     libtype = attr.ib()
     target_platform = attr.ib()
     target_arch = attr.ib()
+    android_minsdkversion = attr.ib()
+    android_ndkroot = attr.ib()
     has_ccache = attr.ib(default=False)
 
 
@@ -93,6 +96,8 @@ def cmake_flags_from_settings(settings):
         f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
         f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         f'-DBUILD_SHARED_LIBS={is_shared}',
+        f'-DCMAKE_FIND_ROOT_PATH={settings.prefix}',
+        f'-DCMAKE_SYSTEM_PREFIX_PATH={settings.prefix}',
     ]
 
     if settings.has_ccache:
@@ -101,7 +106,98 @@ def cmake_flags_from_settings(settings):
             '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache',
         ]
 
+    if settings.target_platform == TargetPlatform.ANDROID:
+        arch_to_abi = {
+            TargetArch.X86_64: 'x86_64',
+            TargetArch.ARM64: 'arm64-v8a',
+        }
+        abi = arch_to_abi[settings.target_arch]
+
+        flags += [
+            f'-DCMAKE_TOOLCHAIN_FILE={settings.android_ndkroot}/build/cmake/android.toolchain.cmake',
+            f'-DANDROID_ABI={abi}',
+            f'-DANDROID_PLATFORM=android-{settings.android_minsdkversion}',
+            '-DANDROID_STL=c++_static',
+        ]
     return flags
+
+
+def autotools_flags_for_setings(settings):
+    flags = [
+        f'--prefix={settings.prefix}'
+    ]
+
+    if settings.target_platform == TargetPlatform.ANDROID:
+        arch_to_host = {
+            TargetArch.ARM64: 'aarch64-linux-android',
+            TargetArch.X86_64: 'x86_64-linux-android',
+        }
+
+        toolchain_path = os.path.join(settings.android_ndkroot,
+                                      'toolchains/llvm/prebuilt/linux-x86_64')
+        target = arch_to_host[settings.target_arch]
+        targetapi = target + settings.android_minsdkversion
+
+        flags += [
+            '--host=' + arch_to_host[settings.target_arch],
+            '--target=' + arch_to_host[settings.target_arch],
+            'AR=' + os.path.join(toolchain_path, 'bin/llvm-ar'),
+            'CC=' + os.path.join(toolchain_path, f'bin/{targetapi}-clang'),
+            'AS=' + os.path.join(toolchain_path, f'bin/{targetapi}-clang'),
+            'CXX=' + os.path.join(toolchain_path, f'bin/{targetapi}-clang++'),
+            'LD=' + os.path.join(toolchain_path, 'bin/ld'),
+            'RANLIB=' + os.path.join(toolchain_path, 'bin/llvm-ranlib'),
+            'STRIP=' + os.path.join(toolchain_path, 'bin/llvm-strip'),
+        ]
+
+    return flags
+
+
+def create_meson_cross_file_for_settings(path, settings):
+    arch_to_cpu_family = {
+        TargetArch.ARM64: 'aarch64',
+        TargetArch.X86_64: 'x86_64',
+    }
+
+    arch_to_host = {
+        TargetArch.ARM64: 'aarch64-linux-android',
+        TargetArch.X86_64: 'x86_64-linux-android',
+    }
+
+    toolchain_path = os.path.join(settings.android_ndkroot,
+                                  'toolchains/llvm/prebuilt/linux-x86_64')
+    target = arch_to_host[settings.target_arch]
+    targetapi = target + settings.android_minsdkversion
+
+    lines = [
+        "[host_machine]",
+        "system = 'android'",
+        f"cpu_family = '{arch_to_cpu_family[settings.target_arch]}'",
+        f"cpu = '{arch_to_cpu_family[settings.target_arch]}'",
+        "endian = 'little'",
+        "",
+        "[constants]",
+        f"toolchain_path = '{toolchain_path}/'",
+        "",
+        "[binaries]",
+        f"c = toolchain_path + 'bin/{targetapi}-clang'",
+        f"cpp = toolchain_path + 'bin/{targetapi}-clang++'",
+        "ar = toolchain_path + 'bin/llvm-ar'",
+        "ld = toolchain_path + 'bin/ld'",
+        "c_ld = toolchain_path + 'bin/ld'",
+        "strip = toolchain_path + 'bin/llvm-strip'",
+        "pkgconfig = '/usr/bin/pkg-config'",
+        "",
+        "[properties]",
+        f"sys_root = '{settings.prefix}'",
+        f"pkg_config_path = '{settings.prefix}/share/pkgconfig'",
+        f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
+        #"c_args = ['-L/home/git/work/ndk/builddir/out/lib', '-I/home/git/work/ndk/builddir/out/include']
+        #"cpp_args = ['-L/home/git/work/ndk/builddir/out/lib', '-I/home/git/work/ndk/builddir/out/include']
+        #"c_link_args = ['-I/home/git/work/ndk/builddir/out/include', '-L/home/git/work/ndk/builddir/out/lib']
+    ]
+    with open(path, 'w') as f:
+        f.write('\n'.join(lines))
 
 
 def build_zlib(srcdir, builddir, settings):
@@ -135,13 +231,22 @@ def build_bzip2(srcdir, builddir, settings):
 
 
 def build_libpng(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.target_platform == TargetPlatform.ANDROID:
+        extra_flags += [
+            '-DHAVE_LD_VERSION_SCRIPT=OFF',
+        ]
+    if settings.target_arch == TargetArch.ARM64:
+        extra_flags += [
+            '-DPNG_ARM_NEON=on',
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
         '-GNinja',
-        '-DPNG_ARM_NEON=on',
         srcdir,
-        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
+        ] + cmake_flags_from_settings(settings) + flags_zlib(settings) + extra_flags
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -153,7 +258,7 @@ def build_libjpeg(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         srcdir,
-        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
+        ] + cmake_flags_from_settings(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -182,7 +287,7 @@ def build_libtiff(srcdir, builddir, settings):
         '-DCMAKE_DISABLE_FIND_PACKAGE_WebP=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_OpenGL=ON',
         srcdir,
-        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
+        ] + cmake_flags_from_settings(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -191,7 +296,11 @@ def build_libtiff(srcdir, builddir, settings):
 def build_gmp(srcdir, builddir, settings):
     # Both static and shared libraries are built by default
     bsh = sh_with_cwd(builddir)
-    bsh([os.path.join(srcdir, 'configure'), f'--prefix={settings.prefix}', '--enable-cxx'])
+    bsh([
+        os.path.join(srcdir, 'configure'),
+        '--enable-cxx'
+        ] + autotools_flags_for_setings(settings),
+        )
     bsh(['make', f'-j{settings.parallel}'])
     bsh(['make', 'install'])
 
@@ -214,9 +323,9 @@ def build_mpfr(srcdir, builddir, settings):
 
     bsh([
         os.path.join(srcdir, 'configure'),
-        f'--prefix={settings.prefix}',
         f'--with-gmp={settings.prefix}'
-    ])
+        ] + autotools_flags_for_setings(settings),
+        )
     bsh(['make', f'-j{settings.parallel}'])
     bsh(['make', 'install'])
 
@@ -252,6 +361,14 @@ def build_eigen(srcdir, builddir, settings):
 
 
 def build_ceres(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.target_platform == TargetPlatform.ANDROID:
+        # TODO: this hack ideally shouldn't be needed. Seems like cmake file installation path
+        # capitalization may be wrong.
+        extra_flags += [
+            '-DEigen3_DIR=' + os.path.join(settings.prefix, 'share/eigen3/cmake')
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
@@ -264,7 +381,7 @@ def build_ceres(srcdir, builddir, settings):
         '-DCERES_THREADING_MODEL=CXX_THREADS',
         '-DCMAKE_CXX_STANDARD=17',
         srcdir,
-        ] + cmake_flags_from_settings(settings)
+        ] + cmake_flags_from_settings(settings) + extra_flags
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -272,7 +389,33 @@ def build_ceres(srcdir, builddir, settings):
 
 def build_boost(srcdir, builddir, settings):
     linktype = 'shared' if settings.libtype == LibType.SHARED else 'static'
+
+    extra_args = []
+
+    user_config_path = os.path.join(builddir, 'user-config.jam')
+    with open(user_config_path, 'w') as user_config_f:
+        if settings.target_platform == TargetPlatform.ANDROID:
+            arch_to_host = {
+                TargetArch.ARM64: 'aarch64-linux-android',
+                TargetArch.X86_64: 'x86_64-linux-android',
+            }
+
+            toolchain_path = os.path.join(settings.android_ndkroot,
+                                          'toolchains/llvm/prebuilt/linux-x86_64')
+            target = arch_to_host[settings.target_arch]
+            targetapi = target + settings.android_minsdkversion
+
+            cxx = os.path.join(toolchain_path, f'bin/{targetapi}-clang++')
+            user_config_f.write(f'using clang : android : {cxx} : ;')
+            extra_args += [
+                'target-os=android',
+                'toolset=clang-android',
+                'cxxflags=-fPIC',
+            ]
+
+
     bsh = sh_with_cwd(srcdir)
+    bsh(['git', 'clean', '-fdx'])
     bsh([
         './bootstrap.sh',
         f'--prefix={settings.prefix}',
@@ -281,22 +424,25 @@ def build_boost(srcdir, builddir, settings):
     ])
     bsh([
         './b2',
+        '-d+2',
         f'--prefix={settings.prefix}',
+        f'--user-config={user_config_path}',
         'variant=release',
         f'link={linktype}',
         'threading=multi',
         '--disable-icu',
         f'-j{settings.parallel}',
-    ])
+    ] + extra_args)
     bsh([
         './b2',
         f'--prefix={settings.prefix}',
+        f'--user-config={user_config_path}',
         'variant=release',
         f'link={linktype}',
         'threading=multi',
         '--disable-icu',
         'install',
-    ])
+    ] + extra_args)
 
 
 def build_imath(srcdir, builddir, settings):
@@ -331,7 +477,7 @@ def build_openexr(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         '-DOPENEXR_BUILD_PYTHON_LIBS=OFF',
-        '-DOPENEXR_ENABLE_TESTS=OFF',
+        '-DBUILD_TESTING=OFF',
         srcdir,
         ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
     )
@@ -410,6 +556,7 @@ def build_opencv(srcdir, builddir, settings):
         '-DINSTALL_PYTHON_EXAMPLES=OFF',
         '-DBUILD_TESTS=OFF',
         '-DBUILD_LIST=core,improc,photo,objdetect,video,imgcodecs,videoio,features2d,xfeatures2d,version,mcc',
+        '-DBUILD_ANDROID_PROJECTS=OFF',
         '-DBUILD_EXAMPLES=OFF',
         '-DWITH_1394=OFF',
         '-DWITH_CUDA=OFF',
@@ -463,12 +610,21 @@ def build_libexpat(srcdir, builddir, settings):
 
 
 def build_fontconfig(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.target_platform == TargetPlatform.ANDROID:
+        cross_file_path = os.path.join(builddir, 'cross-file.txt')
+        create_meson_cross_file_for_settings(cross_file_path, settings)
+        extra_flags += [
+            '--cross-file=' + cross_file_path
+        ]
+
     default_library = 'shared' if settings.libtype == LibType.SHARED else 'static'
     bsh = sh_with_cwd(builddir)
     bsh([
         'meson',
         f'--prefix={settings.prefix}',
         f'--pkg-config-path={settings.prefix}/lib/pkgconfig',
+        f'--pkg-config-path={settings.prefix}/share/pkgconfig',
         '-Ddoc=disabled',
         '-Dnls=disabled',
         '-Dtests=disabled',
@@ -478,7 +634,7 @@ def build_fontconfig(srcdir, builddir, settings):
         '--wrap-mode=nodownload',
         f'-Ddefault_library={default_library}',
         srcdir,
-    ])
+    ] + extra_flags)
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -536,6 +692,12 @@ def build_geogram(srcdir, builddir, settings):
 
     if settings.target_platform == TargetPlatform.LINUX:
         platform = 'Linux64-gcc-dynamic'
+    elif settings.target_platform == TargetPlatform.ANDROID:
+        if settings.target_arch == TargetArch.ARM64:
+            platform = 'Android-aarch64-clang-dynamic'
+        else:
+            raise Exception("Unsupported platform")
+
     elif settings.target_platform == TargetPlatform.APPLE:
         if settings.target_arch == TargetArch.ARM64:
             platform = 'Darwin-aarch64-clang-dynamic'
@@ -662,7 +824,9 @@ def build_alicevision(srcdir, builddir, settings):
         "-DALICEVISION_REQUIRE_CERES_WITH_SUITESPARSE=OFF",
         "-DAV_EIGEN_MEMORY_ALIGNMENT=ON",
         srcdir,
-        ] + cmake_flags_from_settings(settings) + extra_flags
+        ] + cmake_flags_from_settings(settings) + extra_flags + [
+        f"-DCMAKE_FIND_ROOT_PATH={settings.prefix};{srcdir + '/src/dependencies'}",
+        ]
     )
     # Alicevision uses relatively large amounts of RAM per compilation unit
     bsh(['ninja', f'-j{settings.parallel // 2 + 1}'])
@@ -720,6 +884,7 @@ def parse_platform(platform_arg):
 
     arg_to_target_platform = {
         'linux': TargetPlatform.LINUX,
+        'android': TargetPlatform.ANDROID,
         'darwin': TargetPlatform.APPLE,
     }
     return arg_to_target_platform[platform_arg]
@@ -763,11 +928,15 @@ def main():
                         help='Parallelism to use')
     parser.add_argument('--libtype', type=str, default='static', choices=['shared', 'static'],
                         help='Library type')
-    parser.add_argument('--platform', type=str, default=None, choices=['linux', 'apple'],
+    parser.add_argument('--platform', type=str, default=None, choices=['linux', 'android', 'apple'],
                         help='Target platform type. Must be set when cross compiling')
     parser.add_argument('--archs', type=str, default=None,
                         help='A comma-separated string of target architectures. '
                         'Must be set when cross compiling')
+    parser.add_argument('--android-minsdkversion', type=str, default=None,
+                        help='Minimum sdk version for Android')
+    parser.add_argument('--android-ndkroot', type=str, default=None,
+                        help='NDK root for Android')
 
     args = parser.parse_args()
 
@@ -787,18 +956,29 @@ def main():
     target_platform = parse_platform(args.platform)
     target_archs = parse_archs(args.archs)
 
+    if target_platform == TargetPlatform.ANDROID:
+        if args.android_minsdkversion is None:
+            print('--android-minsdkversion is required for Android')
+            sys.exit(1)
+
+        if args.android_ndkroot is None:
+            print('--android-ndkroot is required for Android')
+            sys.exit(1)
+
     for target_arch in target_archs:
         settings = Settings(
             parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count(),
-            prefix=args.prefix,
+            prefix=os.path.abspath(args.prefix),
             libtype=LibType.STATIC if args.libtype == 'static' else LibType.SHARED,
             target_platform=target_platform,
             target_arch=target_arch,
+            android_minsdkversion=args.android_minsdkversion,
+            android_ndkroot=args.android_ndkroot,
             has_ccache=can_call_cmd(['ccache', '-V']),
         )
 
         for name, fn in build_deps:
-            builddir = os.path.join(args.builddir, name)
+            builddir = os.path.join(os.path.abspath(args.builddir), name)
             print(f'Building {name} in {builddir}')
 
             recreate_dir(builddir)
