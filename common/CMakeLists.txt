@@ -24,6 +24,7 @@ set(SOURCES
     mean_flood_fill.cc
     feature_extraction_job.cc
     flood_fill_utils.cc
+    geometry_utils.cc
     image_debug_utils.cc
     image_utils.cc
     edge_sfm.cc
@@ -70,6 +71,7 @@ set(PUBLIC_HEADERS
     edge_sfm.h
     edge_utils.h
     feature_extraction_job.h
+    geometry_utils.h
     flood_fill_utils.h
     image_debug_utils.h
     image_utils.h

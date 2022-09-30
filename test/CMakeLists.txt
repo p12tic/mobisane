@@ -18,6 +18,7 @@
 set(SOURCES
     main.cc
     edge_utils.cc
+    geometry_utils.cc
 )
 
 include(FindPkgConfig)

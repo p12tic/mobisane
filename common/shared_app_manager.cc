@@ -28,6 +28,7 @@
 #include "edge_utils.h"
 #include "feature_extraction_job.h"
 #include "finally.h"
+#include "geometry_utils.h"
 #include "image_debug_utils.h"
 #include "image_utils.h"
 #include "time_logger.h"
@@ -175,6 +176,8 @@ struct SharedAppManager::Data
     aliceVision::sfmData::Landmarks sfm_landmarks_exact;
     // Inexact landmarks with less matches. They will be used for auxiliary tasks.
     aliceVision::sfmData::Landmarks sfm_landmarks_inexact;
+    // Side edge-based landmarks that are used to delimit the boundaries of the scanned page
+    aliceVision::sfmData::Landmarks sfm_landmarks_bounds;
 
     std::string vfs_root_name = "//mobisane";
     vfs::path vfs_project_path = "//mobisane/alicevision";
@@ -199,6 +202,13 @@ struct SharedAppManager::Data
     aliceVision::matching::PairwiseMatches pairwise_putative_matches; // only for debugging
     aliceVision::matching::PairwiseMatches pairwise_geometric_matches; // only for debugging
     aliceVision::matching::PairwiseMatches pairwise_final_matches;
+    // Results from compute_object_bounds()
+    Vec3 orig_plane_centroid;
+    Vec3 orig_plane_normal;
+    // rotates from orig_plane_normal to working plane with normal at (0, 0, 1)
+    Mat3 orig_plane_rotation_matrix;
+    aliceVision::sfmData::Landmarks sfm_landmarks_filtered_horiz;
+    std::vector<cv::Point2f> working_plane_2d_bounds;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -232,6 +242,11 @@ struct SharedAppManager::Data
     vfs::path get_path_to_current_session_sfm_folder()
     {
         return get_path_to_current_session() / "sfm";
+    }
+
+    Vec3 orig_to_working_plane(const Vec3& point)
+    {
+        return orig_plane_rotation_matrix * (point - orig_plane_centroid);
     }
 };
 
@@ -499,6 +514,16 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                      aliceVision::sfmDataIO::ESfMData::ALL);
     }));
 
+    d_->task_arena.enqueue(print_tasks.defer([&]()
+    {
+        auto sfm_data = d_->sfm_data;
+        // FIXME: landmark positions don't match the rest of data in sfm_data.
+        sfm_data.getLandmarks() = d_->sfm_landmarks_filtered_horiz;
+        // Debug info is written outside vfs, thus an absolute path is needed.
+        auto path = std::filesystem::absolute(debug_folder_path) / "sfm_only_points_filtered_hz.ply";
+        aliceVision::sfmDataIO::Save(sfm_data, path.c_str(),
+                                     aliceVision::sfmDataIO::ESfMData::ALL);
+    }));
 
     print_tasks.wait();
 }
@@ -914,8 +939,51 @@ void SharedAppManager::compute_edge_structure_from_motion()
                     aliceVision::sfmData::Observation(observation_wrapper.x.cast<double>(), 0, 0.0);
         }
 
-        d_->sfm_landmarks_exact[get_unused_landmark_id(d_->sfm_landmarks_exact)] =
-                std::move(landmark);
+        d_->sfm_landmarks_exact[get_unused_landmark_id(d_->sfm_landmarks_exact)] = landmark;
+        d_->sfm_landmarks_bounds[get_unused_landmark_id(d_->sfm_landmarks_bounds)] = landmark;
+    }
+}
+
+void SharedAppManager::compute_object_bounds()
+{
+    TimeLogger time_logger{"compute_object_bounds()"};
+
+    // Calculate parameters to rotate 3D points to a horizontal plane for easier processing.
+    // The parameters are such that the plane will fit points in sfm_landmarks_bounds.
+    std::vector<Vec3> boundary_points;
+    boundary_points.reserve(d_->sfm_landmarks_bounds.size());
+    for (const auto& [id, landmark] : d_->sfm_landmarks_bounds) {
+        boundary_points.push_back(landmark.X);
+    }
+
+    std::tie(d_->orig_plane_centroid, d_->orig_plane_normal) =
+            fit_plane_to_points(boundary_points);
+    d_->orig_plane_rotation_matrix =
+            create_rotation_matrix_from_unit_vectors(d_->orig_plane_normal,
+                                                     Vec3({0, 0, 1}));
+
+    // Calculate 2D coordinates of the boundary points on the working plane
+    std::vector<cv::Point2f> cv_working_plane_2d_bounds;
+    cv_working_plane_2d_bounds.reserve(boundary_points.size());
+
+    for (const auto& point : boundary_points) {
+        auto working_point = d_->orig_to_working_plane(point);
+        cv_working_plane_2d_bounds.push_back(cv::Point2f(working_point.x(), working_point.y()));
+    }
+
+    cv::convexHull(cv_working_plane_2d_bounds, d_->working_plane_2d_bounds);
+
+    // Translate sfm_landmarks_exact to sfm_landmarks_filtered_horiz filtering points outside the
+    // scanned object in the process.
+    for (const auto& [id, landmark] : d_->sfm_landmarks_exact) {
+        auto working_point = d_->orig_to_working_plane(landmark.X);
+        cv::Point2f cv_point(working_point.x(), working_point.y());
+
+        if (cv::pointPolygonTest(d_->working_plane_2d_bounds, cv_point, false) >= 0) {
+            auto landmark_copy = landmark;
+            landmark_copy.X = working_point;
+            d_->sfm_landmarks_filtered_horiz.emplace(id, landmark_copy);
+        }
     }
 }
 
