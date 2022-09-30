@@ -20,6 +20,7 @@
 
 #include "bounds_detection_pipeline.h"
 #include <opencv2/core/mat.hpp>
+#include <memory>
 
 namespace sanescan {
 
@@ -29,18 +30,19 @@ namespace sanescan {
 class SharedAppManager {
 public:
     SharedAppManager();
+    ~SharedAppManager();
 
     // dst_image is assumed to be in BGRA format
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
 
 private:
+    struct Data;
+    std::unique_ptr<Data> d_;
 
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,
                                     unsigned object_mask_shrink,
                                     const std::vector<std::vector<cv::Point>>& precise_edges);
-
-    BoundsDetectionPipeline bounds_pipeline_;
 };
 
 } // namespace sanescan

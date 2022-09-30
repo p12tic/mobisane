@@ -35,9 +35,16 @@ namespace {
     }
 } // namespace
 
-SharedAppManager::SharedAppManager()
+struct SharedAppManager::Data
+{
+    BoundsDetectionPipeline bounds_pipeline;
+};
+
+SharedAppManager::SharedAppManager() : d_{std::make_unique<Data>()}
 {
 }
+
+SharedAppManager::~SharedAppManager() = default;
 
 void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image)
 {
@@ -49,15 +56,15 @@ void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Ma
     };
 
     for (const auto& point : initial_points) {
-        bounds_pipeline_.params.flood_params.start_areas.push_back(
-                    create_start_area(point, bounds_pipeline_.params.initial_point_area_radius,
+        d_->bounds_pipeline.params.flood_params.start_areas.push_back(
+                    create_start_area(point, d_->bounds_pipeline.params.initial_point_area_radius,
                                       size_x, size_y));
     }
 
-    bounds_pipeline_.run(rgb_image);
-    draw_bounds_overlay(rgb_image, dst_image, bounds_pipeline_.target_object_mask,
-                        bounds_pipeline_.params.initial_point_image_shrink,
-                        bounds_pipeline_.precise_edges);
+    d_->bounds_pipeline.run(rgb_image);
+    draw_bounds_overlay(rgb_image, dst_image, d_->bounds_pipeline.target_object_mask,
+                        d_->bounds_pipeline.params.initial_point_image_shrink,
+                        d_->bounds_pipeline.precise_edges);
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
