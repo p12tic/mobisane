@@ -144,6 +144,7 @@ def build_libpng(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
+        '-DPNG_ARM_NEON=on',
         srcdir,
         ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
     )
@@ -514,7 +515,16 @@ def build_tesseract(srcdir, builddir, settings):
 def build_geogram(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
 
-    platform = 'Linux64-gcc-dynamic'
+    if settings.get_platform() == 'linux':
+        platform = 'Linux64-gcc-dynamic'
+    elif settings.get_platform() == 'apple':
+        if settings.get_arch() == 'arm64':
+            platform = 'Darwin-aarch64-clang-dynamic'
+        else:
+            platform = 'Darwin-clang-dynamic'
+    else:
+        raise Exception("Unsupported platform")
+
     bsh([
         'cmake',
         '-GNinja',
@@ -580,6 +590,12 @@ def build_assimp(srcdir, builddir, settings):
 
 
 def build_alicevision(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.get_platform() == 'apple':
+        extra_flags += ['-DALICEVISION_USE_OPENMP=OFF']
+    if settings.get_arch() == 'arm64':
+        extra_flags += ['-DVL_DISABLE_SSE2=1']
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
@@ -598,10 +614,10 @@ def build_alicevision(srcdir, builddir, settings):
         "-DALICEVISION_REQUIRE_CERES_WITH_SUITESPARSE=OFF",
         "-DAV_EIGEN_MEMORY_ALIGNMENT=ON",
         srcdir,
-        ] + cmake_flags_from_settings(settings)
+        ] + cmake_flags_from_settings(settings) + extra_flags
     )
     # Alicevision uses relatively large amounts of RAM per compilation unit
-    bsh(['ninja', f'-j{settings.parallel // 4 + 1}'])
+    bsh(['ninja', f'-j{settings.parallel // 2 + 1}'])
     bsh(['ninja', 'install'])
 
 
