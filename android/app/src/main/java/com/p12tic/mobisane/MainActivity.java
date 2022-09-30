@@ -236,8 +236,4 @@ public class MainActivity extends AppCompatActivity
                     cameraView.getWidth(), cameraView.getHeight());
         }
     }
-
-    static {
-        System.loadLibrary("mobisane");
-    }
 }

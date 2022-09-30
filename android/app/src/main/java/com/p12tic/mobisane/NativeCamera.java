@@ -33,6 +33,6 @@ public class NativeCamera {
 
     public native void captureImage();
     static {
-        System.loadLibrary("mobisane");
+        System.loadLibrary("mobisaneapp");
     }
 }
