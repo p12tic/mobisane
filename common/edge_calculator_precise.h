@@ -19,6 +19,7 @@
 #pragma once
 
 #include "edge_utils_internal.h"
+#include "segment_calculator_precise.h"
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
 #include <vector>
@@ -37,6 +38,8 @@ public:
                           unsigned edge_following_max_position_diff);
 
     void compute_for_segment(const cv::Point& pa, const cv::Point& pb);
+    void finish_line();
+
     std::vector<std::vector<cv::Point>> get_lines();
 
 private:
@@ -56,6 +59,8 @@ private:
     unsigned edge_following_min_positions_ = 0;
     float edge_following_max_allowed_other_peak_multiplier_ = 0;
     unsigned edge_following_max_position_diff_ = 0;
+
+    SegmentCalculatorPrecise segment_calculator_;
 
     std::vector<cv::Point> cached_offsets_;
     std::vector<std::int16_t> cached_intensities_;

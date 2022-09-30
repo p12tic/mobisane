@@ -19,7 +19,6 @@
 #include "edge_calculator_precise.h"
 #include "edge_utils.h"
 #include "edge_utils_internal.h"
-#include "segment_calculator_precise.h"
 #include <sanescanocr/util/math.h>
 #include <opencv2/core/mat.hpp>
 
@@ -49,6 +48,7 @@ EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
                                              float edge_following_max_allowed_other_peak_multiplier,
                                              unsigned edge_following_max_position_diff) :
     derivatives_{derivatives},
+    edge_mask_{derivatives_.size.p[0], derivatives_.size.p[1], CV_8U, cv::Scalar{0}},
     edge_precise_search_radius_{edge_precise_search_radius},
     edge_min_length_{edge_min_length},
     max_distance_between_zero_cross_detections_{max_distance_between_zero_cross_detections},
@@ -56,13 +56,18 @@ EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
     edge_following_min_positions_{edge_following_min_positions},
     edge_following_max_allowed_other_peak_multiplier_{
         edge_following_max_allowed_other_peak_multiplier},
-    edge_following_max_position_diff_{edge_following_max_position_diff}
+    edge_following_max_position_diff_{edge_following_max_position_diff},
+    segment_calculator_{edge_mask_,
+                        max_secondary_peak_multiplier,
+                        max_distance_between_zero_cross_detections,
+                        static_cast<float>(edge_min_length),
+                        edge_following_min_positions,
+                        edge_following_max_allowed_other_peak_multiplier,
+                        edge_following_max_position_diff}
 {
     if (derivatives_.type() != CV_16SC3) {
         throw std::invalid_argument("Only CV_16SC3 derivative data is supported");
     }
-
-    edge_mask_ = cv::Mat(derivatives_.size.p[0], derivatives_.size.p[1], CV_8U, cv::Scalar{0});
 }
 
 void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::Point& pb)
@@ -128,16 +133,10 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
             ? OffsetDirection::VERTICAL : OffsetDirection::HORIZONTAL;
 
     compute_offsets_for_edge_slope(eval_line_half_length, slope, offset_direction, offsets);
-    SegmentCalculatorPrecise segment_calculator{edge_mask_,
-                                                calculate_reverse_intensities(pa, pb),
-                                                max_secondary_peak_multiplier_,
-                                                max_distance_between_zero_cross_detections_,
-                                                static_cast<float>(edge_min_length_),
-                                                edge_following_min_positions_,
-                                                edge_following_max_allowed_other_peak_multiplier_,
-                                                edge_following_max_position_diff_,
-                                                offsets};
 
+    segment_calculator_.start_segment(segment_vec.x, segment_vec.y,
+                                      calculate_reverse_intensities(pa, pb),
+                                      &offsets);
     if (is_eval_line_vertical) {
         int prev_cy = UNSET_POS;
         for (int cx = min_area_x; cx < max_area_x; ++cx) {
@@ -155,7 +154,7 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
                 retrieve_line_intensities(cx, cy, offsets,
                                           min_area_x, min_area_y, max_area_x, max_area_y,
                                           intensities);
-                segment_calculator.submit_line(cx, cy, intensities);
+                segment_calculator_.submit_line(cx, cy, intensities);
             }
 
             prev_cy = new_cy;
@@ -177,14 +176,18 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
                 retrieve_line_intensities(cx, cy, offsets,
                                           min_area_x, min_area_y, max_area_x, max_area_y,
                                           intensities);
-                segment_calculator.submit_line(cx, cy, intensities);
+                segment_calculator_.submit_line(cx, cy, intensities);
             }
 
             prev_cx = new_cx;
         }
     }
 
-    segment_calculator.finish();
+}
+
+void EdgeCalculatorPrecise::finish_line()
+{
+    segment_calculator_.finish();
 }
 
 std::vector<std::vector<cv::Point>> EdgeCalculatorPrecise::get_lines()

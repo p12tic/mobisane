@@ -17,6 +17,7 @@
 */
 
 #include "segment_calculator_precise.h"
+#include "algorithm.h"
 #include "edge_utils.h"
 #include <sanescanocr/util/math.h>
 #include <boost/math/statistics/linear_regression.hpp>
@@ -59,30 +60,30 @@ std::optional<int> predict_next_edge_position(unsigned edge_following_min_positi
 
 SegmentCalculatorPrecise::SegmentCalculatorPrecise(
         const cv::Mat& output_mask,
-        bool reverse_intensities,
         float max_allowed_other_peak_multiplier,
         float max_distance_between_detections,
         float min_line_length,
         unsigned edge_following_min_positions,
         float edge_following_max_allowed_other_peak_multiplier,
-        unsigned edge_following_max_position_diff,
-        const std::vector<cv::Point>& offsets) :
+        unsigned edge_following_max_position_diff) :
     output_mask_{output_mask},
-    reverse_intensities_{reverse_intensities},
     max_allowed_other_peak_multiplier_{max_allowed_other_peak_multiplier},
     max_distance_between_detections_{max_distance_between_detections},
     min_line_length_{min_line_length},
     edge_following_min_positions_{edge_following_min_positions},
     edge_following_max_allowed_other_peak_multiplier_{
         edge_following_max_allowed_other_peak_multiplier},
-    edge_following_max_position_diff_{edge_following_max_position_diff},
-    offsets_{offsets}
+    edge_following_max_position_diff_{edge_following_max_position_diff}
 {
 }
 
 void SegmentCalculatorPrecise::submit_line(int cx, int cy,
                                            const std::vector<std::int16_t>& intensities)
 {
+    if (offsets_ == nullptr) {
+        throw std::invalid_argument("start_segment() must be called before submit_line()");
+    }
+
     auto& crosses = _cached_crosses;
     extract_zero_crosses(intensities, crosses);
 
@@ -112,8 +113,8 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
     curr_line_positions_.push_back(cv::Point(new_line_pos_x, zero_cross_opt->position));
     zero_cross_pos2neg_ = zero_cross_opt->zero_cross_pos2neg;
 
-    int px = cx + offsets_[zero_cross_opt->position].x;
-    int py = cy + offsets_[zero_cross_opt->position].y;
+    int px = cx + (*offsets_)[zero_cross_opt->position].x;
+    int py = cy + (*offsets_)[zero_cross_opt->position].y;
 
     cv::Point new_point{px, py};
 
@@ -138,6 +139,29 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
     } else {
         // Just another point on the current line
         curr_line_.push_back(new_point);
+    }
+}
+
+void SegmentCalculatorPrecise::start_segment(int dx, int dy, bool reverse_intensities,
+                                             const std::vector<cv::Point>* offsets)
+{
+    offsets_ = offsets;
+    reverse_intensities_ = reverse_intensities;
+    auto angle = angle_between_vectors(last_dx_, last_dy_, dx, dy);
+    last_dx_ = dx;
+    last_dy_ = dy;
+
+    // Rotate data in curr_line_positions_. The algorithm is naive, as it is assumed that the
+    // positions will mostly track the main segment direction and the segment direction will not
+    // change much, so the angles are small.
+    if (curr_line_positions_.size() > edge_following_min_positions_) {
+        curr_line_positions_.erase(curr_line_positions_.begin(),
+                                   curr_line_positions_.end() - edge_following_min_positions_);
+    }
+
+    for (auto& pos : curr_line_positions_) {
+        auto x_diff = curr_line_positions_x_ - pos.x; // this difference is always positive
+        pos.y -= x_diff * std::sin(angle);
     }
 }
 

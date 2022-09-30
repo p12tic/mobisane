@@ -16,7 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include <boost/math/constants/constants.hpp>
 #include <algorithm>
+#include <cmath>
 #include <stdexcept>
 
 namespace sanescan {
@@ -47,6 +49,23 @@ std::pair<std::size_t, Value> min_element_i_and_value_by(It begin, It end, F&& c
         }
     }
     return {min_value_i, min_value};
+}
+
+inline float angle_between_vectors(float ax, float ay, float bx, float by)
+{
+    // TODO: use <numbers> when NDK contains more complete C++20 support
+    auto pi = boost::math::float_constants::pi;
+
+    float angle_a = std::atan2(ay, ax);
+    float angle_b = std::atan2(by, bx);
+    float diff = angle_b - angle_a;
+    if (diff < -pi) {
+        diff += 2 * pi;
+    }
+    if (diff > pi) {
+        diff -= 2 * pi;
+    }
+    return diff;
 }
 
 

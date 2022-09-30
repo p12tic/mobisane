@@ -32,15 +32,15 @@ public:
         operates as if the intensities vector is reversed
     */
     SegmentCalculatorPrecise(const cv::Mat& output_mask,
-                             bool reverse_intensities,
                              float max_allowed_other_peak_multiplier,
                              float max_distance_between_detections,
                              float min_line_length,
                              unsigned edge_following_min_positions,
                              float edge_following_max_allowed_other_peak_multiplier,
-                             unsigned edge_following_max_position_diff,
-                             const std::vector<cv::Point>& offsets);
+                             unsigned edge_following_max_position_diff);
 
+    void start_segment(int dx, int dy, bool reverse_intensities,
+                       const std::vector<cv::Point>* offsets);
     void submit_line(int cx, int cy, const std::vector<std::int16_t>& intensities);
     void finish();
 
@@ -53,7 +53,11 @@ private:
     unsigned edge_following_min_positions_ = 0;
     float edge_following_max_allowed_other_peak_multiplier_ = 0;
     unsigned edge_following_max_position_diff_ = 0;
-    const std::vector<cv::Point>& offsets_;
+
+    const std::vector<cv::Point>* offsets_ = nullptr;
+    float last_dx_ = 0;
+    float last_dy_ = 0;
+
     std::vector<cv::Point> curr_line_;
 
     // Ideally a number of preceding zero cross directions should be stored and an some kind of

@@ -482,6 +482,7 @@ std::vector<std::vector<cv::Point>>
         for (std::size_t segment_i = 0; segment_i < edge.size() - 1; ++segment_i) {
             calculator.compute_for_segment(edge[segment_i], edge[segment_i + 1]);
         }
+        calculator.finish_line();
     }
 
     auto precise_edges = calculator.get_lines();
