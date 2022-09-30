@@ -147,6 +147,11 @@ struct PhotoData
     PhotoData& operator=(const PhotoData&) = delete;
 };
 
+struct MeshTriangle
+{
+    std::array<aliceVision::IndexT, 3> indices;
+};
+
 struct SharedAppManager::Data
 {
     tbb::task_arena& task_arena;
@@ -209,6 +214,10 @@ struct SharedAppManager::Data
     Mat3 orig_plane_rotation_matrix;
     aliceVision::sfmData::Landmarks sfm_landmarks_filtered_horiz;
     std::vector<cv::Point2f> working_plane_2d_bounds;
+
+    // Results from compute_object_mesh()
+    // IDs corresponds to landmarks from sfm_landmarks_filtered_horiz
+    std::vector<MeshTriangle> mesh_triangles_filtered;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -608,6 +617,8 @@ void SharedAppManager::serial_detect()
     compute_structure_from_motion();
     compute_structure_from_motion_inexact();
     compute_edge_structure_from_motion();
+    compute_object_bounds();
+    compute_object_mesh();
 }
 
 void SharedAppManager::match_images()
@@ -984,6 +995,60 @@ void SharedAppManager::compute_object_bounds()
             landmark_copy.X = working_point;
             d_->sfm_landmarks_filtered_horiz.emplace(id, landmark_copy);
         }
+    }
+}
+
+void SharedAppManager::compute_object_mesh()
+{
+    TimeLogger time_logger{"compute_object_mesh()"};
+
+    auto [min_coord, max_coord] = minmax_landmark_coords(d_->sfm_landmarks_filtered_horiz);
+
+    // Subdiv2D accepts bounds as integer values. Expand the bounds by 1 to avoid any possible
+    // problems caused by precision.
+    cv::Rect rect(cv::Point(min_coord.x() - 1, min_coord.y() - 1),
+                  cv::Point(max_coord.x() + 1, max_coord.y() + 1));
+    Subdiv2D subdiv(rect);
+
+    std::unordered_map<int, aliceVision::IndexT> cv_to_landmark_id_map;
+    cv_to_landmark_id_map.reserve(d_->sfm_landmarks_filtered_horiz.size() * 2);
+
+    for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
+        // The meshing is being done in 2D. It is assumed that the scanned page is not folded so
+        // much that it overlaps.
+        int index = subdiv.insert(cv::Point2f(landmark.X.x(), landmark.X.y()));
+        cv_to_landmark_id_map.emplace(index, id);
+    }
+
+    int total_edge_ids = subdiv.getEdgeCount() * 4;
+    std::vector<bool> visited(total_edge_ids, false);
+
+    for (int i = 4; i < total_edge_ids; i += 2) {
+        if (visited[i]) {
+            continue;
+        }
+        int edge_a = i;
+        int vertex_a = subdiv.edgeOrg(edge_a, nullptr);
+        int edge_b = subdiv.getEdge(edge_a, Subdiv2D::NEXT_AROUND_LEFT);
+        int vertex_b = subdiv.edgeOrg(edge_b, nullptr);
+        int edge_c = subdiv.getEdge(edge_b, Subdiv2D::NEXT_AROUND_LEFT);
+        int vertex_c = subdiv.edgeOrg(edge_c, nullptr);
+        visited[edge_a] = true;
+        visited[edge_b] = true;
+        visited[edge_c] = true;
+
+        // FIXME: cv::Subdiv2D returns non-existing vertex IDs
+        if (cv_to_landmark_id_map.find(vertex_a) == cv_to_landmark_id_map.end() ||
+            cv_to_landmark_id_map.find(vertex_b) == cv_to_landmark_id_map.end() ||
+            cv_to_landmark_id_map.find(vertex_c) == cv_to_landmark_id_map.end())
+        {
+            continue;
+        }
+
+        MeshTriangle triangle{cv_to_landmark_id_map.at(vertex_a),
+                              cv_to_landmark_id_map.at(vertex_b),
+                              cv_to_landmark_id_map.at(vertex_c)};
+        d_->mesh_triangles_filtered.push_back(triangle);
     }
 }
 

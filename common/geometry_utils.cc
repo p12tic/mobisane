@@ -56,4 +56,20 @@ Mat3 create_rotation_matrix_from_unit_vectors(const Vec3& a, const Vec3& b)
     return Mat3::Identity() + skew + skew * skew * (1 / (1 + dot));
 }
 
+std::pair<Vec3, Vec3> minmax_landmark_coords(const aliceVision::sfmData::Landmarks& landmarks)
+{
+    Vec3 min;
+    min.fill(std::numeric_limits<double>::infinity());
+    Vec3 max;
+    max.fill(-std::numeric_limits<double>::infinity());
+
+    for (const auto& [id, landmark] : landmarks) {
+        for (int i = 0; i < 3; ++i) {
+            min(i) = std::min(min(i), landmark.X(i));
+            max(i) = std::max(max(i), landmark.X(i));
+        }
+    }
+    return {min, max};
+}
+
 } // namespace sanescan

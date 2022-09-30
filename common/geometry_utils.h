@@ -19,6 +19,8 @@
 #pragma once
 
 #include "matrix_types.h"
+#include <aliceVision/sfmData/SfMData.hpp>
+#include <opencv2/imgproc.hpp>
 #include <vector>
 
 namespace sanescan {
@@ -29,5 +31,15 @@ Mat3 skew_symmetric_matrix(const Vec3& vec);
 
 /// Creates rotation matrix that rotates unit vector a to unit vector b
 Mat3 create_rotation_matrix_from_unit_vectors(const Vec3& a, const Vec3& b);
+
+class Subdiv2D : public cv::Subdiv2D
+{
+public:
+    using cv::Subdiv2D::Subdiv2D;
+
+    int getEdgeCount() const { return qedges.size(); }
+};
+
+std::pair<Vec3, Vec3> minmax_landmark_coords(const aliceVision::sfmData::Landmarks& landmarks);
 
 } // namespace sanescan
