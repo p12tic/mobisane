@@ -57,6 +57,7 @@ target_link_libraries(mobisaneapp
     tegra_hal
     tbb
     ittnotify
+    z
 )
 
 target_link_directories(mobisaneapp PUBLIC
