@@ -355,6 +355,11 @@ std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& c
         }
     }
 
+    // Now that the highest peaks are known, the first peak that is encountered going forwards
+    // or backwards (depending on reverse_intensities) is selected. If there are more peaks like
+    // this (according to max_allowed_other_peak_multiplier), the algorithm terminates.
+    // Otherwise, the first zero cross after such peak is selected.
+
     bool more_than_one_peak_by_max_value =
             std::abs(max_value) * max_allowed_other_peak_multiplier < std::abs(max_value2);
     bool more_than_one_peak_by_min_value =
