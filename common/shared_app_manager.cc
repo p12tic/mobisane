@@ -25,6 +25,7 @@
 
 #include "shared_app_manager.h"
 #include "adjacency_grid.h"
+#include "bounds_detection_pipeline.h"
 #include "edge_sfm.h"
 #include "edge_utils.h"
 #include "export_ply.h"

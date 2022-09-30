@@ -18,12 +18,14 @@
 
 #pragma once
 
-#include "bounds_detection_pipeline.h"
 #include <taskflow/core/executor.hpp>
+#include <opencv2/core/mat.hpp>
 #include <memory>
 #include <optional>
 
 namespace sanescan {
+
+struct BoundsDetectionParams;
 
 /** This is low-level shared entry-point into the shared low-level guts of Mobisane application.
     Only a single instance of SharedAppManager should live throughout the life of application.
