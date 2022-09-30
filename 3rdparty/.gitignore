@@ -5,3 +5,4 @@ gmp
 mpfr
 lapack
 ceres
+libjpeg-turbo
