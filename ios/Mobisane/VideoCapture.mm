@@ -40,12 +40,15 @@
     dispatch_async(_sessionQueue, ^{
         NSError* error = nil;
 
+        [self.session beginConfiguration];
+
         self.session.sessionPreset = AVCaptureSessionPreset1280x720;
 
         auto* device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
         auto* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
         if (!input) {
             NSLog(@"Error creating video device: %@", error);
+            [self.session commitConfiguration];
             return;
         }
 
