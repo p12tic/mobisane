@@ -46,6 +46,7 @@ private:
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
 
     void on_image_available(AImageReader* reader);
+    void convert_image_to_buffer(ANativeWindow_Buffer& win_buffer, AImage* image);
 
     static void on_session_active(void* context, ACameraCaptureSession* session);
     static void on_session_closed(void* context, ACameraCaptureSession* session);

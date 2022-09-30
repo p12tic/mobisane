@@ -40,6 +40,15 @@ void clear_ptr_if_set(T *&ptr, F &&clear_function) {
         }                                                                                          \
     } while (false)
 
+#define CHECK_MEDIA_STATUS(func)                                                                   \
+    do {                                                                                           \
+        media_status_t status = func;                                                              \
+        if (status != AMEDIA_OK ) {                                                                \
+            __android_log_print(ANDROID_LOG_ERROR, "Camera", "call %s to media failed %d",         \
+                                #func, status);                                                    \
+        }                                                                                          \
+    } while (false)
+
 } // namespace
 
 Camera::Camera()
@@ -174,7 +183,101 @@ void Camera::on_image_available(AImageReader* reader)
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available");
     AImage *image;
     AImageReader_acquireLatestImage(reader_, &image);
+
+    ANativeWindow_Buffer win_buffer;
+    if (ANativeWindow_lock(win_.get(), &win_buffer, nullptr) < 0) {
+        // TODO: handle this case properly
+        __android_log_print(ANDROID_LOG_WARN, "Camera", "lock failed");
+        return;
+    }
+
+    convert_image_to_buffer(win_buffer, image);
+
+    ANativeWindow_unlockAndPost(win_.get());
     AImage_delete(image);
+}
+
+namespace {
+
+static inline std::uint32_t yuv_to_rgba_packed(int y, int u, int v)
+{
+    // R = 1.164*(Y-16)                 + 1.596(V-128)
+    // G = 1.164*(Y-16) - 0.391*(U-128) - 0.813(V-128)
+    // B = 1.164*(Y-16) + 2.018*(U-128)
+    //
+    // To make implementation faster, we use integer representation, and use fixed-point 10-bit
+    // representation for the coefficients. That is, the conversion coefficients are multiplied
+    // by 1024 and then the final result is scaled back to 8 bit range.
+
+    y -= 16;
+    u -= 128;
+    v -= 128;
+    y = std::max(0, y);
+
+    int r = 1192 * y + 1634 * v;
+    int g = 1192 * y - 400 * u - 833 * v ;
+    int b = 1192 * y + 2066 * u;
+
+    r = std::max(0, r);
+    g = std::max(0, g);
+    b = std::max(0, b);
+
+    r = std::min(r >> 10, 0xff);
+    g = std::min(g >> 10, 0xff);
+    b = std::min(b >> 10, 0xff);
+
+    return 0xff000000 | (b << 16) | (g << 8) | r;
+}
+
+} // namespace
+
+void Camera::convert_image_to_buffer(ANativeWindow_Buffer& win_buffer, AImage* image)
+{
+    std::int32_t image_format = 0;
+    CHECK_MEDIA_STATUS(AImage_getFormat(image, &image_format));
+    if (image_format != AIMAGE_FORMAT_YUV_420_888) {
+        // TODO: handle this case properly
+        __android_log_print(ANDROID_LOG_WARN, "Camera", "invalid input format");
+        return;
+    }
+
+    AImageCropRect src_rect;
+    AImage_getCropRect(image, &src_rect);
+
+    // Note that the YUV image data returned by Android cameras is extremely generic. It supports
+    // almost every way to lay out YUV data in memory, including UV interleaving and so on. As a
+    // result we can't use opencv routines for this conversion.
+
+    std::int32_t y_stride, uv_stride;
+    std::uint8_t* y_ptr = nullptr;
+    std::uint8_t* v_ptr = nullptr;
+    std::uint8_t* u_ptr = nullptr;
+    std::int32_t y_len, u_len, v_len;
+    std::int32_t uv_pixel_stride;
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 0, &y_ptr, &y_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 1, &v_ptr, &v_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 2, &u_ptr, &u_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 0, &y_stride));
+    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 1, &uv_stride));
+    CHECK_MEDIA_STATUS(AImage_getPlanePixelStride(image, 1, &uv_pixel_stride));
+
+    std::int32_t height = std::min(win_buffer.height, (src_rect.bottom - src_rect.top));
+    std::int32_t width = std::min(win_buffer.width, (src_rect.right - src_rect.left));
+
+    std::uint32_t* out = static_cast<std::uint32_t*>(win_buffer.bits);
+    for (std::int32_t y = 0; y < height; y++) {
+        const std::uint8_t *pY = y_ptr + y_stride * (y + src_rect.top) + src_rect.left;
+
+        std::int32_t uv_row_start = uv_stride * ((y + src_rect.top) / 2);
+        const std::uint8_t *pU = u_ptr + uv_row_start + (src_rect.left / 2);
+        const std::uint8_t *pV = v_ptr + uv_row_start + (src_rect.left / 2);
+
+        for (std::int32_t x = 0; x < width; x++) {
+            const std::int32_t uv_offset = (x / 2) * uv_pixel_stride;
+            out[x] = yuv_to_rgba_packed(pY[x], pU[uv_offset], pV[uv_offset]);
+        }
+        out += win_buffer.stride;
+    }
 }
 
 void Camera::on_session_active(void* context, ACameraCaptureSession* session)
