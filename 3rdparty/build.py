@@ -316,7 +316,10 @@ def build_zlib(srcdir, builddir, settings):
 
     # ZLib does not support disabling of static/shared library build
     if settings.libtype == LibType.STATIC:
-        os.remove(os.path.join(settings.prefix, 'lib/libz.so'))
+        if settings.target_platform in [TargetPlatform.ANDROID, TargetPlatform.LINUX]:
+            os.remove(os.path.join(settings.prefix, 'lib/libz.so'))
+        else:
+            os.remove(os.path.join(settings.prefix, 'lib/libz.dylib'))
     else:
         os.remove(os.path.join(settings.prefix, 'lib/libz.a'))
 
