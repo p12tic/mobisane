@@ -107,4 +107,11 @@ JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_isStarted(JNIEn
     return g_camera->is_started();
 }
 
+JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeCamera_captureImage(JNIEnv* env, jobject obj)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "captureImage");
+
+    g_camera->capture_image();
+}
+
 }

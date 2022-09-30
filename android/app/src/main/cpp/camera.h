@@ -67,10 +67,13 @@ public:
     bool is_started() const;
     void stop();
 
+    void capture_image();
 private:
     void setup_camera_stream(CameraStreamData& stream, ANativeWindowRef&& window,
                              ACameraDevice_request_template request_template);
     void destroy_camera_stream(CameraStreamData& stream);
+    void start_preview();
+    void stop_preview();
 
     void on_image_available(AImageReader* reader);
 
@@ -110,10 +113,11 @@ private:
     CameraStreamData capture_stream_;
     AImageReader* capture_reader_ = nullptr;
 
-    ACameraDevice_StateCallbacks device_callbacks_;
-    ACameraCaptureSession_stateCallbacks session_callbacks_;
-    ACameraCaptureSession_captureCallbacks session_capture_callbacks_;
-    AImageReader_ImageListener image_listener_;
+    ACameraDevice_StateCallbacks device_callbacks_ = {};
+    ACameraCaptureSession_stateCallbacks session_callbacks_ = {};
+    ACameraCaptureSession_captureCallbacks session_preview_callbacks_ = {};
+    ACameraCaptureSession_captureCallbacks session_capture_callbacks_ = {};
+    AImageReader_ImageListener image_listener_ = {};
 };
 
 } // namespace mobisane

@@ -31,6 +31,7 @@ public class NativeCamera {
     public native boolean stop();
     public native boolean isStarted();
 
+    public native void captureImage();
     static {
         System.loadLibrary("mobisane");
     }

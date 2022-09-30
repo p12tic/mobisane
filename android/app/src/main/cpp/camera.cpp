@@ -70,14 +70,13 @@ Camera::Camera()
     session_callbacks_.onClosed = on_session_closed;
     session_callbacks_.onReady = on_session_ready;
 
+    session_preview_callbacks_.context = this;
+
     session_capture_callbacks_.context = this;
-    session_capture_callbacks_.onCaptureStarted = nullptr;
-    session_capture_callbacks_.onCaptureProgressed = nullptr;
     session_capture_callbacks_.onCaptureCompleted = on_capture_completed;
     session_capture_callbacks_.onCaptureFailed = on_capture_failed;
     session_capture_callbacks_.onCaptureSequenceCompleted = on_capture_sequence_completed;
     session_capture_callbacks_.onCaptureSequenceAborted = on_capture_sequence_aborted;
-    session_capture_callbacks_.onCaptureBufferLost = nullptr;
 
     image_listener_.context = this;
     image_listener_.onImageAvailable = on_image_available_cb;
@@ -189,10 +188,7 @@ void Camera::start_for_window(ANativeWindow* window)
 
     CHECK_CAMERA_STATUS(ACameraDevice_createCaptureSession(device_, output_container_,
                                                            &session_callbacks_, &session_));
-    CHECK_CAMERA_STATUS(ACameraCaptureSession_setRepeatingRequest(session_,
-                                                                  &session_capture_callbacks_, 1,
-                                                                  &preview_stream_.request,
-                                                                  nullptr));
+    start_preview();
 }
 
 void Camera::stop()
@@ -202,7 +198,7 @@ void Camera::stop()
     }
 
     clear_ptr_if_set(session_, [&](){
-        ACameraCaptureSession_stopRepeating(session_);
+        stop_preview();
         ACameraCaptureSession_close(session_);
     });
     destroy_camera_stream(preview_stream_);
@@ -216,6 +212,14 @@ void Camera::stop()
 bool Camera::is_started() const
 {
     return session_ != nullptr;
+}
+
+void Camera::capture_image()
+{
+    stop_preview();
+    CHECK_CAMERA_STATUS(ACameraCaptureSession_capture(session_, &session_capture_callbacks_, 1,
+                                                      &capture_stream_.request,
+                                                      nullptr));
 }
 
 void Camera::setup_camera_stream(CameraStreamData& stream, ANativeWindowRef&& window,
@@ -237,6 +241,19 @@ void Camera::destroy_camera_stream(CameraStreamData& stream)
     clear_ptr_if_set(stream.request, [&](){ ACaptureRequest_free(stream.request); });
     clear_ptr_if_set(stream.output_target, [&](){ ACameraOutputTarget_free(stream.output_target); });
     stream.window.reset();
+}
+
+void Camera::start_preview()
+{
+    CHECK_CAMERA_STATUS(ACameraCaptureSession_setRepeatingRequest(session_,
+                                                                  &session_preview_callbacks_, 1,
+                                                                  &preview_stream_.request,
+                                                                  nullptr));
+}
+
+void Camera::stop_preview()
+{
+    CHECK_CAMERA_STATUS(ACameraCaptureSession_stopRepeating(session_));
 }
 
 std::vector<CameraInfo> Camera::enumerate_cameras()
@@ -355,6 +372,7 @@ void Camera::on_capture_failed(void* context, ACameraCaptureSession* session,
                                ACaptureRequest* request, ACameraCaptureFailure* failure)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_capture_failed");
+    reinterpret_cast<Camera*>(context)->start_preview();
 }
 
 void Camera::on_capture_sequence_completed(void* context, ACameraCaptureSession* session,
@@ -362,12 +380,14 @@ void Camera::on_capture_sequence_completed(void* context, ACameraCaptureSession*
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_capture_sequence_completed %d %" PRId64,
                         sequenceId, frameNumber);
+    reinterpret_cast<Camera*>(context)->start_preview();
 }
 
 void Camera::on_capture_sequence_aborted(void* context, ACameraCaptureSession* session,
                                          int sequenceId)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_capture_sequence_aborted %d", sequenceId);
+    reinterpret_cast<Camera*>(context)->start_preview();
 }
 
 void Camera::on_capture_completed(void* context, ACameraCaptureSession* session,

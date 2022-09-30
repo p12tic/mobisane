@@ -34,13 +34,14 @@ import android.view.Surface;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.p12tic.mobisane.databinding.ActivityMainBinding;
 
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.TextureView;
+import android.view.View;
 import android.view.WindowManager;
-import android.widget.LinearLayout;
 
 public class MainActivity extends AppCompatActivity
         implements TextureView.SurfaceTextureListener,
@@ -67,6 +68,16 @@ public class MainActivity extends AppCompatActivity
 
         cameraView = (TextureView) findViewById(R.id.cameraView);
         cameraView.setSurfaceTextureListener(this);
+
+        FloatingActionButton takePhotoButton = (FloatingActionButton) findViewById(R.id.takePhoto);
+        takePhotoButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (nativeCamera.isOpen()) {
+                    nativeCamera.captureImage();
+                }
+            }
+        });
     }
 
     @Override
@@ -135,7 +146,6 @@ public class MainActivity extends AppCompatActivity
             newHeight = (int)(textureWidth / cameraAspect);
         }
 
-        cameraView.setLayoutParams(new LinearLayout.LayoutParams(newWidth, newHeight, Gravity.CENTER));
         Matrix transformMatrix = getTransformMatrix(
                 getWindowManager().getDefaultDisplay().getRotation(), newWidth, newHeight);
         cameraView.setTransform(transformMatrix);
