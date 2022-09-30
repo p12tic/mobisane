@@ -46,6 +46,9 @@ private:
     void started_feature_extraction_task();
     void finished_feature_extraction_task();
 
+    void started_bounds_calculation_task();
+    void finished_bounds_calculation_task();
+
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,
                                     unsigned object_mask_shrink,

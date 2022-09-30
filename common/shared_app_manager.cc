@@ -75,6 +75,7 @@ namespace {
 struct PhotoData
 {
     cv::Mat image;
+    BoundsDetectionPipeline bounds_pipeline;
 
     PhotoData() = default;
 
@@ -92,6 +93,7 @@ struct SharedAppManager::Data
     // Contains all tasks running for a single pipeline
     tbb::task_group pipeline_tasks;
     std::uint32_t running_feature_extraction_tasks = 0;
+    std::uint32_t running_bounds_calculation_tasks = 0;
 
     // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
     // to allow thread-safe concurrent modification of the array.
@@ -170,8 +172,6 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                                                      "");
         sfm_view.setFrameId(image_id);
 
-        cloning_task_group.wait();
-
         aliceVision::sfmDataIO::BuildViewIntrinsicsReport intrinsics_report;
 
         auto allowed_camera_models = aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA |
@@ -213,6 +213,33 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
             feature_job.params.describer = d_->image_describer;
             feature_job.run(attached_sfm_view);
         });
+
+        // Bounds detection task will need private image
+        cloning_task_group.wait();
+
+        started_bounds_calculation_task();
+        d_->pipeline_tasks.run([this, curr_photo_data]()
+        {
+            auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
+
+            auto& image = curr_photo_data->image;
+            auto& bounds_pipeline = curr_photo_data->bounds_pipeline;
+
+            auto size_x = image.size.p[1];
+            auto size_y = image.size.p[0];
+
+            std::vector<sanescan::OcrPoint> initial_points = {
+                {size_x / 2, size_y / 2}
+            };
+
+            for (const auto& point : initial_points) {
+                bounds_pipeline.params.flood_params.start_areas.push_back(
+                        create_start_area(point, bounds_pipeline.params.initial_point_area_radius,
+                                          size_x, size_y));
+            }
+
+            bounds_pipeline.run(image);
+        });
     });
 }
 
@@ -249,6 +276,18 @@ void SharedAppManager::finished_feature_extraction_task()
 {
     std::lock_guard lock{d_->task_status_mutex};
     d_->running_feature_extraction_tasks--;
+}
+
+void SharedAppManager::started_bounds_calculation_task()
+{
+    std::lock_guard lock{d_->task_status_mutex};
+    d_->running_bounds_calculation_tasks++;
+}
+
+void SharedAppManager::finished_bounds_calculation_task()
+{
+    std::lock_guard lock{d_->task_status_mutex};
+    d_->running_bounds_calculation_tasks--;
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
