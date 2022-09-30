@@ -99,6 +99,19 @@ namespace {
             aliceVision::feature::EImageDescriberType::DSPSIFT
         };
     }
+
+    aliceVision::feature::FeaturesPerView
+        load_features_per_view(const aliceVision::sfmData::SfMData& sfm_data,
+                               const std::string& features_folder)
+    {
+        aliceVision::feature::FeaturesPerView features_per_view;
+        if (!aliceVision::sfm::loadFeaturesPerView(features_per_view, sfm_data, {features_folder},
+                                                   get_describer_types()))
+        {
+            throw std::runtime_error("Could not load features");
+        }
+        return features_per_view;
+    }
 } // namespace
 
 struct PhotoData
@@ -424,14 +437,8 @@ void SharedAppManager::print_debug_images_for_photo(const std::string& debug_fol
     write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
                                    image, bp.precise_edges);
 
-    aliceVision::feature::FeaturesPerView features_per_view;
-    if (!aliceVision::sfm::loadFeaturesPerView(
-            features_per_view, d_->sfm_data,
-            {d_->get_path_to_current_session_features_folder().string()},
-            get_describer_types()))
-    {
-        throw std::runtime_error("Could not load features");
-    }
+    auto features_per_view = load_features_per_view(
+                d_->sfm_data, d_->get_path_to_current_session_features_folder().string());
 
     const auto& view = d_->sfm_data.getView(data->view_id);
 
@@ -660,14 +667,8 @@ void SharedAppManager::compute_structure_from_motion()
 
     auto describer_types = get_describer_types();
 
-    aliceVision::feature::FeaturesPerView features_per_view;
-    if(!aliceVision::sfm::loadFeaturesPerView(
-            features_per_view, d_->sfm_data,
-            {d_->get_path_to_current_session_features_folder().string()},
-            describer_types))
-    {
-        throw std::runtime_error("Could not load features");
-    }
+    auto features_per_view = load_features_per_view(
+                d_->sfm_data, d_->get_path_to_current_session_features_folder().string());
 
     aliceVision::matching::PairwiseMatches pairwise_matches = d_->pairwise_final_matches;
 
