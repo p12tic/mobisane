@@ -883,7 +883,7 @@ void SharedAppManager::compute_edge_structure_from_motion()
 
     auto min_size = std::min(d_->submitted_data.front()->image.size().width,
                              d_->submitted_data.front()->image.size().height);
-    float starting_detection_dist = 0.04 * min_size;
+    float starting_detection_dist = 0.1 * min_size;
 
     std::vector<edgegraph3d::PolyLine2DMapSearch> pl_maps;
     for (std::size_t i = 0; i < graphs.size(); ++i) {
