@@ -339,6 +339,7 @@ input_path and output_path options can be passed either as positional or named a
             app_manager.submit_photo(image, sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA);
         }
 
+        app_manager.perform_detection();
         app_manager.wait_for_tasks();
 
         if (!debug_folder_path.empty()) {

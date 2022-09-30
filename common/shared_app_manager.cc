@@ -23,6 +23,8 @@
 #include "image_utils.h"
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
+#include <aliceVision/imageMatching/ImageMatching.hpp>
+#include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
 #include <aliceVision/sensorDB/parseDatabase.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfmDataIO/viewIO.hpp>
@@ -112,6 +114,9 @@ struct SharedAppManager::Data
     // The following params are used for images submitted via submit_photo() which use different
     // bounds detection pipelines in submitted_data array.
     BoundsDetectionParams photo_bounds_pipeline_params;
+
+    // Results from match_images()
+    aliceVision::PairSet matched_image_pairs;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -315,6 +320,13 @@ void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Ma
                         d_->bounds_pipeline.precise_edges);
 }
 
+void SharedAppManager::print_debug_info(std::ostream& stream)
+{
+    stream << "Matched image pairs:\n";
+    aliceVision::PairSet matched_image_pairs_set;
+    aliceVision::matchingImageCollection::savePairs(stream, d_->matched_image_pairs);
+}
+
 void SharedAppManager::started_feature_extraction_task()
 {
     std::lock_guard lock{d_->task_status_mutex};
@@ -353,6 +365,22 @@ void SharedAppManager::maybe_on_photo_tasks_finished()
 
 void SharedAppManager::serial_detect()
 {
+    match_images();
+}
+
+void SharedAppManager::match_images()
+{
+    ALICEVISION_LOG_TRACE("Start match_images()");
+    aliceVision::imageMatching::OrderedPairList matched_image_pairs_list;
+    aliceVision::imageMatching::generateAllMatchesInOneMap(d_->sfm_data.getViewsKeys(),
+                                                           matched_image_pairs_list);
+    d_->matched_image_pairs.clear();
+    for (const auto& image_pairs : matched_image_pairs_list) {
+        for (const auto& index : image_pairs.second) {
+            d_->matched_image_pairs.emplace(image_pairs.first, index);
+        }
+    }
+    ALICEVISION_LOG_TRACE("End match_images()");
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,

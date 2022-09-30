@@ -58,6 +58,8 @@ target_include_directories(mobisanecommon PUBLIC
 target_link_libraries(mobisanecommon PUBLIC
     ${OpenCV_LIBS}
     aliceVision_numeric
+    aliceVision_imageMatching
+    aliceVision_matchingImageCollection
     aliceVision_sfm
     aliceVision_vfs
 )

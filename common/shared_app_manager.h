@@ -54,6 +54,8 @@ public:
     // dst_image is assumed to be in BGRA format
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
 
+    void print_debug_info(std::ostream& stream);
+
 private:
     struct Data;
     std::unique_ptr<Data> d_;
@@ -67,6 +69,7 @@ private:
     void maybe_on_photo_tasks_finished();
 
     void serial_detect();
+    void match_images();
 
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,
