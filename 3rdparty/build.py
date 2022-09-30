@@ -94,11 +94,19 @@ def build_mpfr(prefix, srcdir, builddir, settings):
     bsh(['make', 'install'])
 
 
+def build_lapack(prefix, srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
     ('gmp', build_gmp),
     ('mpfr', build_mpfr),
+    ('lapack', build_lapack),
 ]
 
 
