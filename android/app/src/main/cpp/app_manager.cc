@@ -46,6 +46,11 @@ void AppManager::set_preview_surface(ANativeWindow* win)
     preview_win_ = ANativeWindowRef(win);
 }
 
+void AppManager::start_scene_analysis()
+{
+    shared_manager_.start_scene_analysis();
+}
+
 std::string AppManager::get_current_status_string() const
 {
     return shared_manager_.get_current_status_string();

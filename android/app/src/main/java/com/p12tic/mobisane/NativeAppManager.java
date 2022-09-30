@@ -23,6 +23,8 @@ import android.view.Surface;
 public class NativeAppManager {
     public native void setPreviewSurface(Surface surface);
     public native void notifyResourcesReady(String rootPath);
+    public native void startAnalysis();
+
     public native String getCurrentStatus();
 
     // Returns NaN if no progress is currently recorded

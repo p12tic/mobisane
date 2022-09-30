@@ -32,6 +32,7 @@ public:
     void resources_ready(const std::string& root_resource_path);
 
     void set_preview_surface(ANativeWindow* win);
+    void start_scene_analysis();
 
     std::string get_current_status_string() const;
     std::optional<double> get_current_progress() const;

@@ -3,8 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.p12tic.mobisane.MainActivity">
     <item
-        android:id="@+id/action_settings"
-        android:orderInCategory="100"
-        android:title="@string/action_settings"
-        app:showAsAction="never" />
+        android:id="@+id/action_analyze"
+        android:enabled="false"
+        android:title="@string/action_analyze"
+        android:visible="true"
+        app:showAsAction="always|withText" />
+
 </menu>

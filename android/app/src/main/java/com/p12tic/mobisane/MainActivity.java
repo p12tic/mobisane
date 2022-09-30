@@ -30,6 +30,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.os.Handler;
 import android.util.Log;
 import android.util.Size;
+import android.view.Menu;
 import android.view.Surface;
 
 import androidx.core.app.ActivityCompat;
@@ -38,7 +39,6 @@ import androidx.core.content.ContextCompat;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.p12tic.mobisane.databinding.ActivityMainBinding;
 
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.TextureView;
 import android.view.View;
@@ -49,6 +49,7 @@ import android.widget.TextView;
 public class MainActivity extends AppCompatActivity
         implements ActivityCompat.OnRequestPermissionsResultCallback {
     static final int PERMISSION_REQUEST_CAMERA = 10;
+    static final int MIN_NUMBER_OF_IMAGES = 3;
 
     private NativeCamera nativeCamera = new NativeCamera();
     private NativeAppManager nativeAppManager = new NativeAppManager();
@@ -67,6 +68,11 @@ public class MainActivity extends AppCompatActivity
     private Surface overlayViewSurface = null;
     private TextView infoTextLabel;
     private ProgressBar progressBar;
+
+    private Menu menu;
+    private MenuItem analyzeImages;
+
+    private int numberOfPendingImages = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -148,6 +154,8 @@ public class MainActivity extends AppCompatActivity
             public void onClick(View view) {
                 if (nativeCamera.isOpen()) {
                     nativeCamera.captureImage();
+                    numberOfPendingImages++;
+                    updateMenuItemStatuses();
                 }
             }
         });
@@ -161,6 +169,15 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        boolean res = super.onPrepareOptionsMenu(menu);
+        this.menu = menu;
+        analyzeImages = menu.findItem(R.id.action_analyze);
+        updateMenuItemStatuses();
+        return res;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
@@ -168,11 +185,20 @@ public class MainActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_analyze) {
+            numberOfPendingImages = 0;
+            nativeAppManager.startAnalysis();
+            updateMenuItemStatuses();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void updateMenuItemStatuses() {
+        if (analyzeImages != null) {
+            analyzeImages.setEnabled(numberOfPendingImages >= MIN_NUMBER_OF_IMAGES);
+        }
     }
 
     void rotateTexture(TextureView view, int rotation, int srcWidth, int srcHeight,
@@ -180,7 +206,6 @@ public class MainActivity extends AppCompatActivity
         if (rotation == 0) {
             return;
         }
-
 
         Matrix transformMatrix = getTransformMatrix(rotation, dstWidth, dstHeight);
         view.setTransform(transformMatrix);

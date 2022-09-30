@@ -153,6 +153,13 @@ JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_notifyResources
     env->ReleaseStringUTFChars(root_path, path_str);
 }
 
+JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_startAnalysis(
+        JNIEnv* env, jobject obj)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "startAnalysis");
+    g_app_manager->start_scene_analysis();
+}
+
 JNIEXPORT jstring JNICALL Java_com_p12tic_mobisane_NativeAppManager_getCurrentStatus(
         JNIEnv* env, jobject obj)
 {
