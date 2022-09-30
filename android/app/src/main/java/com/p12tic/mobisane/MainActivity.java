@@ -37,7 +37,9 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.WindowManager;
 
-public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback {
+public class MainActivity extends AppCompatActivity
+        implements SurfaceHolder.Callback,
+        ActivityCompat.OnRequestPermissionsResultCallback {
     static final int PERMISSION_REQUEST_CAMERA = 10;
 
     private NativeCamera nativeCamera = new NativeCamera();
@@ -111,9 +113,24 @@ public class MainActivity extends AppCompatActivity implements SurfaceHolder.Cal
         {
             ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA},
                     PERMISSION_REQUEST_CAMERA);
+            return;
         }
 
         nativeCamera.open();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode != PERMISSION_REQUEST_CAMERA) {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+            return;
+        }
+
+        if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            nativeCamera.open();
+        }
     }
 
     @Override
