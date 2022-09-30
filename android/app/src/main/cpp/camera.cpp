@@ -156,23 +156,20 @@ void Camera::start_for_window(ANativeWindow* window)
         __android_log_print(ANDROID_LOG_ERROR, "Camera", "starting closed camera");
         return;
     }
-
-    win_ = ANativeWindowRef(window);
+    stop();
 
     CHECK_CAMERA_STATUS(ACameraManager_openCamera(manager_, camera_.id.c_str(), &device_callbacks_,
                                                   &device_));
-    CHECK_CAMERA_STATUS(ACameraDevice_createCaptureRequest(device_, TEMPLATE_PREVIEW, &request_));
-    CHECK_CAMERA_STATUS(ACameraOutputTarget_create(win_.get(), &reader_target_));
-    CHECK_CAMERA_STATUS(ACaptureRequest_addTarget(request_, reader_target_));
     CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_create(&output_container_));
-    CHECK_CAMERA_STATUS(ACaptureSessionOutput_create(win_.get(), &output_));
-    CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_add(output_container_, output_));
+
+    setup_camera_stream(preview_stream_, ANativeWindowRef(window), TEMPLATE_PREVIEW);
+
     CHECK_CAMERA_STATUS(ACameraDevice_createCaptureSession(device_, output_container_,
                                                            &session_callbacks_, &session_));
-
     CHECK_CAMERA_STATUS(ACameraCaptureSession_setRepeatingRequest(session_,
                                                                   &session_capture_callbacks_, 1,
-                                                                  &request_, nullptr));
+                                                                  &preview_stream_.request,
+                                                                  nullptr));
 }
 
 void Camera::stop()
@@ -185,17 +182,35 @@ void Camera::stop()
         ACameraCaptureSession_stopRepeating(session_);
         ACameraCaptureSession_close(session_);
     });
+    destroy_camera_stream(preview_stream_);
     clear_ptr_if_set(device_, [&](){ ACameraDevice_close(device_); });
     clear_ptr_if_set(output_container_,
                      [&](){ ACaptureSessionOutputContainer_free(output_container_); });
-    clear_ptr_if_set(output_, [&](){ ACaptureSessionOutput_free(output_); });
-    clear_ptr_if_set(request_, [&](){ ACaptureRequest_free(request_); });
-    clear_ptr_if_set(reader_target_, [&](){ ACameraOutputTarget_free(reader_target_); });
 }
 
 bool Camera::is_started() const
 {
     return session_ != nullptr;
+}
+
+void Camera::setup_camera_stream(CameraStreamData& stream, ANativeWindowRef&& window,
+                                 ACameraDevice_request_template request_template)
+{
+    stream.window = std::move(window);
+
+    CHECK_CAMERA_STATUS(ACameraDevice_createCaptureRequest(device_, request_template,
+                                                           &stream.request));
+    CHECK_CAMERA_STATUS(ACameraOutputTarget_create(stream.window.get(), &stream.output_target));
+    CHECK_CAMERA_STATUS(ACaptureRequest_addTarget(stream.request, stream.output_target));
+    CHECK_CAMERA_STATUS(ACaptureSessionOutput_create(stream.window.get(), &stream.output));
+    CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_add(output_container_, stream.output));
+}
+
+void Camera::destroy_camera_stream(CameraStreamData& stream)
+{
+    clear_ptr_if_set(stream.output, [&](){ ACaptureSessionOutput_free(stream.output); });
+    clear_ptr_if_set(stream.request, [&](){ ACaptureRequest_free(stream.request); });
+    clear_ptr_if_set(stream.output_target, [&](){ ACameraOutputTarget_free(stream.output_target); });
 }
 
 std::vector<CameraInfo> Camera::enumerate_cameras()

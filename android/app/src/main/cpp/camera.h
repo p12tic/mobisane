@@ -46,6 +46,13 @@ struct Size {
     int height = 0;
 };
 
+struct CameraStreamData {
+    ANativeWindowRef window;
+    ACameraOutputTarget* output_target = nullptr;
+    ACaptureRequest* request = nullptr;
+    ACaptureSessionOutput* output = nullptr;
+};
+
 class Camera {
 public:
     Camera();
@@ -61,6 +68,10 @@ public:
     void stop();
 
 private:
+    void setup_camera_stream(CameraStreamData& stream, ANativeWindowRef&& window,
+                             ACameraDevice_request_template request_template);
+    void destroy_camera_stream(CameraStreamData& stream);
+
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
 
@@ -83,19 +94,15 @@ private:
     static void on_capture_completed(void* context, ACameraCaptureSession* session,
                                      ACaptureRequest* request, const ACameraMetadata* result);
 
-    ANativeWindowRef win_;
-
     // The following 2 members are valid only between open() and close()
     ACameraManager* manager_ = nullptr;
     CameraInfo camera_;
 
     // The following 7 members are not null only between start_for_window() and stop()
     ACameraDevice* device_ = nullptr;
-    ACameraOutputTarget* reader_target_ = nullptr;
-    ACaptureRequest* request_ = nullptr;
-    ACaptureSessionOutputContainer* output_container_ = nullptr;
-    ACaptureSessionOutput* output_ = nullptr;
     ACameraCaptureSession* session_ = nullptr;
+    ACaptureSessionOutputContainer* output_container_ = nullptr;
+    CameraStreamData preview_stream_;
 
     ACameraDevice_StateCallbacks device_callbacks_;
     ACameraCaptureSession_stateCallbacks session_callbacks_;
