@@ -256,6 +256,48 @@ def build_openexr(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_openimageio(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DBOOST_ROOT={settings.prefix}',
+        '-DOIIO_BUILD_TESTS:BOOL=OFF',
+        '-DOIIO_BUILD_TOOLS:BOOL=OFF',
+        '-DBUILD_MISSING_FMT=OFF',
+        '-DSTOP_ON_WARNING=OFF',
+        '-DEMBEDPLUGINS=ON',
+        '-DOIIO_DOWNLOAD_MISSING_TESTDATA=OFF',
+        '-DUSE_PYTHON=OFF',
+        '-DENABLE_JPEG=ON',
+        '-DENABLE_PNG=ON',
+        '-DENABLE_TIFF=ON',
+        '-DENABLE_OPENEXR=ON',
+        '-DENABLE_FFMPEG=OFF',
+        '-DENABLE_BZIP2=OFF',
+        '-DENABLE_LIBRAW=OFF',
+        '-DENABLE_OPENCV=OFF',
+        '-DENABLE_OPENGL=OFF',
+        '-DENABLE_HDF5=OFF',
+        '-DENABLE_FREETYPE=OFF',
+        '-DENABLE_OPENJPEG=OFF',
+        '-DENABLE_Qt5=OFF',
+        '-DENABLE_WEBP=OFF',
+        '-DENABLE_GIF=OFF',
+        '-DENABLE_Libsquish=OFF',
+        '-DENABLE_Libheif=OFF',
+        '-DENABLE_DCMTK=OFF',
+        '-DENABLE_Robinmap=OFF',
+        '-DENABLE_OpenColorIO=OFF',
+        srcdir,
+        ] + flags_zlib(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -269,6 +311,7 @@ known_dependencies = [
     ('boost', build_boost),
     ('imath', build_imath),
     ('openexr', build_openexr),
+    ('openimageio', build_openimageio),
 ]
 
 
