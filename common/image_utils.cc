@@ -193,4 +193,18 @@ void convert_yuv420_any_to_cv_mat_bgr(const std::uint8_t* y_ptr,
     }
 }
 
+aliceVision::image::ImageSpan<aliceVision::image::RGBColor>
+    cv_mat_to_image_span(const cv::Mat_<cv::Vec3b>& mat)
+{
+    static_assert(sizeof(aliceVision::image::RGBColor) == sizeof(cv::Vec3b),
+                  "Destination pixel type must be of the same size as input pixel type");
+
+    if (mat.size.dims() != 2) {
+        throw std::invalid_argument("Only 2D cv::Mat is supported when converting to ImageSpan");
+    }
+    return aliceVision::image::ImageSpan<aliceVision::image::RGBColor>(
+                reinterpret_cast<aliceVision::image::RGBColor*>(mat.data),
+                mat.size.p[1], mat.size.p[0], mat.step.p[0]);
+}
+
 } // namespace sanescan

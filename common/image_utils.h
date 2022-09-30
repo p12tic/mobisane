@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <aliceVision/image/ImageSpan.hpp>
 #include <opencv2/core/mat.hpp>
 
 namespace sanescan {
@@ -40,5 +41,10 @@ void convert_yuv420_any_to_cv_mat_bgr(const std::uint8_t* y_ptr,
                                       int channels,
                                       std::uint32_t dst_width,
                                       std::uint32_t dst_height);
+
+/** Returns an ImageSpan that refers to the same memory as managed by cv::Mat.
+*/
+aliceVision::image::ImageSpan<aliceVision::image::RGBColor>
+    cv_mat_to_image_span(const cv::Mat_<cv::Vec3b>& mat);
 
 } // namespace sanescan
