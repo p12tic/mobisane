@@ -243,6 +243,16 @@ void Camera::capture_image()
                                                       nullptr));
 }
 
+void Camera::set_on_image_captured(const std::function<void(const cv::Mat&)>& cb)
+{
+    image_captured_cb_ = cb;
+}
+
+void Camera::set_on_preview_captured(const std::function<void(const cv::Mat&)>& cb)
+{
+    preview_captured_cb_ = cb;
+}
+
 void Camera::setup_camera_stream_output(CameraStreamOutputData& output, ACaptureRequest* request,
                                         ANativeWindowRef&& window)
 {

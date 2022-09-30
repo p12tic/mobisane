@@ -17,10 +17,12 @@
 */
 
 #include "anativewindow_ref.h"
+#include <opencv2/core/mat.hpp>
 #include <camera/NdkCameraDevice.h>
 #include <camera/NdkCameraManager.h>
 #include <camera/NdkCameraCaptureSession.h>
 #include <media/NdkImageReader.h>
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -72,6 +74,10 @@ public:
     void stop();
 
     void capture_image();
+
+    void set_on_image_captured(const std::function<void(const cv::Mat&)>& cb);
+    void set_on_preview_captured(const std::function<void(const cv::Mat&)>& cb);
+
 private:
     void setup_camera_stream_output(CameraStreamOutputData& output, ACaptureRequest* request,
                                     ANativeWindowRef&& window);
