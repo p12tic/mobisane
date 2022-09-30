@@ -111,6 +111,11 @@ bool Camera::is_open() const
     return manager_ != nullptr;
 }
 
+int Camera::get_best_camera_rotation() const
+{
+    return camera_.orientation.value_or(0);
+}
+
 Size Camera::get_best_camera_surface_size(int width, int height)
 {
     if (camera_.configs.empty()) {
@@ -381,16 +386,16 @@ std::optional<CameraInfo> Camera::select_camera(const std::vector<CameraInfo>& c
 void Camera::on_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available");
-    deliver_image_to_cb(capture_reader_, image_captured_cb_, image_cached_mat_);
+    process_received_image(capture_reader_, image_captured_cb_, image_cached_mat_);
 }
 
 void Camera::on_preview_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available");
-    deliver_image_to_cb(preview_reader_, preview_captured_cb_, preview_cached_mat_);
+    process_received_image(preview_reader_, preview_captured_cb_, preview_cached_mat_);
 }
 
-void Camera::deliver_image_to_cb(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached)
+void Camera::process_received_image(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached)
 {
     // Note that we need to acquire images even if we don't need them because otherwise the
     // camera image queue will fill up and lock whole pipeline.

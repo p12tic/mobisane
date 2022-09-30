@@ -72,6 +72,14 @@ JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_isOpen(JNIEnv* 
     return g_camera->is_open();
 }
 
+JNIEXPORT jint JNICALL Java_com_p12tic_mobisane_NativeCamera_getBestCameraRotation(
+        JNIEnv* env, jobject obj)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "getBestSurfaceSize");
+
+    return g_camera->get_best_camera_rotation();
+}
+
 JNIEXPORT jobject JNICALL Java_com_p12tic_mobisane_NativeCamera_getBestCameraSurfaceSize(
         JNIEnv* env, jobject obj, jint width, jint height)
 {
@@ -115,6 +123,19 @@ JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeCamera_captureImage(JNIEnv
     __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "captureImage");
 
     g_camera->capture_image();
+}
+
+JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_setPreviewSurface(
+        JNIEnv* env, jobject obj, jobject surface)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "setPreviewSurface");
+
+    if (surface == nullptr) {
+        g_app_manager->set_preview_surface(nullptr);
+    } else {
+        ANativeWindow* win = ANativeWindow_fromSurface(env, surface);
+        g_app_manager->set_preview_surface(win);
+    }
 }
 
 }

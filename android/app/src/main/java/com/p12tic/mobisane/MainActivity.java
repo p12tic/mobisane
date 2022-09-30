@@ -27,8 +27,8 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.util.Log;
 import android.util.Size;
-import android.view.Gravity;
 import android.view.Surface;
 
 import androidx.core.app.ActivityCompat;
@@ -44,16 +44,18 @@ import android.view.View;
 import android.view.WindowManager;
 
 public class MainActivity extends AppCompatActivity
-        implements TextureView.SurfaceTextureListener,
-        ActivityCompat.OnRequestPermissionsResultCallback {
+        implements ActivityCompat.OnRequestPermissionsResultCallback {
     static final int PERMISSION_REQUEST_CAMERA = 10;
 
     private NativeCamera nativeCamera = new NativeCamera();
+    private NativeAppManager nativeAppManager = new NativeAppManager();
 
     private ActivityMainBinding binding;
 
     private TextureView cameraView;
-    private Surface surface = null;
+    private TextureView overlayView;
+    private Surface cameraViewSurface = null;
+    private Surface overlayViewSurface = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -67,7 +69,47 @@ public class MainActivity extends AppCompatActivity
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         cameraView = (TextureView) findViewById(R.id.cameraView);
-        cameraView.setSurfaceTextureListener(this);
+        cameraView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture,
+                                                  int width, int height) {
+                onPreviewSurfaceTextureAvailable(surfaceTexture, width, height);
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surfaceTexture,
+                                                    int width, int height) { }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
+                return onPreviewSurfaceTextureDestroyed();
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) { }
+        });
+
+        overlayView = (TextureView) findViewById(R.id.overlayView);
+        overlayView.setOpaque(false);
+        overlayView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
+            @Override
+            public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture,
+                                                  int width, int height) {
+                onOverlaySurfaceTextureAvailable(surfaceTexture, width, height);
+            }
+
+            @Override
+            public void onSurfaceTextureSizeChanged(@NonNull SurfaceTexture surfaceTexture,
+                                                    int width, int height) { }
+
+            @Override
+            public boolean onSurfaceTextureDestroyed(@NonNull SurfaceTexture surfaceTexture) {
+                return onOverlaySurfaceTextureDestroyed();
+            }
+
+            @Override
+            public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) { }
+        });
 
         FloatingActionButton takePhotoButton = (FloatingActionButton) findViewById(R.id.takePhoto);
         takePhotoButton.setOnClickListener(new View.OnClickListener() {
@@ -102,63 +144,69 @@ public class MainActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
+    void rotateTexture(TextureView view, int rotation, int srcWidth, int srcHeight,
+                       int dstWidth, int dstHeight) {
+        if (rotation == 0) {
+            return;
+        }
+
+
+        Matrix transformMatrix = getTransformMatrix(rotation, dstWidth, dstHeight);
+        view.setTransform(transformMatrix);
+    }
+
+    void onPreviewSurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture,
                                           int width, int height) {
         if (!nativeCamera.isOpen()) {
             return;
         }
 
         Size cameraSize = nativeCamera.getBestCameraSurfaceSize(width, height);
-        resizeTextureView(width, height, cameraSize.getWidth(), cameraSize.getHeight());
         surfaceTexture.setDefaultBufferSize(cameraSize.getWidth(), cameraSize.getHeight());
-        surface = new Surface(surfaceTexture);
-        nativeCamera.startForSurface(surface);
+        cameraViewSurface = new Surface(surfaceTexture);
+        nativeCamera.startForSurface(cameraViewSurface);
     }
 
-    @Override
-    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
-    }
-
-    @Override
-    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
-    }
-
-    @Override
-    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+    boolean onPreviewSurfaceTextureDestroyed() {
         nativeCamera.stop();
-        surface = null;
+        cameraViewSurface = null;
         return true;
     }
 
-    private void resizeTextureView(int textureWidth, int textureHeight,
-                                   int cameraWidth, int cameraHeight) {
-        double textureAspect = (double)textureWidth / textureHeight;
-        double cameraAspect = (double)cameraWidth / cameraHeight;
-
-        int newWidth = 0;
-        int newHeight = 0;
-        if (textureAspect >= cameraAspect) {
-            newWidth = (int)(textureHeight * cameraAspect);
-            newHeight = textureHeight;
-        } else {
-            newWidth = textureWidth;
-            newHeight = (int)(textureWidth / cameraAspect);
+    void onOverlaySurfaceTextureAvailable(@NonNull SurfaceTexture surfaceTexture,
+                                          int width, int height) {
+        if (!nativeCamera.isOpen()) {
+            return;
         }
 
-        Matrix transformMatrix = getTransformMatrix(
-                getWindowManager().getDefaultDisplay().getRotation(), newWidth, newHeight);
-        cameraView.setTransform(transformMatrix);
+        int rotation = getWindowManager().getDefaultDisplay().getRotation();
+        rotation += nativeCamera.getBestCameraRotation();
+        rotation %= 4;
+
+        Size cameraSize = nativeCamera.getBestCameraSurfaceSize(width, height);
+        surfaceTexture.setDefaultBufferSize(cameraSize.getWidth(), cameraSize.getHeight());
+        rotateTexture(overlayView, rotation, cameraSize.getWidth(), cameraSize.getHeight(),
+                      width, height);
+        overlayViewSurface = new Surface(surfaceTexture);
+        nativeAppManager.setPreviewSurface(overlayViewSurface);
+    }
+
+    boolean onOverlaySurfaceTextureDestroyed() {
+        overlayViewSurface = null;
+        nativeAppManager.setPreviewSurface(null);
+        return true;
     }
 
     static Matrix getMatrixForPolyToPoly(float[] src, float[] dst) {
         Matrix matrix = new Matrix();
-        matrix.setPolyToPoly(src, 0, dst, 0, 4);
+        if (!matrix.setPolyToPoly(src, 0, dst, 0, 4)) {
+            Log.println(Log.ERROR, "failure", "failure");
+        }
         return matrix;
     }
 
     static Matrix getTransformMatrix(int rotation, int width, int height) {
-        float[] defaultMatrixPoly = new float[]{
+        float[] srcMatrixPoly = new float[]{
             0.f, 0.f,
             width, 0.f,
             0.f, height,
@@ -166,27 +214,33 @@ public class MainActivity extends AppCompatActivity
         };
 
         switch (rotation) {
-            case 0: return new Matrix();
-            case 1: // 90 degrees clockwise
-                return getMatrixForPolyToPoly(defaultMatrixPoly, new float[]{
-                    0.f, height,
+            case 0:
+                return getMatrixForPolyToPoly(srcMatrixPoly, new float[]{
                     0.f, 0.f,
-                    width, height,
                     width, 0.f,
+                    0.f, height,
+                    width, height,
+                });
+            case 1: // 90 degrees clockwise
+                return getMatrixForPolyToPoly(srcMatrixPoly, new float[]{
+                        width, 0.f,
+                        width, height,
+                        0.f, 0.f,
+                        0.f, height,
                 });
             case 2: // 180 degrees clockwise
-                return getMatrixForPolyToPoly(defaultMatrixPoly, new float[]{
+                return getMatrixForPolyToPoly(srcMatrixPoly, new float[]{
                     width, height,
                     0.f, height,
                     width, 0.f,
                     0.f, 0.f,
                 });
             case 3: // 270 degrees clockwise
-                return getMatrixForPolyToPoly(defaultMatrixPoly, new float[]{
-                    width, 0.f,
-                    width, height,
-                    0.f, 0.f,
-                    0.f, height,
+                return getMatrixForPolyToPoly(srcMatrixPoly, new float[]{
+                        0.f, height,
+                        0.f, 0.f,
+                        width, height,
+                        width, 0.f,
                 });
             default: return new Matrix();
         }
@@ -232,8 +286,12 @@ public class MainActivity extends AppCompatActivity
     private void setupCamera() {
         nativeCamera.open();
         if (cameraView.isAvailable()) {
-            onSurfaceTextureAvailable(cameraView.getSurfaceTexture(),
+            onPreviewSurfaceTextureAvailable(cameraView.getSurfaceTexture(),
                     cameraView.getWidth(), cameraView.getHeight());
+        }
+        if (overlayView.isAvailable()) {
+            onOverlaySurfaceTextureAvailable(overlayView.getSurfaceTexture(),
+                    overlayView.getWidth(), overlayView.getHeight());
         }
     }
 }

@@ -72,6 +72,7 @@ public:
     void close();
     bool is_open() const;
 
+    int get_best_camera_rotation() const;
     Size get_best_camera_surface_size(int width, int height);
 
     void start_for_window(ANativeWindow* window);
@@ -98,7 +99,7 @@ private:
     void on_image_available(AImageReader* reader);
     void on_preview_image_available(AImageReader* reader);
 
-    void deliver_image_to_cb(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached);
+    void process_received_image(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached);
 
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);

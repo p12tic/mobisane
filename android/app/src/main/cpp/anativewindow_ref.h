@@ -66,6 +66,7 @@ public:
     ANativeWindow& operator*() const { return *win_; }
     ANativeWindow* operator->() const { return win_; }
     ANativeWindow* get() const { return win_; }
+    operator bool() const { return win_ != nullptr; }
 private:
     ANativeWindow* win_ = nullptr;
 };

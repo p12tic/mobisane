@@ -16,27 +16,14 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#pragma once
+package com.p12tic.mobisane;
 
-#include "anativewindow_ref.h"
-#include "camera.h"
-#include <mobisane/shared_app_manager.h>
+import android.view.Surface;
 
-namespace sanescan {
+public class NativeAppManager {
+    public native void setPreviewSurface(Surface surface);
 
-class AppManager {
-public:
-    AppManager(Camera& camera);
-
-    void set_preview_surface(ANativeWindow* win);
-
-private:
-    void on_image_captured(const cv::Mat& image);
-    void on_preview_captured(const cv::Mat& image);
-
-    ANativeWindowRef preview_win_;
-    Camera& camera_;
-    SharedAppManager shared_manager;
-};
-
-} // namespace sanescan
+    static {
+        System.loadLibrary("mobisaneapp");
+    }
+}

@@ -17,6 +17,7 @@
 */
 
 #include "app_manager.h"
+#include <android/log.h>
 
 namespace sanescan {
 
@@ -27,12 +28,32 @@ AppManager::AppManager(Camera& camera) :
     camera_.set_on_preview_captured([this](const auto& image) { on_preview_captured(image); });
 }
 
+void AppManager::set_preview_surface(ANativeWindow* win)
+{
+    preview_win_ = ANativeWindowRef(win);
+}
+
 void AppManager::on_image_captured(const cv::Mat& image)
 {
 }
 
 void AppManager::on_preview_captured(const cv::Mat& image)
 {
+    if (!preview_win_) {
+        return;
+    }
+
+    ANativeWindow_Buffer win_buffer;
+    if (ANativeWindow_lock(preview_win_.get(), &win_buffer, nullptr) < 0) {
+        __android_log_print(ANDROID_LOG_WARN, "AppManager", "preview window lock failed");
+        return;
+    }
+
+    auto dst_mat = cv::Mat(win_buffer.height, win_buffer.width, CV_8UC4, win_buffer.bits,
+                           win_buffer.stride * 4);
+
+    shared_manager.calculate_bounds_overlay(image, dst_mat);
+    ANativeWindow_unlockAndPost(preview_win_.get());
 }
 
 } // namespace sanescan

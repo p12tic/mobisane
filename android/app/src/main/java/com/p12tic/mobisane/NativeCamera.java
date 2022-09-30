@@ -25,6 +25,7 @@ public class NativeCamera {
     public native boolean open();
     public native boolean close();
     public native boolean isOpen();
+    public native int getBestCameraRotation();
     public native Size getBestCameraSurfaceSize(int width, int height);
 
     public native boolean startForSurface(Surface surface);
