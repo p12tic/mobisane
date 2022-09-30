@@ -375,12 +375,14 @@ def build_fontconfig(srcdir, builddir, settings):
     bsh([
         'meson',
         f'--prefix={settings.prefix}',
+        f'--pkg-config-path={settings.prefix}/lib/pkgconfig',
         '-Ddoc=disabled',
         '-Dnls=disabled',
         '-Dtests=disabled',
         '-Dtools=disabled',
         '-Dcache-build=disabled',
         '-Dlibdir=lib',
+        '--wrap-mode=nodownload',
         f'-Ddefault_library={default_library}',
         srcdir,
     ])
