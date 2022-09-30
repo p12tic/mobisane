@@ -33,8 +33,9 @@ This project depends on the following third-party libraries:
 Building
 ========
 
-The build process is structured into two parts: building of a static library that contains
-third-party libraries and then building of the actual application that includes that static library.
+The build process is structured into two parts: building of a set of static libraries that contains
+code that is not dependent of the platform and then building actual application that includes
+these static libraries.
 
 The following tools are required to perform building:
 
@@ -45,7 +46,7 @@ The following tools are required to perform building:
  - libtool
  - python3
  - python3-attrs library
- - pkgconf (note, that pkg-config has bugs that prevent builds on iOS)
+ - pkg-config
 
 On macOS, the above tools should be installed using macports.
 
@@ -64,7 +65,7 @@ Currently only NDK 23.1.7779620 is supported. The path to the NDK should look so
 iOS
 ---
 
-Install Xcode (currently only version 12.4 has been tested) and Xcode command-line tools.
+Install Xcode (requires at least version 14, tested with 14.0.1) and Xcode command-line tools.
 Run the following:
 
 ```
