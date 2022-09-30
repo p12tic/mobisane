@@ -23,9 +23,12 @@ set(MOBISANE_VERSION 0.0.1)
 
 project(mobisane VERSION ${MOBISANE_VERSION})
 
+option(MOBISANE_BUILD_CLI "Enable building of cli tool" ON)
 option(MOBISANE_BUILD_TESTS "Enable building of tests" ON)
 
-add_subdirectory(cli)
+if(MOBISANE_BUILD_CLI)
+    add_subdirectory(cli)
+endif()
 add_subdirectory(common)
 if(MOBISANE_BUILD_TESTS)
     add_subdirectory(test)
