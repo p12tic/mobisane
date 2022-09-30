@@ -24,6 +24,7 @@ set(SOURCES
     image_utils.cc
     edge_utils.cc
     segment_calculator_precise.cc
+    shared_app_manager.cc
 )
 
 set(PUBLIC_HEADERS
@@ -36,6 +37,7 @@ set(PUBLIC_HEADERS
     longest_line_recognizer.h
     mean_flood_fill.h
     segment_calculator_precise.h
+    shared_app_manager.h
 )
 
 find_package(OpenCV REQUIRED)
