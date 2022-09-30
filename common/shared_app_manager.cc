@@ -71,8 +71,23 @@ namespace {
 
 } // namespace
 
+struct PhotoData
+{
+    cv::Mat image;
+
+    PhotoData() = default;
+
+    // Noncopyable to prevent accidental copies
+    PhotoData(const PhotoData&) = delete;
+    PhotoData& operator=(const PhotoData&) = delete;
+};
+
 struct SharedAppManager::Data
 {
+    // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
+    // to allow thread-safe concurrent modification of the array.
+    std::vector<std::shared_ptr<PhotoData>> submitted_data;
+
     aliceVision::sfmData::SfMData sfm_data;
     std::string vfs_root_name = "//mobisane";
     vfs::path vfs_project_path = "//mobisane/alicevision";
@@ -110,6 +125,9 @@ SharedAppManager::SharedAppManager() : d_{std::make_unique<Data>()}
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
+    auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
+    curr_photo_data->image = rgb_image.clone();
+
     auto image_id = d_->next_image_id++;
     auto session_path = d_->get_path_to_current_session();
     auto image_path = get_path_for_input_image(session_path, image_id);
