@@ -134,6 +134,9 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
         fill_initial_points(next_points, colored, image, start_area, histograms, initial_limits);
     }
 
+    auto search_size = params.search_size;
+    auto border_clearance = params.search_size + params.nofill_border_size;
+
     while (!next_points.empty()) {
         auto next = next_points.back();
         next_points.pop_back();
@@ -193,8 +196,8 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
 
                 colored_row[x] = 1;
 
-                if (x < search_size || x >= size_x - search_size ||
-                    y < search_size || y >= size_y - search_size)
+                if (x < border_clearance || x >= size_x - border_clearance ||
+                    y < border_clearance || y >= size_y - border_clearance)
                 {
                     continue;
                 }

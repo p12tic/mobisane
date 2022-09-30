@@ -30,6 +30,9 @@ struct MeanFloodFillParams {
 
     unsigned search_size = 0;
 
+    /// The number of pixels around borders not to fill.
+    unsigned nofill_border_size = 0;
+
     /** The pixel value differences are expressed in range [0..1). The saturation and hue values
         that are used during the comparisons are adjusted upwards according to the magnitude of
         the value channel:

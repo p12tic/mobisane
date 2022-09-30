@@ -137,7 +137,8 @@ input_path and output_path options can be passed either as positional or named a
     flood_params.max_value_diff = 0.06;
     flood_params.max_sat_diff = 0.125;
     flood_params.max_hue_diff = 0.06;
-    flood_params.search_size = 4 * 7;
+    flood_params.search_size = initial_point_image_shrink * 7;
+    flood_params.nofill_border_size = initial_point_image_shrink * 1;
 
     ocr_options_desc.add_options()
             (Options::INITIAL_POINT,
@@ -246,6 +247,7 @@ input_path and output_path options can be passed either as positional or named a
                 area.y2 /= initial_point_image_shrink;
             }
             flood_params.search_size /= initial_point_image_shrink;
+            flood_params.nofill_border_size /= initial_point_image_shrink;
         } else {
             small_for_fill = image;
         }
@@ -253,10 +255,10 @@ input_path and output_path options can be passed either as positional or named a
         cv::Mat hsv;
         cv::cvtColor(small_for_fill, hsv, cv::COLOR_BGR2HSV);
 
-        auto detected = sanescan::mean_flood_fill(small_for_fill, flood_params);
+        auto flood_fill_mask = sanescan::mean_flood_fill(small_for_fill, flood_params);
 
         if (!debug_folder_path.empty()) {
-            write_flood_fill_debug_image(debug_folder_path, small_for_fill, detected);
+            write_flood_fill_debug_image(debug_folder_path, small_for_fill, flood_fill_mask);
         }
 
         cv::imwrite(output_path, image);
