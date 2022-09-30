@@ -14,6 +14,13 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+    Copyright (c) 2016 AliceVision contributors.
+    Copyright (c) 2012 openMVG contributors.
+    This Source Code Form is subject to the terms of the Mozilla Public License,
+    v. 2.0. If a copy of the MPL was not distributed with this file,
+    You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
 #include "shared_app_manager.h"
@@ -24,13 +31,25 @@
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/imageMatching/ImageMatching.hpp>
+#include <aliceVision/matchingImageCollection/matchingCommon.hpp>
+#include <aliceVision/matchingImageCollection/GeometricFilterType.hpp>
+#include <aliceVision/matchingImageCollection/GeometricFilter.hpp>
+#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_E_AC.hpp>
+#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_F_AC.hpp>
+#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_H_AC.hpp>
+#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_HGrowing.hpp>
 #include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
+#include <aliceVision/matching/io.hpp>
+#include <aliceVision/matching/matchesFiltering.hpp>
+#include <aliceVision/robustEstimation/estimators.hpp>
 #include <aliceVision/sensorDB/parseDatabase.hpp>
+#include <aliceVision/sfm/pipeline/regionsIO.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfmDataIO/viewIO.hpp>
 #include <aliceVision/vfs/filesystem.hpp>
 #include <aliceVision/vfs/FilesystemManager.hpp>
 #include <aliceVision/vfs/FilesystemTreeInMemory.hpp>
+#include <random>
 
 namespace vfs = aliceVision::vfs;
 
@@ -92,6 +111,8 @@ struct SharedAppManager::Data
 
     std::mutex task_status_mutex;
 
+    std::mt19937 rng;
+
     // Contains all tasks running for a single pipeline
     tbb::task_group pipeline_tasks;
     std::uint32_t running_feature_extraction_tasks = 0;
@@ -119,6 +140,10 @@ struct SharedAppManager::Data
 
     // Results from match_images()
     aliceVision::PairSet matched_image_pairs;
+    // Results from match_features()
+    aliceVision::matching::PairwiseMatches pairwise_putative_matches; // only for debugging
+    aliceVision::matching::PairwiseMatches pairwise_geometric_matches; // only for debugging
+    aliceVision::matching::PairwiseMatches pairwise_final_matches;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -126,7 +151,9 @@ struct SharedAppManager::Data
     // multiple.
     std::shared_ptr<aliceVision::feature::ImageDescriber> image_describer;
 
-    Data(tbb::task_arena& task_arena) : task_arena{task_arena}
+    Data(tbb::task_arena& task_arena) :
+        task_arena{task_arena},
+        rng{std::random_device()()}
     {}
 
     vfs::path get_path_to_current_session()
@@ -137,6 +164,11 @@ struct SharedAppManager::Data
     vfs::path get_path_to_current_session_features_folder()
     {
         return get_path_to_current_session() / "features";
+    }
+
+    vfs::path get_path_to_current_session_feature_matches_folder()
+    {
+        return get_path_to_current_session() / "feature_matches";
     }
 };
 
@@ -150,6 +182,8 @@ SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
     vfs::create_directories(d_->vfs_project_path);
     vfs::current_path(d_->vfs_project_path);
     vfs::create_directories(d_->get_path_to_current_session());
+    vfs::create_directories(d_->get_path_to_current_session_features_folder());
+    vfs::create_directories(d_->get_path_to_current_session_feature_matches_folder());
 
     d_->sensor_db = parse_sensor_database(vfs::path(aliceVision::image::getAliceVisionRoot()) /
                                           "share/aliceVision/cameraSensors.db");
@@ -230,8 +264,6 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, &attached_sfm_view]()
     {
         auto on_finish = finally([&](){ finished_feature_extraction_task(); });
-
-        vfs::create_directories(d_->get_path_to_current_session_features_folder());
 
         FeatureExtractionJob feature_job;
         feature_job.params.output_path = d_->get_path_to_current_session_features_folder().string();
@@ -338,6 +370,18 @@ void SharedAppManager::print_debug_info(std::ostream& stream)
     stream << "Matched image pairs:\n";
     aliceVision::PairSet matched_image_pairs_set;
     aliceVision::matchingImageCollection::savePairs(stream, d_->matched_image_pairs);
+
+    stream << "Matched image features:\n";
+    auto print_matches = [&](const aliceVision::matching::PairwiseMatches& matches, const char* msg)
+    {
+        for (const auto& match: matches) {
+            stream << "    image pair (" << match.first.first << ", " << match.first.second
+                   << ") contains " << match.second.getNbAllMatches() << " " << msg << "\n";
+        }
+    };
+    print_matches(d_->pairwise_putative_matches, "putative matches");
+    print_matches(d_->pairwise_geometric_matches, "geometric matches");
+    print_matches(d_->pairwise_final_matches, "geometric matches after grid filtering");
 }
 
 void SharedAppManager::started_feature_extraction_task()
@@ -379,6 +423,7 @@ void SharedAppManager::maybe_on_photo_tasks_finished()
 void SharedAppManager::serial_detect()
 {
     match_images();
+    match_features();
 }
 
 void SharedAppManager::match_images()
@@ -394,6 +439,162 @@ void SharedAppManager::match_images()
         }
     }
     ALICEVISION_LOG_TRACE("End match_images()");
+}
+
+void SharedAppManager::match_features()
+{
+    using namespace aliceVision::matchingImageCollection;
+
+    ALICEVISION_LOG_TRACE("match_features(): Start");
+    auto geometric_estimator = aliceVision::robustEstimation::ERobustEstimator::ACRANSAC;
+    auto geometric_error_max = std::numeric_limits<double>::infinity();
+    auto nearest_matching_method = aliceVision::matching::EMatcherType::ANN_L2;
+    auto distance_ratio = 0.8;
+    auto cross_matching = false;
+    auto min_required_2d_motion = -1.0;
+    auto guided_matching = false;
+    auto max_iteration_count = 2048;
+    auto use_grid_sort = true;
+    auto num_matches_to_keep = 0;
+
+    d_->pairwise_putative_matches.clear();
+    d_->pairwise_geometric_matches.clear();
+    d_->pairwise_geometric_matches.clear();
+
+    auto geometric_filter_type = EGeometricFilterType::FUNDAMENTAL_MATRIX;
+
+    std::vector<aliceVision::feature::EImageDescriberType> describer_types =
+    {
+        aliceVision::feature::EImageDescriberType::DSPSIFT
+    };
+
+    std::set<aliceVision::IndexT> filter;
+
+    if (d_->matched_image_pairs.empty()) {
+        throw std::runtime_error("No image pairs to match");
+    }
+
+    for (const auto& pair: d_->matched_image_pairs) {
+        filter.insert(pair.first);
+        filter.insert(pair.second);
+    }
+
+    auto matcher = createImageCollectionMatcher(nearest_matching_method, distance_ratio,
+                                                cross_matching);
+
+    aliceVision::feature::RegionsPerView regions_per_view;
+    if (!aliceVision::sfm::loadRegionsPerView(regions_per_view, d_->sfm_data,
+                                              {d_->get_path_to_current_session_features_folder().string()},
+                                              describer_types, filter))
+    {
+        throw std::runtime_error("Invalid regions");
+    }
+
+
+    for (auto describer_type : describer_types) {
+        matcher->Match(d_->rng, regions_per_view, d_->matched_image_pairs, describer_type,
+                       d_->pairwise_putative_matches);
+    }
+
+    aliceVision::matching::filterMatchesByMin2DMotion(d_->pairwise_putative_matches,
+                                                      regions_per_view,
+                                                      min_required_2d_motion);
+
+    if (d_->pairwise_putative_matches.empty()) {
+        throw std::runtime_error("No feature matches");
+    }
+
+    ALICEVISION_LOG_TRACE("match_features(): End regions matching");
+
+    switch(geometric_filter_type) {
+        case aliceVision::matchingImageCollection::EGeometricFilterType::NO_FILTERING: {
+            d_->pairwise_geometric_matches = d_->pairwise_putative_matches;
+            break;
+        }
+
+        case EGeometricFilterType::FUNDAMENTAL_MATRIX: {
+            robustModelEstimation(
+                d_->pairwise_geometric_matches,
+                &d_->sfm_data,
+                regions_per_view,
+                GeometricFilterMatrix_F_AC(geometric_error_max, max_iteration_count,
+                                           geometric_estimator),
+                d_->pairwise_putative_matches,
+                d_->rng,
+                guided_matching);
+            break;
+        }
+
+        case EGeometricFilterType::FUNDAMENTAL_WITH_DISTORTION: {
+            robustModelEstimation(
+                d_->pairwise_geometric_matches,
+                &d_->sfm_data,
+                regions_per_view,
+                GeometricFilterMatrix_F_AC(geometric_error_max, max_iteration_count,
+                                           geometric_estimator, true),
+                d_->pairwise_putative_matches,
+                d_->rng,
+                guided_matching);
+            break;
+        }
+        case EGeometricFilterType::ESSENTIAL_MATRIX: {
+            robustModelEstimation(
+                d_->pairwise_geometric_matches,
+                &d_->sfm_data,
+                regions_per_view,
+                GeometricFilterMatrix_E_AC(geometric_error_max, max_iteration_count),
+                d_->pairwise_putative_matches,
+                d_->rng,
+                guided_matching);
+
+            removePoorlyOverlappingImagePairs(d_->pairwise_geometric_matches,
+                                              d_->pairwise_putative_matches, 0.3f, 50);
+            break;
+        }
+        case EGeometricFilterType::HOMOGRAPHY_MATRIX: {
+            const bool only_guided_matching = true;
+            robustModelEstimation(
+                d_->pairwise_geometric_matches,
+                &d_->sfm_data,
+                regions_per_view,
+                GeometricFilterMatrix_H_AC(geometric_error_max, max_iteration_count),
+                d_->pairwise_putative_matches,
+                d_->rng, guided_matching,
+                only_guided_matching ? -1.0 : 0.6);
+            break;
+        }
+        case EGeometricFilterType::HOMOGRAPHY_GROWING: {
+            robustModelEstimation(
+                d_->pairwise_geometric_matches,
+                &d_->sfm_data,
+                regions_per_view,
+                GeometricFilterMatrix_HGrowing(geometric_error_max, max_iteration_count),
+                d_->pairwise_putative_matches,
+                d_->rng,
+                guided_matching);
+            break;
+        }
+    }
+
+    ALICEVISION_LOG_TRACE("match_features(): End geometric matching");
+
+    aliceVision::matching::matchesGridFilteringForAllPairs(d_->pairwise_geometric_matches,
+                                                           d_->sfm_data,
+                                                           regions_per_view, use_grid_sort,
+                                                           num_matches_to_keep,
+                                                           d_->pairwise_final_matches);
+
+    ALICEVISION_LOG_TRACE("match_features(): End grid filtering");
+
+    aliceVision::matching::Save(d_->pairwise_final_matches,
+                                d_->get_path_to_current_session_feature_matches_folder().string(),
+                                "txt", false, "");
+
+    if ((d_->options & PRESERVE_INTERMEDIATE_DATA) == 0) {
+        d_->pairwise_putative_matches.clear();
+        d_->pairwise_geometric_matches.clear();
+    }
+    ALICEVISION_LOG_TRACE("match_features(): End");
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,

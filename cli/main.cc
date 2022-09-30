@@ -344,6 +344,8 @@ input_path and output_path options can be passed either as positional or named a
         app_manager.wait_for_tasks();
 
         if (!debug_folder_path.empty()) {
+            app_manager.print_debug_info(std::cout);
+
             task_arena.execute([&]()
             {
                 tbb::task_group debug_write_tasks;
