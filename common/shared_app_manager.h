@@ -51,7 +51,7 @@ public:
 
     void submit_photo(const cv::Mat& rgb_image);
 
-    void perform_detection();
+    void start_scene_analysis();
     void wait_for_tasks();
 
     /** Schedules bounds overlay calculation. The calculation happens asynchronously, upon

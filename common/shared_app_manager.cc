@@ -479,7 +479,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     });
 }
 
-void SharedAppManager::perform_detection()
+void SharedAppManager::start_scene_analysis()
 {
     std::lock_guard lock{d_->task_status_mutex};
     if (d_->serial_detection_requested) {
