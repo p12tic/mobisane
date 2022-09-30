@@ -17,15 +17,18 @@
 */
 
 #include "segment_calculator_precise.h"
+#include "edge_utils.h"
 #include <sanescanocr/util/math.h>
 
 namespace sanescan {
 
-SegmentCalculatorPrecise::SegmentCalculatorPrecise(bool reverse_intensities,
+SegmentCalculatorPrecise::SegmentCalculatorPrecise(const cv::Mat& output_mask,
+                                                   bool reverse_intensities,
                                                    float max_allowed_other_peak_multiplier,
                                                    float max_distance_between_detections,
                                                    float min_line_length,
-                                                   const std::vector<cv::Point>& offsets)  :
+                                                   const std::vector<cv::Point>& offsets) :
+    output_mask_{output_mask},
     reverse_intensities_{reverse_intensities},
     max_allowed_other_peak_multiplier_{max_allowed_other_peak_multiplier},
     max_distance_between_detections_{max_distance_between_detections},
@@ -50,38 +53,39 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
 
     cv::Point new_point{px, py};
 
-    if (results_.empty()) {
-        results_.emplace_back().push_back(new_point);
+    if (curr_line_.empty()) {
+        curr_line_.push_back(new_point);
         return;
     }
 
-    auto& curr_line = results_.back();
-
-    const auto& last_point = curr_line.back();
+    const auto& last_point = curr_line_.back();
     if (distance<float>(last_point, new_point) > max_distance_between_detections_) {
-        if (distance<float>(curr_line.front(), curr_line.back()) < min_line_length_) {
-            // Replace the last line
-            curr_line.clear();
-            curr_line.push_back(new_point);
+        if (distance<float>(curr_line_.front(), curr_line_.back()) >= min_line_length_) {
+            // Draw current line and start a new one
+            mask_draw_polyline(output_mask_, curr_line_, 1);
+            curr_line_.clear();
+            curr_line_.push_back(new_point);
         } else {
-            // Start a new line
-            results_.emplace_back().push_back(new_point);
+            // Replace the current line
+            curr_line_.clear();
+            curr_line_.push_back(new_point);
         }
 
     } else {
-        results_.back().push_back(new_point);
+        // Just another point on the current line
+        curr_line_.push_back(new_point);
     }
 }
 
 void SegmentCalculatorPrecise::finish()
 {
-    if (results_.empty()) {
+    if (curr_line_.empty()) {
         return;
     }
 
-    auto& curr_line = results_.back();
-    if (distance<float>(curr_line.front(), curr_line.back()) < min_line_length_) {
-        results_.pop_back();
+    if (distance<float>(curr_line_.front(), curr_line_.back()) >= min_line_length_) {
+        mask_draw_polyline(output_mask_, curr_line_, 1);
+        curr_line_.clear();
     }
 }
 

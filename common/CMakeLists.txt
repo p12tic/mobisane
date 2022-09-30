@@ -17,6 +17,7 @@
 
 set(SOURCES
     edge_calculator_precise.cc
+    longest_line_recognizer.cc
     mean_flood_fill.cc
     flood_fill_utils.cc
     edge_utils.cc

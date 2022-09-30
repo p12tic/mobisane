@@ -19,6 +19,7 @@
 #pragma once
 
 #include "edge_utils_internal.h"
+#include <opencv2/core/mat.hpp>
 #include <opencv2/core/types.hpp>
 #include <vector>
 
@@ -33,7 +34,7 @@ public:
                           float max_secondary_peak_multiplier);
 
     void compute_for_segment(const cv::Point& pa, const cv::Point& pb);
-    std::vector<std::vector<cv::Point>> move_result();
+    std::vector<std::vector<cv::Point>> get_lines();
 
 private:
     static constexpr int UNSET_POS = -1;
@@ -42,8 +43,9 @@ private:
                                    int min_area_x, int min_area_y, int max_area_x, int max_area_y,
                                    std::vector<std::int16_t>& intensities);
 
-    std::vector<std::vector<cv::Point>> result_;
     const cv::Mat& derivatives_;
+    cv::Mat edge_mask_;
+
     unsigned edge_precise_search_radius_ = 0;
     unsigned edge_min_length_ = 0;
     float max_distance_between_zero_cross_detections_ = 0;

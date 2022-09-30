@@ -19,6 +19,7 @@
 #include "edge_utils.h"
 #include "edge_utils_internal.h"
 #include "edge_calculator_precise.h"
+#include "longest_line_recognizer.h"
 #include <sanescanocr/util/math.h>
 #include <opencv2/imgproc.hpp>
 
@@ -410,10 +411,9 @@ std::vector<std::vector<cv::Point>>
         }
     }
 
-    // FIXME: merge nearby segments
     // FIXME: simplify edge positions
 
-    return calculator.move_result();
+    return calculator.get_lines();
 }
 
 void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel)
@@ -458,6 +458,69 @@ void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors
             } else {
                 colors_ptr[ix] = cv::Vec3b(0, 0, scale_to_color(value, max_value));
             }
+        }
+    }
+}
+
+void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std::uint8_t value)
+{
+    for (std::size_t i = 0; i < points.size() - 1; ++i) {
+        const auto& p1 = points[i];
+        const auto& p2 = points[i + 1];
+        int x1 = p1.x;
+        int x2 = p2.x;
+        int y1 = p1.y;
+        int y2 = p2.y;
+
+        if (x1 == x2 && y1 == y2) {
+            mask.at<std::uint8_t>(y1, x1) = value;
+            continue;
+        }
+
+        if (std::abs(x2 - x1) >= std::abs(y2 - y1)) {
+            if (x2 - x1 < 0) {
+                std::swap(x1, x2);
+                std::swap(y1, y2);
+            }
+
+            float slope = static_cast<float>(y2 - y1) / (x2 - x1);
+            for (int x = x1; x <= x2; ++x) {
+                int y = y1 + (x - x1) * slope;
+                mask.at<std::uint8_t>(y, x) = value;
+            }
+        } else {
+            if (y2 - y1 < 0) {
+                std::swap(x1, x2);
+                std::swap(y1, y2);
+            }
+
+            float slope = static_cast<float>(x2 - x1) / (y2 - y1);
+            for (int y = y1; y <= y2; ++y) {
+                int x = x1 + (y - y1) * slope;
+                mask.at<std::uint8_t>(y, x) = value;
+            }
+        }
+    }
+}
+
+void find_1_pixel_lines_in_mask(const cv::Mat& mask, std::vector<std::vector<cv::Point>>& lines)
+{
+    if (mask.type() != CV_8U) {
+        throw std::invalid_argument("Only CV_8U images are supported");
+    }
+    int size_x = mask.size.p[1];
+    int size_y = mask.size.p[0];
+
+    LongestLineRecognizer recognizer{mask};
+
+    for (int y = 0; y < size_y; ++y) {
+        const auto* row = mask.ptr<std::uint8_t>(y);
+        for (int x = 0; x < size_x; ++x) {
+            if (row[x] == 0) {
+                continue;
+            }
+
+            lines.push_back(recognizer.recognize_at(x, y));
         }
     }
 }

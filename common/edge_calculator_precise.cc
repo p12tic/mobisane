@@ -17,8 +17,9 @@
 */
 
 #include "edge_calculator_precise.h"
-#include "segment_calculator_precise.h"
+#include "edge_utils.h"
 #include "edge_utils_internal.h"
+#include "segment_calculator_precise.h"
 #include <sanescanocr/util/math.h>
 #include <opencv2/core/mat.hpp>
 
@@ -53,6 +54,8 @@ EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
     if (derivatives_.type() != CV_16SC3) {
         throw std::invalid_argument("Only CV_16SC3 derivative data is supported");
     }
+
+    edge_mask_ = cv::Mat(derivatives_.size.p[0], derivatives_.size.p[1], CV_8U, cv::Scalar{0});
 }
 
 void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::Point& pb)
@@ -118,7 +121,8 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
             ? OffsetDirection::VERTICAL : OffsetDirection::HORIZONTAL;
 
     compute_offsets_for_edge_slope(eval_line_half_length, slope, offset_direction, offsets);
-    SegmentCalculatorPrecise segment_calculator{calculate_reverse_intensities(pa, pb),
+    SegmentCalculatorPrecise segment_calculator{edge_mask_,
+                                                calculate_reverse_intensities(pa, pb),
                                                 max_secondary_peak_multiplier_,
                                                 max_distance_between_zero_cross_detections_,
                                                 static_cast<float>(edge_min_length_),
@@ -171,15 +175,13 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
     }
 
     segment_calculator.finish();
-    auto segment_results = segment_calculator.results();
-    result_.insert(result_.end(), segment_results.begin(), segment_results.end());
 }
 
-std::vector<std::vector<cv::Point>> EdgeCalculatorPrecise::move_result()
+std::vector<std::vector<cv::Point>> EdgeCalculatorPrecise::get_lines()
 {
-    std::vector<std::vector<cv::Point>> result;
-    std::swap(result_, result);
-    return result;
+    std::vector<std::vector<cv::Point>> lines;
+    find_1_pixel_lines_in_mask(edge_mask_, lines);
+    return lines;
 }
 
 void EdgeCalculatorPrecise::retrieve_line_intensities(int cx, int cy,

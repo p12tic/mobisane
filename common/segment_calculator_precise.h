@@ -19,7 +19,7 @@
 #pragma once
 
 #include "edge_utils_internal.h"
-#include <opencv2/core/types.hpp>
+#include <opencv2/core/mat.hpp>
 #include <vector>
 
 namespace sanescan {
@@ -31,7 +31,8 @@ public:
         the start of the intensities vector. If `reverse_intensities` is true then the calculator
         operates as if the intensities vector is reversed
     */
-    SegmentCalculatorPrecise(bool reverse_intensities,
+    SegmentCalculatorPrecise(const cv::Mat& output_mask,
+                             bool reverse_intensities,
                              float max_allowed_other_peak_multiplier,
                              float max_distance_between_detections,
                              float min_line_length,
@@ -40,15 +41,14 @@ public:
     void submit_line(int cx, int cy, const std::vector<std::int16_t>& intensities);
     void finish();
 
-    const std::vector<std::vector<cv::Point>>& results() const { return results_; }
-
 private:
+    cv::Mat output_mask_;
     bool reverse_intensities_ = false;
     float max_allowed_other_peak_multiplier_ = 0;
     float max_distance_between_detections_ = 0;
     float min_line_length_ = 0;
     const std::vector<cv::Point>& offsets_;
-    std::vector<std::vector<cv::Point>> results_;
+    std::vector<cv::Point> curr_line_;
 
     std::vector<ZeroCrossData> _cached_crosses;
 };
