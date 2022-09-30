@@ -30,6 +30,7 @@ import attr
 
 @attr.s
 class Settings:
+    prefix = attr.ib(converter=str)
     parallel = attr.ib(converter=int)
 
 
@@ -57,9 +58,9 @@ def sh_with_cwd(cwd):
     return sh_wrapper
 
 
-def build_zlib(prefix, srcdir, builddir, settings):
+def build_zlib(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir])
+    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={settings.prefix}', srcdir])
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -68,35 +69,40 @@ def build_zlib(prefix, srcdir, builddir, settings):
                 os.path.join(srcdir, 'zconf.h'))
 
 
-def flags_zlib(prefix):
-    return [f'-DZLIB_ROOT={prefix}']
+def flags_zlib(settings):
+    return [f'-DZLIB_ROOT={settings.prefix}']
 
 
-def build_libpng(prefix, srcdir, builddir, settings):
+def build_libpng(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}'] + flags_zlib(prefix) + [srcdir])
+    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={settings.prefix}'] + flags_zlib(settings) +
+        [srcdir])
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
 
-def build_gmp(prefix, srcdir, builddir, settings):
+def build_gmp(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh([os.path.join(srcdir, 'configure'), f'--prefix={prefix}', '--enable-cxx'])
+    bsh([os.path.join(srcdir, 'configure'), f'--prefix={settings.prefix}', '--enable-cxx'])
     bsh(['make', f'-j{settings.parallel}'])
     bsh(['make', 'install'])
 
 
-def build_mpfr(prefix, srcdir, builddir, settings):
+def build_mpfr(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     sh(['./autogen.sh'], cwd=srcdir)
-    bsh([os.path.join(srcdir, 'configure'), f'--prefix={prefix}', f'--with-gmp={prefix}'])
+    bsh([
+        os.path.join(srcdir, 'configure'),
+        f'--prefix={settings.prefix}',
+        f'--with-gmp={settings.prefix}'
+    ])
     bsh(['make', f'-j{settings.parallel}'])
     bsh(['make', 'install'])
 
 
-def build_lapack(prefix, srcdir, builddir, settings):
+def build_lapack(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir])
+    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={settings.prefix}', srcdir])
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -134,7 +140,8 @@ def main():
     src_path_root = os.path.dirname(os.path.abspath(__file__))
 
     settings = Settings(
-        parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count()
+        parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count(),
+        prefix=args.prefix
     )
 
     for name, fn in build_deps:
@@ -142,7 +149,7 @@ def main():
         print(f'Building {name} in {builddir}')
 
         recreate_dir(builddir)
-        fn(args.prefix, os.path.join(src_path_root, name), builddir, settings)
+        fn(os.path.join(src_path_root, name), builddir, settings)
 
 
 if __name__ == '__main__':
