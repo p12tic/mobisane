@@ -25,6 +25,11 @@
 
 namespace sanescan {
 
+struct MeshTriangle
+{
+    std::array<aliceVision::IndexT, 3> indices;
+};
+
 std::pair<Vec3, Vec3> fit_plane_to_points(const std::vector<Vec3>& points);
 
 Mat3 skew_symmetric_matrix(const Vec3& vec);

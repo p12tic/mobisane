@@ -254,4 +254,54 @@ void write_feature_match_debug_image(
     write_debug_image(debug_folder_path, filename, output);
 }
 
+void write_mesh_debug_2d_image(
+        const std::string& debug_folder_path,
+        const std::string& filename,
+        const aliceVision::sfmData::Landmarks& landmarks,
+        const std::vector<MeshTriangle>& triangles)
+{
+    const int image_size = 2048;
+
+    auto [min_coord, max_coord] = minmax_landmark_coords(landmarks);
+    double in_size_x = max_coord.x() - min_coord.x();
+    double in_size_y = max_coord.y() - min_coord.y();
+
+    int image_size_x = 0;
+    int image_size_y = 0;
+    if (in_size_x > in_size_y) {
+        image_size_x = image_size;
+        image_size_y = image_size * in_size_y / in_size_x;
+    } else {
+        image_size_x = image_size * in_size_x / in_size_y;
+        image_size_y = image_size;
+    }
+    double mult_x = image_size_x / in_size_x;
+    double mult_y = image_size_y / in_size_y;
+
+    auto coord_to_image_pos = [&, min_coord=min_coord](const Vec3& coord)
+    {
+        return cv::Point((coord.x() - min_coord.x()) * mult_x,
+                         (coord.y() - min_coord.y()) * mult_y);
+    };
+
+    cv::Mat output(image_size_y, image_size_x, CV_8UC3);
+    output.setTo(cv::Scalar(0, 0, 0));
+
+    for (const auto& triangle : triangles) {
+        auto pos_a = coord_to_image_pos(landmarks.at(triangle.indices[0]).X);
+        auto pos_b = coord_to_image_pos(landmarks.at(triangle.indices[1]).X);
+        auto pos_c = coord_to_image_pos(landmarks.at(triangle.indices[2]).X);
+
+        cv::line(output, pos_a, pos_b, cv::Scalar(0, 255, 255), 2);
+        cv::line(output, pos_a, pos_c, cv::Scalar(0, 255, 255), 2);
+        cv::line(output, pos_b, pos_c, cv::Scalar(0, 255, 255), 2);
+    }
+
+    for (const auto& [id, landmark] : landmarks) {
+        cv::circle(output, coord_to_image_pos(landmark.X), 5, cv::Scalar(255, 0, 0), 2);
+    }
+
+    write_debug_image(debug_folder_path, filename, output);
+}
+
 } // namespace sanescan

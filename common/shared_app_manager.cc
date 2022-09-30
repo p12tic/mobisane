@@ -512,6 +512,9 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_filtered_hz_mesh.ply",
                    d_->sfm_landmarks_filtered_horiz, d_->mesh_triangles_filtered);
+
+        write_mesh_debug_2d_image(debug_folder_path, "sfm_mesh_horiz_2d.png",
+                                  d_->sfm_landmarks_filtered_horiz, d_->mesh_triangles_filtered);
     }));
 
     print_tasks.wait();

@@ -18,14 +18,10 @@
 
 #pragma once
 
+#include "geometry_utils.h"
 #include <aliceVision/sfmData/SfMData.hpp>
 
 namespace sanescan {
-
-struct MeshTriangle
-{
-    std::array<aliceVision::IndexT, 3> indices;
-};
 
 void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& landmarks,
                 const std::vector<MeshTriangle>& triangles);

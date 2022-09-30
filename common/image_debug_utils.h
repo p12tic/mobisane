@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "geometry_utils.h"
 #include <aliceVision/feature/FeaturesPerView.hpp>
 #include <aliceVision/matching/IndMatch.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
@@ -63,5 +64,11 @@ void write_feature_match_debug_image(
         const aliceVision::matching::MatchesPerDescType& matches_by_type,
         const aliceVision::feature::FeaturesPerView& features_per_view,
         const aliceVision::sfmData::Landmarks& landmarks);
+
+void write_mesh_debug_2d_image(
+        const std::string& debug_folder_path,
+        const std::string& filename,
+        const aliceVision::sfmData::Landmarks& landmarks,
+        const std::vector<MeshTriangle>& triangles);
 
 } // namespace sanescan
