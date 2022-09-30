@@ -420,6 +420,26 @@ def build_tesseract(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_geogram(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+
+    platform = 'Linux64-gcc-dynamic'
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        f'-DVORPALINE_PLATFORM={platform}',
+        '-DGEOGRAM_WITH_HLBFGS=OFF',
+        '-DGEOGRAM_WITH_TETGEN=OFF',
+        '-DGEOGRAM_WITH_GRAPHICS=OFF',
+        '-DGEOGRAM_WITH_EXPLORAGRAM=OFF',
+        '-DGEOGRAM_WITH_LUA=OFF',
+        srcdir,
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -440,6 +460,7 @@ known_dependencies = [
     ('fontconfig', build_fontconfig),
     ('podofo', build_podofo),
     ('tesseract', build_tesseract),
+    ('geogram', build_geogram),
 ]
 
 
