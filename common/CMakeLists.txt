@@ -20,6 +20,7 @@ set(SOURCES
     bounds_detection_params.cc
     bounds_detection_pipeline.cc
     edge_calculator_precise.cc
+    export_ply.cc
     longest_line_recognizer.cc
     mean_flood_fill.cc
     feature_extraction_job.cc
@@ -70,6 +71,7 @@ set(PUBLIC_HEADERS
     edge_calculator_precise.h
     edge_sfm.h
     edge_utils.h
+    export_ply.h
     feature_extraction_job.h
     geometry_utils.h
     flood_fill_utils.h

@@ -26,6 +26,7 @@
 #include "shared_app_manager.h"
 #include "edge_sfm.h"
 #include "edge_utils.h"
+#include "export_ply.h"
 #include "feature_extraction_job.h"
 #include "finally.h"
 #include "geometry_utils.h"
@@ -505,33 +506,20 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
     {
-        auto sfm_data_exact = d_->sfm_data;
-        sfm_data_exact.getLandmarks() = d_->sfm_landmarks_exact;
-        // Debug info is written outside vfs, thus an absolute path is needed.
-        auto path = std::filesystem::absolute(debug_folder_path) / "sfm_only_points.ply";
-        aliceVision::sfmDataIO::Save(sfm_data_exact, path.c_str(),
-                                     aliceVision::sfmDataIO::ESfMData::ALL);
+        auto path = std::filesystem::path(debug_folder_path) / "sfm_only_points.ply";
+        export_ply(path, d_->sfm_landmarks_exact);
     }));
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
     {
-        auto sfm_data_inexact = d_->sfm_data;
-        sfm_data_inexact.getLandmarks() = d_->sfm_landmarks_inexact;
-        // Debug info is written outside vfs, thus an absolute path is needed.
-        auto path = std::filesystem::absolute(debug_folder_path) / "sfm_only_points_inexact.ply";
-        aliceVision::sfmDataIO::Save(sfm_data_inexact, path.c_str(),
-                                     aliceVision::sfmDataIO::ESfMData::ALL);
+        auto path = std::filesystem::path(debug_folder_path) / "sfm_only_points_inexact.ply";
+        export_ply(path, d_->sfm_landmarks_inexact);
     }));
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
     {
-        auto sfm_data = d_->sfm_data;
-        // FIXME: landmark positions don't match the rest of data in sfm_data.
-        sfm_data.getLandmarks() = d_->sfm_landmarks_filtered_horiz;
-        // Debug info is written outside vfs, thus an absolute path is needed.
-        auto path = std::filesystem::absolute(debug_folder_path) / "sfm_only_points_filtered_hz.ply";
-        aliceVision::sfmDataIO::Save(sfm_data, path.c_str(),
-                                     aliceVision::sfmDataIO::ESfMData::ALL);
+        auto path = std::filesystem::path(debug_folder_path) / "sfm_only_points_filtered_hz.ply";
+        export_ply(path, d_->sfm_landmarks_filtered_horiz);
     }));
 
     print_tasks.wait();
