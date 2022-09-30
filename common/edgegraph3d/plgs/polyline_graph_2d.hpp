@@ -242,8 +242,7 @@ private:
 
 struct Pglp3dPointMatches {
     Vec3f pos;
-    std::vector<PolylineGraphPoint2D> reprojected_coords; // observation ?
-    std::vector<int> reprojection_ids; // viewpoint id?, cam id
+    std::vector<PolylineGraphPoint2DObservation> reprojected;
 };
 
 struct DirectionPlgps2DSet {
@@ -303,6 +302,7 @@ bool one_or_zero_correspondences(const std::pair<PolylineGraphPoint2D,std::vecto
 int amount_of_total_2d_correspondences(const std::pair<PolylineGraphPoint2D,std::vector<std::vector<PolylineGraphPoint2D>>> &p);
 
 std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2D> &plgps);
+std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2DObservation> &plgps);
 
 std::pair<std::vector<Vec2f>, std::vector<int>>
     convert_plgpoint_correspondences(const std::vector<int> &cams,

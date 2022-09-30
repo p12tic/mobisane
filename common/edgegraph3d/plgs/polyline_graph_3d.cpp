@@ -159,10 +159,21 @@ bool PolyLineGraph3D::has_loop(ulong node_id) const
 	return false;
 }
 
-void PolyLineGraph3D::set_observations(ulong node_id, std::vector<Vec2f> projections,
-                                       std::vector<int> cam_ids) {
-	observations[node_id].first = projections;
-	observations[node_id].second = cam_ids;
+void PolyLineGraph3D::set_observations(ulong node_id,
+                                       const std::vector<PolyLineGraph3DObservation>& obs)
+{
+    observations[node_id] = obs;
+}
+
+void PolyLineGraph3D::set_observations(ulong node_id,
+                                       const std::vector<PolylineGraphPoint2DObservation>& obs)
+{
+    auto& cur_obs = observations[node_id];
+    cur_obs.clear();
+    cur_obs.reserve(obs.size());
+    for (const auto& o : obs) {
+        cur_obs.push_back({o.coord.plp.coords, o.id});
+    }
 }
 
 /* Hub, either:

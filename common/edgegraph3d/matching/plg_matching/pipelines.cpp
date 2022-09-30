@@ -60,16 +60,17 @@ void add_3dpoints_to_sfmd(SfMDataWrapper &sfmd, const std::vector<Pglp3dPointMat
 
         LandmarkWrapper landmark;
         landmark.X = p3d.pos;
-        for (int i = 0; i < p3d.reprojection_ids.size(); ++i) {
+        for (int i = 0; i < p3d.reprojected.size(); ++i) {
             ObservationWrapper observation;
-            observation.view_id = p3d.reprojection_ids[i];
-            observation.x = p3d.reprojected_coords[i].plp.coords;
+            observation.view_id = p3d.reprojected[i].id;
+            observation.x = p3d.reprojected[i].coord.plp.coords;
             landmark.observations.push_back(observation);
         }
         sfmd.landmarks_.push_back(landmark);
 
-        for(const auto cam_id : p3d.reprojection_ids)
-            sfmd.camerasList_[cam_id].visible_landmark_ids.push_back(new_point_id);
+        for(const auto reprojected : p3d.reprojected) {
+            sfmd.camerasList_[reprojected.id].visible_landmark_ids.push_back(new_point_id);
+        }
     }
 }
 

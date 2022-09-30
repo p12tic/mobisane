@@ -25,6 +25,7 @@
 #include <edgegraph3d/utils/globals/global_defines.hpp>
 #include <edgegraph3d/sfm_data.h>
 #include <edgegraph3d/types.hpp>
+#include <common/algorithm.h>
 #include <common/vector2d.h>
 #include <opencv2/core/cvstd.hpp>
 #include <opencv2/core/mat.hpp>
@@ -204,29 +205,6 @@ std::ostream &operator<< (std::ostream &out, const std::set<T> &s)
 template<typename T>
 bool is_in(const std::set<T> &s, const T &e) {
 	return s.find(e) != s.end();
-}
-
-template<typename A, typename B>
-std::vector<std::pair<A,B>> zip_pair(const std::vector<A> &a, const std::vector<B> &b) {
-    std::vector<std::pair<A,B>> res;
-    for (int i= 0; i < std::min(a.size(),b.size()); i++) {
-        res.push_back(std::make_pair(a[i],b[i]));
-    }
-	return res;
-}
-
-// reorder A and B according to B's values
-template<typename A, typename B>
-void reorder_pair_of_vector(std::vector<A> &a, std::vector<B> &b) {
-    std::vector<std::pair<A,B>> vab = zip_pair(a,b);
-
-    std::sort(vab.begin(), vab.end(),
-              [](const auto& a, const auto& b){ return a.second < b.second; });
-
-	for(int i= 0; i < vab.size(); i++) {
-		a[i] = vab[i].first;
-		b[i] = vab[i].second;
-	}
 }
 
 Mat4f get_rt4x4(const Mat3f &r, const Vec3f &t);

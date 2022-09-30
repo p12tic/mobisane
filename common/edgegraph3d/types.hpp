@@ -13,10 +13,9 @@ inline Vec4f to_vec4(const Vec2f& a, const Vec2f& b)
     return Vec4f(a.x(), a.y(), b.x(), b.y());
 }
 
-// triangulation position, reprojection coords, reprojection ids
+// triangulation position, reprojection ids
 struct ReprejectedPoint3dData {
     Vec3f pos;
-    std::vector<Vec2f> reprojected_coords;
     std::vector<int> reprojection_ids;
 };
 

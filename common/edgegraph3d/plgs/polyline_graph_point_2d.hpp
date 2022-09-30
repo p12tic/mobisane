@@ -58,5 +58,10 @@ struct PolylineGraphPoint2D {
     }
 };
 
+struct PolylineGraphPoint2DObservation {
+    PolylineGraphPoint2D coord; // observation ?
+    int id = 0; // viewpoint id?, cam id
+};
+
 } // namespace sanescan::edgegraph3d
 

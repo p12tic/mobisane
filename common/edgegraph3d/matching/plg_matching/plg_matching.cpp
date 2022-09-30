@@ -110,13 +110,12 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<int> &selected_2d_
 	}
 
 	bool valid;
-    std::vector<Vec2f> selected_2d_reprojections_coords;
-	selected_2d_reprojections_coords.push_back(next_plp_a.coords);
-	selected_2d_reprojections_coords.push_back(next_plp_b.coords);
-	selected_2d_reprojections_coords.push_back(next_plp_c.coords);
+    std::vector<PolylineGraphPoint2DObservation> selected_2d_reprojections;
+    selected_2d_reprojections.push_back({{0, next_plp_a}, selected_2d_reprojections_ids[0]});
+    selected_2d_reprojections.push_back({{0, next_plp_b}, selected_2d_reprojections_ids[1]});
+    selected_2d_reprojections.push_back({{0, next_plp_c}, selected_2d_reprojections_ids[2]});
 	compute_3d_point(sfmd,
-			selected_2d_reprojections_coords,
-			selected_2d_reprojections_ids,
+            selected_2d_reprojections,
 			new_point_data,
 			valid);
 	if(!valid) {
@@ -317,19 +316,17 @@ void find_directions(const SfMDataWrapper &sfmd,
                      std::vector<std::pair<DirectionPlgps2DSet,ReprejectedPoint3dData>> &valid_points_direction2,
                      bool &fail_due_to_parallel_epipolar)
 {
-    const auto &matches_data = matches.reprojected_coords;
-    const std::vector<int> &matched_ids = matches.reprojection_ids;
     std::vector<int> selected_2d_reprojections_ids;
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[0]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[1]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[2]]);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[0]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[1]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[2]].id);
     auto selected_plgs = SelectedPlgs2DRef{plgs[selected_2d_reprojections_ids[0]],
                                            plgs[selected_2d_reprojections_ids[1]],
                                            plgs[selected_2d_reprojections_ids[2]]};
 
-    auto selected_current_plgps = DirectionPlgps2DSet{matches_data[selected_indexes[0]],
-                                                      matches_data[selected_indexes[1]],
-                                                      matches_data[selected_indexes[2]]};
+    auto selected_current_plgps = DirectionPlgps2DSet{matches.reprojected[selected_indexes[0]].coord,
+                                                      matches.reprojected[selected_indexes[1]].coord,
+                                                      matches.reprojected[selected_indexes[2]].coord};
 
     const Mat3f &fab = all_fundamental_matrices(selected_2d_reprojections_ids[0],
                                                 selected_2d_reprojections_ids[1]);
@@ -355,18 +352,17 @@ void find_directions_3view_firstlast(const SfMDataWrapper &sfmd,
                                      std::vector<std::pair<DirectionPlgps2DSet,ReprejectedPoint3dData>> &valid_points_direction2,
                                      bool &fail_due_to_parallel_epipolar)
 {
-    const std::vector<int> &matched_ids = matches.reprojection_ids;
-	int selected_indexes[3];
-	int amount_of_matches = matched_ids.size();
+    int selected_indexes[3];
+    int amount_of_matches = matches.reprojected.size();
 
 	selected_indexes[0] = 0;
 	selected_indexes[1] = amount_of_matches/2;
 	selected_indexes[2] = amount_of_matches-1;
 
     std::vector<int> selected_2d_reprojections_ids;
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[0]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[1]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[2]]);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[0]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[1]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[2]].id);
 
     find_directions(sfmd,all_fundamental_matrices, plgs,matches, selected_indexes, direction1,
                     direction1_valid, valid_points_direction1, direction2, direction2_valid,
@@ -389,17 +385,16 @@ void find_directions_3view_firstlast(const SfMDataWrapper &sfmd,
                                      bool &fail_due_to_parallel_epipolar,
                                      std::vector<int> &selected_2d_reprojections_ids)
 {
-    const std::vector<int> &matched_ids = matches.reprojection_ids;
 	int selected_indexes[3];
-	int amount_of_matches = matched_ids.size();
+    int amount_of_matches = matches.reprojected.size();
 
 	selected_indexes[0] = 0;
 	selected_indexes[1] = amount_of_matches/2;
 	selected_indexes[2] = amount_of_matches-1;
 
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[0]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[1]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[2]]);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[0]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[1]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[2]].id);
 
     find_directions(sfmd,all_fundamental_matrices, plgs,matches, selected_indexes, direction1,
                     direction1_valid, valid_points_direction1, direction2, direction2_valid,
@@ -438,13 +433,12 @@ void find_directions_3view_firstlast(const SfMDataWrapper &sfmd,
 
 		valid_points_direction1.clear();
 		for(auto &vpt : valid_points_direction1_t) {
-            std::vector<PolylineGraphPoint2D> selected_plgps;
-            selected_plgps.push_back(vpt.first.a);
-            selected_plgps.push_back(vpt.first.b);
-            selected_plgps.push_back(vpt.first.c);
+            std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+            selected_plgps.push_back({vpt.first.a, vpt.second.reprojection_ids[0]});
+            selected_plgps.push_back({vpt.first.b, vpt.second.reprojection_ids[1]});
+            selected_plgps.push_back({vpt.first.c, vpt.second.reprojection_ids[2]});
 
-            valid_points_direction1.push_back({vpt.second.pos, selected_plgps,
-                                               vpt.second.reprojection_ids});
+            valid_points_direction1.push_back({vpt.second.pos, selected_plgps});
 		}
 
         direction2 = std::vector<ulong>(plgs.size());
@@ -454,13 +448,12 @@ void find_directions_3view_firstlast(const SfMDataWrapper &sfmd,
 		if(direction2_valid) {
 			valid_points_direction2.clear();
 			for(auto &vpt : valid_points_direction2_t) {
-                std::vector<PolylineGraphPoint2D> selected_plgps;
-                selected_plgps.push_back(vpt.first.a);
-                selected_plgps.push_back(vpt.first.b);
-                selected_plgps.push_back(vpt.first.c);
+                std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+                selected_plgps.push_back({vpt.first.a, vpt.second.reprojection_ids[0]});
+                selected_plgps.push_back({vpt.first.b, vpt.second.reprojection_ids[1]});
+                selected_plgps.push_back({vpt.first.c, vpt.second.reprojection_ids[2]});
 
-                valid_points_direction2.push_back({vpt.second.pos, selected_plgps,
-                                                    vpt.second.reprojection_ids});
+                valid_points_direction2.push_back({vpt.second.pos, selected_plgps});
             }
 		}
 	}
@@ -482,10 +475,7 @@ void find_directions_3view_firstlast_lastfirst(
         std::vector<std::pair<DirectionPlgps2DSet,ReprejectedPoint3dData>> &valid_points_direction2,
         bool &fail_due_to_parallel_epipolar)
 {
-    const auto &matches_data = matches.reprojected_coords;
-    const std::vector<int> &matched_ids = matches.reprojection_ids;
-	int amount_of_matches = matched_ids.size();
-
+    int amount_of_matches = matches.reprojected.size();
 	int selected_indexes[3];
 
 	selected_indexes[0] = 0;
@@ -513,15 +503,15 @@ void find_directions_3view_firstlast_lastfirst(
 				// Could not detect directions due to epipolar paralleliness just in second direction
 
 			    std::vector<int> selected_2d_reprojections_ids;
-				selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[0]]);
-				selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[1]]);
-				selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[2]]);
+                selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[0]].id);
+                selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[1]].id);
+                selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[2]].id);
                 auto selected_plgs = SelectedPlgs2DRef{plgs[selected_2d_reprojections_ids[0]],
                                                        plgs[selected_2d_reprojections_ids[1]],
                                                        plgs[selected_2d_reprojections_ids[2]]};
-                auto selected_current_plgps = DirectionPlgps2DSet{matches_data[selected_indexes[0]],
-                                                                  matches_data[selected_indexes[1]],
-                                                                  matches_data[selected_indexes[2]]};
+                auto selected_current_plgps = DirectionPlgps2DSet{matches.reprojected[selected_indexes[0]].coord,
+                                                                  matches.reprojected[selected_indexes[1]].coord,
+                                                                  matches.reprojected[selected_indexes[2]].coord};
                 const Mat3f &fab = all_fundamental_matrices(selected_2d_reprojections_ids[0],
                                                             selected_2d_reprojections_ids[1]);
                 const Mat3f &fac = all_fundamental_matrices(selected_2d_reprojections_ids[0],
@@ -559,8 +549,6 @@ void find_directions_3view_firstlast_lastfirst(
                     std::vector<std::pair<DirectionPlgps2DSet,ReprejectedPoint3dData>> valid_points_opposite;
                     DirectionPlgps2DSet reverse_next_plgps = next_plgps;
 
-                    std::reverse(new_point_data.reprojected_coords.begin(),
-                                 new_point_data.reprojected_coords.end());
                     std::reverse(new_point_data.reprojection_ids.begin(),
                                  new_point_data.reprojection_ids.end());
 					valid_points_opposite.push_back(std::make_pair(reverse_next_plgps,new_point_data));
@@ -593,25 +581,17 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
                 bool &fail_due_to_parallel_epipolar)
 {
 	//int starting_plg_index= 0;
-    for (int starting_plg_index= 0; starting_plg_index < current_plgp.reprojection_ids.size();
+    for (int starting_plg_index= 0; starting_plg_index < current_plgp.reprojected.size();
          starting_plg_index++)
     {
 		// cout << "Checking next point compatibility\n";
-
-        const std::vector<PolylineGraphPoint2D> &current_plgps = current_plgp.reprojected_coords;
-        const std::vector<int> &current_plgps_ids = current_plgp.reprojection_ids;
-
-	//	unsigned int amount_of_potential_correspondences = 0;
-
-		int starting_plg_id = current_plgps_ids[starting_plg_index];
-	    std::vector<int> selected_2d_reprojections_ids;
-        std::vector<Vec2f> selected_2d_reprojections_coords;
-        std::vector<PolylineGraphPoint2D> selected_plgps;
+        int starting_plg_id = current_plgp.reprojected[starting_plg_index].id;
+        std::vector<PolylineGraphPoint2DObservation> selected_plgps;
 
 		// Get next plgp on starting plg (by distance)
 		bool reached_polyline_extreme;
 		const PolyLineGraph2DHMapImpl &plg_starting = plgs[starting_plg_id];
-        const PolylineGraphPoint2D &plgp_starting = current_plgps[starting_plg_index];
+        const PolylineGraphPoint2D &plgp_starting = current_plgp.reprojected[starting_plg_index].coord;
         const Polyline2D &pl_starting = plg_starting.polylines[plgp_starting.polyline_id];
 
         auto next_starting_plg_plp = pl_starting.next_pl_point_by_distance(
@@ -624,11 +604,10 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
 			continue;
 		}
 
-        selected_plgps.push_back(PolylineGraphPoint2D(plgp_starting.polyline_id,
-                                                      next_starting_plg_plp.segment_index,
-                                                      next_starting_plg_plp.coords));
-		selected_2d_reprojections_ids.push_back(starting_plg_id);
-		selected_2d_reprojections_coords.push_back(next_starting_plg_plp.coords);
+        selected_plgps.push_back({PolylineGraphPoint2D(plgp_starting.polyline_id,
+                                                       next_starting_plg_plp.segment_index,
+                                                       next_starting_plg_plp.coords),
+                                  starting_plg_id});
 
         Vec3f epipolar;
 		bool found;
@@ -636,11 +615,10 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
         PolylinePoint2D next_before_quasiparallel;
 
 		// Get next plgp on other plgs (by line intersection)
-		for(int i= 0; i < current_plgps_ids.size(); i++)
-			if(i != starting_plg_index) {
-
-				int cur_plg_id = current_plgps_ids[i];
-                const PolylineGraphPoint2D &cur_plgp = current_plgps[i];
+        for(int i= 0; i < current_plgp.reprojected.size(); i++)
+            if(i != starting_plg_index) {
+                int cur_plg_id = current_plgp.reprojected[i].id;
+                const PolylineGraphPoint2D &cur_plgp = current_plgp.reprojected[i].coord;
                 const Polyline2D &cur_pl = plgs[cur_plg_id].polylines[cur_plgp.polyline_id];
 
 
@@ -662,11 +640,10 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
 						found);
 				if(found) {
 	//				amount_of_potential_correspondences++;
-                    selected_plgps.push_back(PolylineGraphPoint2D(cur_plgp.polyline_id,
-                                                                  next_plp.segment_index,
-                                                                  next_plp.coords));
-					selected_2d_reprojections_ids.push_back(cur_plg_id);
-					selected_2d_reprojections_coords.push_back(next_plp.coords);
+                    selected_plgps.push_back({PolylineGraphPoint2D(cur_plgp.polyline_id,
+                                                                   next_plp.segment_index,
+                                                                   next_plp.coords),
+                                              cur_plg_id});
 				}
 			}
 
@@ -674,45 +651,32 @@ bool compatible(const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMa
 
         Vec3f new_3d_coords;
 
-		if(selected_2d_reprojections_ids.size() < PLG_MATCHING_TRIANGULATION_MINIMUM_AMOUNT_OF_POINTS)
+        if(selected_plgps.size() < PLG_MATCHING_TRIANGULATION_MINIMUM_AMOUNT_OF_POINTS)
 			continue;
 
-		compute_3d_point_coords(sfmd,
-				selected_2d_reprojections_coords,
-				selected_2d_reprojections_ids,
-				new_3d_coords,
-				valid);
+        compute_3d_point_coords(sfmd, selected_plgps, new_3d_coords, valid);
 		if(!valid) {
 		    std::vector<bool> selected;
-            std::vector<Vec2f> actually_selected_2d_reprojections_coords;
-		    std::vector<int> actually_selected_2d_reprojections_ids;
 			compute_3d_point_coords_combinations(sfmd,
-				selected_2d_reprojections_coords,
-				selected_2d_reprojections_ids,
-				PLG_MATCHING_TRIANGULATION_MINIMUM_AMOUNT_OF_POINTS,
-				actually_selected_2d_reprojections_coords,
-				actually_selected_2d_reprojections_ids,
+                selected_plgps,
+                PLG_MATCHING_TRIANGULATION_MINIMUM_AMOUNT_OF_POINTS,
 				selected,
 				new_3d_coords,
 				valid);
 
-			if(valid) {
-				selected_2d_reprojections_coords = actually_selected_2d_reprojections_coords;
-				actually_selected_2d_reprojections_ids.clear();
-
-                std::vector<PolylineGraphPoint2D> actually_selected_plgps;
-				for(int i= 0; i < selected_plgps.size(); i++)
+            if(valid) {
+                std::vector<PolylineGraphPoint2DObservation> actually_selected_plgps;
+                for(int i= 0; i < selected_plgps.size(); i++) {
 					if(selected[i]) {
 						actually_selected_plgps.push_back(selected_plgps[i]);
-						actually_selected_2d_reprojections_ids.push_back(selected_2d_reprojections_ids[i]);
-					}
+                    }
+                }
 				selected_plgps = actually_selected_plgps;
-				selected_2d_reprojections_ids = actually_selected_2d_reprojections_ids;
 			}
 		}
 
 		if(valid) {
-            new_point_data = {new_3d_coords, selected_plgps, selected_2d_reprojections_ids};
+            new_point_data = {new_3d_coords, selected_plgps};
 
 			return true;
 		}
@@ -789,8 +753,8 @@ void get_plgp_by_epipolar_intersection_from_known_point(const SfMDataWrapper &sf
                                                         PolylinePoint2D &next_plp,
                                                         bool &valid) {
 	int starting_index = 0;
-    int starting_plg_id = known_point.reprojection_ids[starting_index];
-    const Vec2f starting_coords = known_point.reprojected_coords[starting_index].plp.coords;
+    int starting_plg_id = known_point.reprojected[starting_index].id;
+    const Vec2f starting_coords = known_point.reprojected[starting_index].coord.plp.coords;
 
     Vec3f epipolar = computeCorrespondEpilineSinglePoint(
                 starting_coords, all_fundamental_matrices(starting_plg_id, current_plg_id));
@@ -962,8 +926,7 @@ bool compatible_direction(const SfMDataWrapper &sfmd, const std::vector<PolyLine
 	for(int i= 0; i < new_points_data_to_add.size(); i++) {
         Pglp3dPointMatches &to_update = valid_points[i];
         to_update.pos = new_points_data_to_add[i].first;
-        to_update.reprojected_coords.push_back(new_points_data_to_add[i].second);
-        to_update.reprojection_ids.push_back(current_plg_id);
+        to_update.reprojected.push_back({new_points_data_to_add[i].second, current_plg_id});
 	}
 
 	return new_points_data_to_add.size() > 0;
@@ -1193,12 +1156,11 @@ void find_directions_all_views(const SfMDataWrapper &sfmd,
                                     fail_due_to_parallel_epipolar);
 
 	if(direction1_valid) {
-        const auto& matches_data = matches.reprojected_coords;
-        const auto& matched_ids = matches.reprojection_ids;
-		int amount_of_matches = matched_ids.size();
+        int amount_of_matches = matches.reprojected.size();
 
         for (i=1; i < amount_of_matches / 2; i++) {
-            find_directions_on_plg_known_3D_point(sfmd, plgs, matched_ids[i], matches_data[i],
+            const auto& reprojected = matches.reprojected[i];
+            find_directions_on_plg_known_3D_point(sfmd, plgs, reprojected.id, reprojected.coord,
                                                   all_fundamental_matrices,
                                                   direction1, direction1_valid,
                                                   valid_points_direction1,
@@ -1207,7 +1169,8 @@ void find_directions_all_views(const SfMDataWrapper &sfmd,
         }
 
         for (i=amount_of_matches / 2 + 1; i < amount_of_matches-1; i++) {
-            find_directions_on_plg_known_3D_point(sfmd, plgs, matched_ids[i], matches_data[i],
+            const auto& reprojected = matches.reprojected[i];
+            find_directions_on_plg_known_3D_point(sfmd, plgs, reprojected.id, reprojected.coord,
                                                   all_fundamental_matrices, direction1,
                                                   direction1_valid, valid_points_direction1,
                                                   direction2, direction2_valid,
@@ -1223,9 +1186,7 @@ std::pair<std::vector<Pglp3dPointMatches>,
                             const Pglp3dPointMatches &matches,
                             bool &valid)
 {
-    const auto &matches_data = matches.reprojected_coords;
-    const auto &matched_ids = matches.reprojection_ids;
-	int amount_of_matches = matched_ids.size();
+    int amount_of_matches = matches.reprojected.size();
     std::vector<Pglp3dPointMatches> points_dir1, points_dir2;
 	bool fail_due_to_parallel_epipolar;
 	valid = false;
@@ -1240,16 +1201,16 @@ std::pair<std::vector<Pglp3dPointMatches>,
 	selected_indexes[2] = amount_of_matches-1;
 
     std::vector<int> selected_2d_reprojections_ids;
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[0]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[1]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[2]]);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[0]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[1]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[2]].id);
 
     auto selected_plgs = SelectedPlgs2DRef{plgs[selected_2d_reprojections_ids[0]],
                                            plgs[selected_2d_reprojections_ids[1]],
                                            plgs[selected_2d_reprojections_ids[2]]};
-    auto current_plgps = DirectionPlgps2DSet{matches_data[selected_indexes[0]],
-                                             matches_data[selected_indexes[1]],
-                                             matches_data[selected_indexes[2]]};
+    auto current_plgps = DirectionPlgps2DSet{matches.reprojected[selected_indexes[0]].coord,
+                                             matches.reprojected[selected_indexes[1]].coord,
+                                             matches.reprojected[selected_indexes[2]].coord};
     EdgeDirectionIndexes direction1,direction2;
 	bool direction1_valid,direction2_valid;
     std::vector<std::pair<DirectionPlgps2DSet,ReprejectedPoint3dData>> valid_points_direction1,valid_points_direction2;
@@ -1268,12 +1229,12 @@ std::pair<std::vector<Pglp3dPointMatches>,
             const DirectionPlgps2DSet &p_plgps = p.first;
             const ReprejectedPoint3dData &p3d = p.second;
 
-            std::vector<PolylineGraphPoint2D> selected_plgps;
-            selected_plgps.push_back(p_plgps.a);
-            selected_plgps.push_back(p_plgps.b);
-            selected_plgps.push_back(p_plgps.c);
+            std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+            selected_plgps.push_back({p_plgps.a, p3d.reprojection_ids[0]});
+            selected_plgps.push_back({p_plgps.b, p3d.reprojection_ids[1]});
+            selected_plgps.push_back({p_plgps.c, p3d.reprojection_ids[2]});
 
-            points_dir1.push_back({p3d.pos, selected_plgps, p3d.reprojection_ids});
+            points_dir1.push_back({p3d.pos, selected_plgps});
 		}
 
 	    std::vector<ulong> directions1(plgs.size());
@@ -1290,12 +1251,12 @@ std::pair<std::vector<Pglp3dPointMatches>,
             const DirectionPlgps2DSet &p_plgps = p.first;
             const ReprejectedPoint3dData &p3d = p.second;
 
-            std::vector<PolylineGraphPoint2D> selected_plgps;
-            selected_plgps.push_back(p_plgps.a);
-            selected_plgps.push_back(p_plgps.b);
-            selected_plgps.push_back(p_plgps.c);
+            std::vector<PolylineGraphPoint2DObservation> selected_plgps;
+            selected_plgps.push_back({p_plgps.a, p3d.reprojection_ids[0]});
+            selected_plgps.push_back({p_plgps.b, p3d.reprojection_ids[1]});
+            selected_plgps.push_back({p_plgps.c, p3d.reprojection_ids[2]});
 
-            points_dir2.push_back({p3d.pos,selected_plgps, p3d.reprojection_ids});
+            points_dir2.push_back({p3d.pos, selected_plgps});
 		}
 
 	    std::vector<ulong> directions2(plgs.size());
@@ -1316,8 +1277,7 @@ std::pair<std::vector<Pglp3dPointMatches>,
                             const std::vector<PolyLineGraph2DHMapImpl> &plgs,
                             const Pglp3dPointMatches &matches, bool &valid)
 {
-    const std::vector<int> &matched_ids = matches.reprojection_ids;
-	int amount_of_matches = matched_ids.size();
+    int amount_of_matches = matches.reprojected.size();
 	bool fail_due_to_parallel_epipolar;
 	valid = false;
 
@@ -1355,9 +1315,7 @@ std::vector<std::pair<DirectionPlgps2DSet,
                            const std::vector<PolyLineGraph2DHMapImpl> &plgs,
                            const Pglp3dPointMatches &matches, bool &valid)
 {
-    const auto &matches_data = matches.reprojected_coords;
-    const auto &matched_ids = matches.reprojection_ids;
-	int amount_of_matches = matched_ids.size();
+    int amount_of_matches = matches.reprojected.size();
     std::vector<std::pair<DirectionPlgps2DSet,ReprejectedPoint3dData>> valid_points;
 	bool fail_due_to_parallel_epipolar;
 	valid = false;
@@ -1374,17 +1332,17 @@ std::vector<std::pair<DirectionPlgps2DSet,
 	selected_indexes[2] = amount_of_matches-1;
 
     std::vector<int> selected_2d_reprojections_ids;
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[0]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[1]]);
-	selected_2d_reprojections_ids.push_back(matched_ids[selected_indexes[2]]);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[0]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[1]].id);
+    selected_2d_reprojections_ids.push_back(matches.reprojected[selected_indexes[2]].id);
 
     auto selected_plgs = SelectedPlgs2DRef{plgs[selected_2d_reprojections_ids[0]],
                                            plgs[selected_2d_reprojections_ids[1]],
                                            plgs[selected_2d_reprojections_ids[2]]};
 
-    auto current_plgps = DirectionPlgps2DSet{matches_data[selected_indexes[0]],
-                                             matches_data[selected_indexes[1]],
-                                             matches_data[selected_indexes[2]]};
+    auto current_plgps = DirectionPlgps2DSet{matches.reprojected[selected_indexes[0]].coord,
+                                             matches.reprojected[selected_indexes[1]].coord,
+                                             matches.reprojected[selected_indexes[2]].coord};
 
     EdgeDirectionIndexes direction1,direction2;
 	bool direction1_valid,direction2_valid;
@@ -1425,8 +1383,7 @@ void follow_plgs_from_match4(const SfMDataWrapper &sfmd,
                              bool &direction2_valid,
                              std::vector<Pglp3dPointMatches> &valid_points_direction2)
 {
-    const std::vector<int> &matched_ids = matches.reprojection_ids;
-	int amount_of_matches = matched_ids.size();
+    int amount_of_matches = matches.reprojected.size();
 	bool fail_due_to_parallel_epipolar;
 
 	direction1_valid=false;

@@ -843,8 +843,7 @@ void update_new_3dpoint_plgp_matches(Pglp3dPointMatches &pt, int new_view,
                                      const Vec3f &new_coords)
 {
     pt.pos = new_coords;
-    pt.reprojected_coords.push_back(new_observation);
-    pt.reprojection_ids.push_back(new_view);
+    pt.reprojected.push_back({new_observation, new_view});
 }
 
 bool PolyLineGraph2D::is_connected_node(ulong start_node,ulong end_node, ulong max_jumps) {
@@ -1416,6 +1415,14 @@ std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2
 	for(const auto &plgp : plgps)
 		coords.push_back(plgp.plp.coords);
 	return coords;
+}
+
+std::vector<Vec2f> convert_vecplgp_to_vec2(const std::vector<PolylineGraphPoint2DObservation> &plgps)
+{
+    std::vector<Vec2f> coords;
+    for(const auto &plgp : plgps)
+        coords.push_back(plgp.coord.plp.coords);
+    return coords;
 }
 
 std::pair<std::vector<Vec2f>, std::vector<int>>

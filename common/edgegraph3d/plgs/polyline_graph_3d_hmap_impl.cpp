@@ -60,7 +60,7 @@ ulong PolyLineGraph3DHMapImpl::get_node_id(const Vec3f &p_coords) {
 		node_id = get_next_node_id();
         it->second = node_id;
 		connections.push_back(std::vector<ulong>());
-        observations.push_back(std::pair<std::vector<Vec2f>, std::vector<int>>());
+        observations.push_back({});
 		PolyLineGraph3D::add_node_coords(p_coords);
 		increment_real_nodes_amount();
 	} else

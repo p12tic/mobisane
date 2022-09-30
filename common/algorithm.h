@@ -32,6 +32,33 @@ std::size_t max_element_i(It begin, It end)
     return std::distance(begin, std::max_element(begin, end));
 }
 
+template<class It, class F>
+std::pair<std::size_t, std::size_t>
+        minmax_element_i_by_value(It begin, It end, F&& callable)
+{
+    if (begin == end) {
+        throw std::invalid_argument("At least one element required");
+    }
+
+    auto min_value = callable(*begin++);
+    auto max_value = min_value;
+    std::size_t min_index = 0;
+    std::size_t max_index = 0;
+
+    for (std::size_t i = 1; begin != end; begin++, i++) {
+        auto value = callable(*begin);
+        if (value < min_value) {
+            min_value = value;
+            min_index = i;
+        }
+        if (value > max_value) {
+            max_value = value;
+            max_index = i;
+        }
+    }
+    return {min_index, max_index};
+}
+
 template<class Value, class It, class F>
 std::pair<std::size_t, Value> min_element_i_and_value_by(It begin, It end, F&& callable)
 {

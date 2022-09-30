@@ -174,13 +174,14 @@ int em_GaussNewton(const std::vector<Mat4f> &cameras, const std::vector<Vec2f> &
   }
 }
 
-void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
-                            const std::vector<Vec2f> &selected_2d_reprojections_coords,
-                            const std::vector<int> &selected_2d_reprojections_ids,
-                            Vec3f &triangulated_point, bool &valid)
+void em_estimate3Dpositions(
+        const SfMDataWrapper &sfmd,
+        const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+        Vec3f &triangulated_point, bool &valid)
 {
-    const std::pair<int, int> min_max_ind = get_min_max(
-			selected_2d_reprojections_ids);
+    auto [min_ind, max_ind] = minmax_element_i_by_value(selected_2d_reprojections.begin(),
+                                                        selected_2d_reprojections.end(),
+                                                        [](const auto& r) { return r.id; });
 
 	/*
 	 * Note: I decided to use the minimum and maximum indices for the selection
@@ -189,21 +190,22 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 	 * angle than the other possible camera pairs. The reason for this is that
 	 * I suspect that having wider angle between the cameras used for initialization,
 	 * will lead to a better initial result.
+
+        FIXME: this should be checked by looking into actual camera projection matrices
 	 */
 
-	int firstCamIdx, lastCamIdx;
 	cv::Point3d triangulated3DPointInit, triangulated3DPoint;
 	cv::Vec4f triangulated3DPointInitTemp;
     std::vector<cv::Point2f> firstPositionVec, lastPositionVec;
 
-	firstCamIdx = selected_2d_reprojections_ids[min_max_ind.first];
-	lastCamIdx = selected_2d_reprojections_ids[min_max_ind.second];
+    auto firstCamIdx = selected_2d_reprojections[min_ind].id;
+    auto lastCamIdx = selected_2d_reprojections[max_ind].id;
 
     auto firstCam = convert_glm_mat4_to_cv_Mat34(sfmd.camerasList_[firstCamIdx].cameraMatrix);
     auto lastCam = convert_glm_mat4_to_cv_Mat34(sfmd.camerasList_[lastCamIdx].cameraMatrix);
 
-    auto firstPoint = convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections_coords[min_max_ind.first]);
-    auto lastPoint = convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections_coords[min_max_ind.second]);
+    auto firstPoint = convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections[min_ind].coord.plp.coords);
+    auto lastPoint = convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections[max_ind].coord.plp.coords);
 
 	firstPositionVec.push_back(firstPoint);
 	lastPositionVec.push_back(lastPoint);
@@ -221,12 +223,17 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 	//Pack the information to start the Gauss Newton algorithm
 
     std::vector<Mat4f> curCams;
-    for (int i = 0; i < selected_2d_reprojections_ids.size(); i++) {
-		int camIdx = selected_2d_reprojections_ids[i];
+    std::vector<Vec2f> cur_points;
+    curCams.reserve(selected_2d_reprojections.size());
+    cur_points.reserve(selected_2d_reprojections.size());
+
+    for (int i = 0; i < selected_2d_reprojections.size(); i++) {
+        int camIdx = selected_2d_reprojections[i].id;
         curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
+        cur_points.push_back(selected_2d_reprojections[i].coord.plp.coords);
     }
 
-    int resGN = em_GaussNewton(curCams, selected_2d_reprojections_coords, triangulated3DPointInit,
+    int resGN = em_GaussNewton(curCams, cur_points, triangulated3DPointInit,
                                triangulated3DPoint);
 
 	if(resGN != -1) {
@@ -349,11 +356,11 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
     triangulated3DPointInit.z = current_point.pos[2];
 
 	//Pack the information to start the Gauss Newton algorithm
-    for (int i = 0; i < current_point.reprojection_ids.size(); i++) {
-        int camIdx = current_point.reprojection_ids[i];
+    for (int i = 0; i < current_point.reprojected.size(); i++) {
+        int camIdx = current_point.reprojected[i].id;
         curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
 
-        curPoints.push_back(current_point.reprojected_coords[i].plp.coords);
+        curPoints.push_back(current_point.reprojected[i].coord.plp.coords);
 	}
 
 	int camIdx = new_viewpoint_id;
@@ -372,12 +379,12 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 }
 
 
-void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
-                                           const Vec3f &current_point_coords,
-                                           const std::vector<Vec2f> &current_point_observation_coords,
-                                           const std::vector<int> &current_point_observation_ids,
-                                           const Vec2f new_coords, int new_viewpoint_id,
-                                           Vec3f &triangulated_point, bool &valid)
+void em_add_new_observation_to_3Dpositions(
+        const SfMDataWrapper &sfmd,
+        const Vec3f &current_point_coords,
+        const std::vector<PolylineGraphPoint2DObservation> &current_point_observations,
+        const PolylineGraphPoint2DObservation& new_observation,
+        Vec3f &triangulated_point, bool &valid)
 {
 	/*
 	 * Note: I decided to use the minimum and maximum indices for the selection
@@ -400,16 +407,16 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 	triangulated3DPointInit.z = current_point_coords[2];
 
 	//Pack the information to start the Gauss Newton algorithm
-	for (int i = 0; i < current_point_observation_ids.size(); i++) {
-		int camIdx = current_point_observation_ids[i];
+    for (int i = 0; i < current_point_observations.size(); i++) {
+        int camIdx = current_point_observations[i].id;
         curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
-        curPoints.push_back(current_point_observation_coords[i]);
+        curPoints.push_back(current_point_observations[i].coord.plp.coords);
 	}
 
-	int camIdx = new_viewpoint_id;
+    int camIdx = new_observation.id;
     curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
 
-    curPoints.push_back(new_coords);
+    curPoints.push_back(new_observation.coord.plp.coords);
 
 	int resGN = em_GaussNewton(curCams, curPoints, triangulated3DPointInit, triangulated3DPoint);
 
@@ -422,36 +429,16 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 		valid = false;
 }
 
-void compute_3d_point_coords(const SfMDataWrapper &sfmd,
-        const std::vector<Vec2f> &selected_2d_reprojections_coords,
-        const std::vector<int> &selected_2d_reprojections_ids,
+void compute_3d_point_coords(
+        const SfMDataWrapper &sfmd,
+        const std::vector<PolylineGraphPoint2DObservation> &selected_2d_reprojections,
         Vec3f &new_point_data,
 		bool &valid) {
 	valid = false;
 
-	if (selected_2d_reprojections_coords.size() >= 2) {
+    if (selected_2d_reprojections.size() >= 2) {
 		// Compute 3D point
-		em_estimate3Dpositions(sfmd, selected_2d_reprojections_coords,
-				selected_2d_reprojections_ids, new_point_data,
-				valid);
-	}
-}
-
-void compute_3d_point(const SfMDataWrapper &sfmd,
-        const std::vector<PolylineGraphPoint2D> &selected_2d_reprojections_coords,
-        const std::vector<int> &selected_2d_reprojections_ids,
-        Pglp3dPointMatches &new_point_data,
-		bool &valid) {
-	valid = false;
-
-	if (selected_2d_reprojections_coords.size() >= 2) {
-		em_estimate3Dpositions(sfmd, selected_2d_reprojections_coords,
-                selected_2d_reprojections_ids, new_point_data.pos,
-				valid);
-		if (valid) {
-            new_point_data.reprojected_coords = selected_2d_reprojections_coords;
-            new_point_data.reprojection_ids = selected_2d_reprojections_ids;
-		}
+        em_estimate3Dpositions(sfmd, selected_2d_reprojections, new_point_data, valid);
 	}
 }
 
@@ -471,28 +458,25 @@ void compute_unique_potential_3d_points_3views_plg_following_newpoint_compatibil
     std::vector<Pglp3dPointMatches> valid_points_direction2,valid_points_direction1;
     std::vector<ulong> directions1, directions2;
 
-	bool tvalid;
-    std::vector<int> views;
-    views.push_back(all_2d_reprojections_ids_3views.a);
-    views.push_back(all_2d_reprojections_ids_3views.b);
-    views.push_back(all_2d_reprojections_ids_3views.c);
+    bool tvalid;
+
+    std::vector<PolylineGraphPoint2DObservation> new_plgps;
 
     for(const auto &plgp0 : all_2d_reprojections_3views.a)
         for(const auto &plgp1 : all_2d_reprojections_3views.b)
             for(const auto &plgp2 : all_2d_reprojections_3views.c) {
                 Vec3f triangulated_point;
-                std::vector<PolylineGraphPoint2D> new_plgps;
-				new_plgps.push_back(plgp0);
-				new_plgps.push_back(plgp1);
-				new_plgps.push_back(plgp2);
+                new_plgps.clear();
+                new_plgps.push_back({plgp0, all_2d_reprojections_ids_3views.a});
+                new_plgps.push_back({plgp1, all_2d_reprojections_ids_3views.b});
+                new_plgps.push_back({plgp2, all_2d_reprojections_ids_3views.c});
 
-				em_estimate3Dpositions(sfmd, new_plgps, views, triangulated_point, tvalid);
+                em_estimate3Dpositions(sfmd, new_plgps, triangulated_point, tvalid);
 
-			    std::vector<int> views_cpy = views;
 				if(tvalid) {
 					// Try following PLG from the new point
 
-                    potential_new_point = {triangulated_point, new_plgps, views_cpy};
+                    potential_new_point = {triangulated_point, new_plgps};
 
                     if(compatible_new_plg_point(sfmd, all_fundamental_matrices, plgs,
                                                 potential_new_point,
@@ -531,26 +515,23 @@ void compute_findfirst_potential_3d_points_3views_plg_following_newpoint_compati
     std::vector<Pglp3dPointMatches> valid_points_direction2,valid_points_direction1;
     std::vector<ulong> directions1, directions2;
 
-	bool tvalid;
-    std::vector<int> views;
-    views.push_back(all_2d_reprojections_ids_3views.a);
-    views.push_back(all_2d_reprojections_ids_3views.b);
-    views.push_back(all_2d_reprojections_ids_3views.c);
+    bool tvalid;
+
+    std::vector<PolylineGraphPoint2DObservation> new_plgps;
 
     for(const auto &plgp0 : all_2d_reprojections_3views.a)
         for(const auto &plgp1 : all_2d_reprojections_3views.b)
             for(const auto &plgp2 : all_2d_reprojections_3views.c) {
                 Vec3f triangulated_point;
-                std::vector<PolylineGraphPoint2D> new_plgps;
-				new_plgps.push_back(plgp0);
-				new_plgps.push_back(plgp1);
-				new_plgps.push_back(plgp2);
+                new_plgps.clear();
+                new_plgps.push_back({plgp0, all_2d_reprojections_ids_3views.a});
+                new_plgps.push_back({plgp1, all_2d_reprojections_ids_3views.b});
+                new_plgps.push_back({plgp2, all_2d_reprojections_ids_3views.c});
 
-				em_estimate3Dpositions(sfmd, new_plgps, views, triangulated_point, tvalid);
+                em_estimate3Dpositions(sfmd, new_plgps, triangulated_point, tvalid);
 
-			    std::vector<int> views_cpy = views;
 				if(tvalid) {
-                    potential_new_point = {triangulated_point, new_plgps, views_cpy};
+                    potential_new_point = {triangulated_point, new_plgps};
 
                     if(compatible_new_plg_point(sfmd, all_fundamental_matrices, plgs,
                                                 potential_new_point, directions1, direction1_valid,
@@ -930,33 +911,29 @@ std::vector<Pglp3dPointMatches>
 }
 
 void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
-        const std::vector<Vec2f> &all_2d_reprojections_coords,
-        const std::vector<int> &all_2d_reprojections_ids,
+        const std::vector<PolylineGraphPoint2DObservation> &all_2d_reprojections,
 		int min_combinations,
-        std::vector<Vec2f> &selected_2d_reprojections_coords,
-	    std::vector<int> &selected_2d_reprojections_ids,
 	    std::vector<bool> &selected,
         Vec3f &new_point_data,
 		bool &valid) {
 	valid = false;
 
-	selected.resize(all_2d_reprojections_ids.size());
+    selected.resize(all_2d_reprojections.size());
 	std::fill(selected.begin() + min_combinations, selected.end(), false);
     std::fill(selected.begin(), selected.begin() + min_combinations, true);
+    std::vector<PolylineGraphPoint2DObservation> selected_2d_reprojections;
+    selected_2d_reprojections.reserve(all_2d_reprojections.size());
 
     do {
-    	selected_2d_reprojections_coords.clear();
-    	selected_2d_reprojections_ids.clear();
+        selected_2d_reprojections.clear();
 
-        for (int i = 0; i < all_2d_reprojections_ids.size(); ++i) {
+        for (int i = 0; i < all_2d_reprojections.size(); ++i) {
             if (selected[i]) {
-            	selected_2d_reprojections_coords.push_back(all_2d_reprojections_coords[i]);
-            	selected_2d_reprojections_ids.push_back(all_2d_reprojections_ids[i]);
+                selected_2d_reprojections.push_back(all_2d_reprojections[i]);
             }
         }
 
-        compute_3d_point_coords(sfmd, selected_2d_reprojections_coords,
-                                selected_2d_reprojections_ids, new_point_data,valid);
+        compute_3d_point_coords(sfmd, selected_2d_reprojections, new_point_data,valid);
     } while (!valid && std::prev_permutation(selected.begin(), selected.end()));
 
     if(!valid)
@@ -964,48 +941,36 @@ void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
 
     Vec3f new_3d_coords;
     bool need_reorder=false;
-    for (int i = 0; i < all_2d_reprojections_ids.size(); ++i) {
+    for (int i = 0; i < all_2d_reprojections.size(); ++i) {
         if (!selected[i]) {
             em_add_new_observation_to_3Dpositions(sfmd, new_point_data,
-                                                  selected_2d_reprojections_coords,
-                                                  selected_2d_reprojections_ids,
-                                                  all_2d_reprojections_coords[i],
-                                                  all_2d_reprojections_ids[i],
+                                                  selected_2d_reprojections,
+                                                  all_2d_reprojections[i],
                                                   new_3d_coords, valid);
         	if(valid) {
         		selected[i] = true;
-        		new_point_data = new_3d_coords;
-        		selected_2d_reprojections_coords.push_back(all_2d_reprojections_coords[i]);
-        		if(!need_reorder && all_2d_reprojections_ids[i] > selected_2d_reprojections_ids[selected_2d_reprojections_ids.size()-1])
-        			need_reorder = true;
-        		selected_2d_reprojections_ids.push_back(all_2d_reprojections_ids[i]);
-        	}
+                new_point_data = new_3d_coords;
+                selected_2d_reprojections.push_back(all_2d_reprojections[i]);
+            }
         }
     }
 
     valid = true;
-
-    // Re-Order
-    if(need_reorder)
-    	reorder_pair_of_vector(selected_2d_reprojections_coords,selected_2d_reprojections_ids);
 }
 
 void compute_3d_point(const SfMDataWrapper &sfmd,
-        const std::vector<Vec2f> &selected_2d_reprojections_coords,
-        const std::vector<int> &selected_2d_reprojections_ids,
-        ReprejectedPoint3dData &new_point_data,
-		bool &valid) {
+                      const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+                      ReprejectedPoint3dData &new_point_data, bool &valid)
+{
 	valid = false;
 
-	if (selected_2d_reprojections_coords.size() >= 2) {
-		em_estimate3Dpositions(sfmd, selected_2d_reprojections_coords,
-                selected_2d_reprojections_ids, new_point_data.pos,
-				valid);
-		if (valid) {
-            new_point_data.reprojected_coords = selected_2d_reprojections_coords;
-            new_point_data.reprojection_ids = selected_2d_reprojections_ids;
-		}
-	}
+    em_estimate3Dpositions(sfmd, selected_2d_reprojections, new_point_data.pos, valid);
+    if (valid) {
+        new_point_data.reprojection_ids.clear();
+        for (const auto& reprojection : selected_2d_reprojections) {
+            new_point_data.reprojection_ids.push_back(reprojection.id);
+        }
+    }
 }
 
 } // namespace sanescan::edgegraph3d

@@ -113,10 +113,8 @@ void PLGMatchesManager::add_matched_3dsegment(const Pglp3dPointMatches &p1, cons
     plg3d.add_direct_connection(p1.pos, p2.pos, node_ids);
 
 	// adding 2D observations
-    plg3d.set_observations(node_ids.first, convert_vecplgp_to_vec2(p1.reprojected_coords),
-                           p1.reprojection_ids);
-    plg3d.set_observations(node_ids.second, convert_vecplgp_to_vec2(p2.reprojected_coords),
-                           p2.reprojection_ids);
+    plg3d.set_observations(node_ids.first, p1.reprojected);
+    plg3d.set_observations(node_ids.second, p2.reprojected);
 
     std::vector<PolylineGraphPoint2D> plgps1(plgs.size());
     std::vector<bool> seen1(plgs.size(),false);
@@ -124,19 +122,19 @@ void PLGMatchesManager::add_matched_3dsegment(const Pglp3dPointMatches &p1, cons
     std::vector<bool> seen2(plgs.size(),false);
 
 
-    for(int i= 0; i < p1.reprojected_coords.size(); i++) {
-        seen1[p1.reprojection_ids[i]] = true;
-        plgps1[p1.reprojection_ids[i]] = p1.reprojected_coords[i];
+    for(int i= 0; i < p1.reprojected.size(); i++) {
+        seen1[p1.reprojected[i].id] = true;
+        plgps1[p1.reprojected[i].id] = p1.reprojected[i].coord;
 
-        if(!plgs[p1.reprojection_ids[i]].is_valid_polyline(p1.reprojected_coords[i].polyline_id))
+        if(!plgs[p1.reprojected[i].id].is_valid_polyline(p1.reprojected[i].coord.polyline_id))
 		    std::cout << "Invalid polyline selected!\n";
 	}
 
-    for(int i= 0; i < p2.reprojected_coords.size(); i++) {
-        seen2[p2.reprojection_ids[i]] = true;
-        plgps2[p2.reprojection_ids[i]] = p2.reprojected_coords[i];
+    for(int i= 0; i < p2.reprojected.size(); i++) {
+        seen2[p2.reprojected[i].id] = true;
+        plgps2[p2.reprojected[i].id] = p2.reprojected[i].coord;
 
-        if(!plgs[p2.reprojection_ids[i]].is_valid_polyline(p2.reprojected_coords[i].polyline_id))
+        if(!plgs[p2.reprojected[i].id].is_valid_polyline(p2.reprojected[i].coord.polyline_id))
 		    std::cout << "Invalid polyline selected!\n";
 	}
 

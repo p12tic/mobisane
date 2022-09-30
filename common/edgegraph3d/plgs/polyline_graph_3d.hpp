@@ -29,6 +29,7 @@
 #include <edgegraph3d/utils/datatypes.hpp>
 #include <edgegraph3d/utils/edge_graph_3d_utilities.hpp>
 #include <edgegraph3d/utils/globals/global_defines.hpp>
+#include <edgegraph3d/plgs/polyline_graph_point_2d.hpp>
 
 namespace sanescan::edgegraph3d {
 
@@ -46,6 +47,11 @@ namespace sanescan::edgegraph3d {
 #define MAXIMUM_3D_LINEARIZABILITY_DISTANCE 0.01
 #define MAXIMUM_3D_LINEARIZABILITY_DISTANCE_SQ (MAXIMUM_3D_LINEARIZABILITY_DISTANCE*MAXIMUM_3D_LINEARIZABILITY_DISTANCE)
 
+struct PolyLineGraph3DObservation {
+    Vec2f coord;
+    int view_id = 0;
+};
+
 class PolyLineGraph3D {
 public:
     void fragment(float maxlen);
@@ -61,7 +67,7 @@ public:
     ulong next_node_id = 0;
     std::vector<Vec3f> nodes_coords;
 
-    std::vector<std::pair<std::vector<Vec2f>, std::vector<int>>> observations;
+    std::vector<std::vector<PolyLineGraph3DObservation>> observations;
 
 	PolyLineGraph3D();
 
@@ -85,8 +91,8 @@ public:
     bool is_valid_polyline(ulong polyline_id) const;
 	void remove_polyline(ulong polyline_id);
     bool has_loop(ulong node_id) const;
-    void set_observations(ulong node_id, std::vector<Vec2f> projections,
-                          std::vector<int> cam_ids);
+    void set_observations(ulong node_id, const std::vector<PolyLineGraph3DObservation>& obs);
+    void set_observations(ulong node_id, const std::vector<PolylineGraphPoint2DObservation>& obs);
 
 	/* Hub, either:
 	 * - >= 3 connected polylines

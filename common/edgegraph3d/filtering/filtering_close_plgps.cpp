@@ -38,13 +38,13 @@ float min2ddistsq_3dpoints(const Pglp3dPointMatches &a, const Pglp3dPointMatches
 	float d=std::numeric_limits<float>::max();
 	float cur_dist;
 
-    for(unsigned i= 0; i < a.reprojection_ids.size(); i++) {
-        for(unsigned j= 0; j < b.reprojection_ids.size(); j++) {
-            if (a.reprojection_ids[i] == b.reprojection_ids[j] &&
-                a.reprojected_coords[i].polyline_id == b.reprojected_coords[j].polyline_id)
+    for(unsigned i= 0; i < a.reprojected.size(); i++) {
+        for(unsigned j= 0; j < b.reprojected.size(); j++) {
+            if (a.reprojected[i].id == b.reprojected[j].id &&
+                a.reprojected[i].coord.polyline_id == b.reprojected[j].coord.polyline_id)
             {
-                cur_dist = squared_2d_distance(a.reprojected_coords[i].plp.coords,
-                                               b.reprojected_coords[j].plp.coords);
+                cur_dist = squared_2d_distance(a.reprojected[i].coord.plp.coords,
+                                               b.reprojected[j].coord.plp.coords);
 				if(cur_dist < d)
 					d = cur_dist;
 				break;
@@ -88,9 +88,9 @@ void setcellvalue(bool ** bmap, const Vec2f &v, const bool newval)
 
 bool is_new_point(const std::vector<bool**> &bmaps,
                   const Pglp3dPointMatches &new_3dpt) {
-    for (std::size_t i= 0; i < new_3dpt.reprojected_coords.size(); i++) {
-        if(!getcellvalue(bmaps[new_3dpt.reprojection_ids[i]],
-                         new_3dpt.reprojected_coords[i].plp.coords))
+    for (std::size_t i= 0; i < new_3dpt.reprojected.size(); i++) {
+        if(!getcellvalue(bmaps[new_3dpt.reprojected[i].id],
+                         new_3dpt.reprojected[i].coord.plp.coords))
 			return true;
     }
 	return false;
@@ -99,9 +99,9 @@ bool is_new_point(const std::vector<bool**> &bmaps,
 void set_new_point(std::vector<bool**> &bmaps,
                    const Pglp3dPointMatches &new_3dpt)
 {
-    for (std::size_t i= 0; i < new_3dpt.reprojected_coords.size(); i++)
-        setcellvalue(bmaps[new_3dpt.reprojection_ids[i]],
-                     new_3dpt.reprojected_coords[i].plp.coords, true);
+    for (std::size_t i= 0; i < new_3dpt.reprojected.size(); i++)
+        setcellvalue(bmaps[new_3dpt.reprojected[i].id],
+                     new_3dpt.reprojected[i].coord.plp.coords, true);
 }
 
 std::vector<Pglp3dPointMatches>

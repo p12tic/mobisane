@@ -35,18 +35,15 @@
 
 namespace sanescan::edgegraph3d {
 
-void compute_3d_point_coords(const SfMDataWrapper &sfmd,
-        const std::vector<Vec2f> &selected_2d_reprojections_coords,
-        const std::vector<int> &selected_2d_reprojections_ids,
-		Vec3f &new_point_data,
-		bool &valid);
+void compute_3d_point_coords(
+        const SfMDataWrapper &sfmd,
+        const std::vector<PolylineGraphPoint2DObservation> &selected_2d_reprojections,
+        Vec3f &new_point_data,
+        bool &valid);
 
 void compute_3d_point_coords_combinations(const SfMDataWrapper &sfmd,
-        const std::vector<Vec2f> &all_2d_reprojections_coords,
-        const std::vector<int> &all_2d_reprojections_ids,
+        const std::vector<PolylineGraphPoint2DObservation> &all_2d_reprojections,
 		int min_combinations,
-        std::vector<Vec2f> &selected_2d_reprojections_coords,
-        std::vector<int> &selected_2d_reprojections_ids,
         std::vector<bool> &selected,
 		Vec3f &new_point_data,
 		bool &valid);
@@ -56,10 +53,10 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
                             const std::vector<int> &selected_2d_reprojections_ids,
                             Vec3f &triangulated_point, bool &valid);
 
-void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
-                            const std::vector<Vec2f> &selected_2d_reprojections_coords,
-                            const std::vector<int> &selected_2d_reprojections_ids,
-                            Vec3f &triangulated_point, bool &valid);
+void em_estimate3Dpositions(
+        const SfMDataWrapper &sfmd,
+        const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+        Vec3f &triangulated_point, bool &valid);
 
 bool compatible_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
                                                const Pglp3dPointMatches &current_point,
@@ -78,20 +75,18 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
                                            Vec3f &triangulated_point,
                                            bool &valid);
 
-void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
-                                           const Vec3f &current_point_coords,
-                                           const std::vector<Vec2f> &current_point_observation_coords,
-                                           const std::vector<int> &current_point_observation_ids,
-                                           const Vec2f new_coords,
-                                           int new_viewpoint_id,
-                                           Vec3f &triangulated_point,
-                                           bool &valid);
+void em_add_new_observation_to_3Dpositions(
+        const SfMDataWrapper &sfmd,
+        const Vec3f &current_point_coords,
+        const std::vector<PolylineGraphPoint2DObservation> &current_point_observations,
+        const PolylineGraphPoint2DObservation& new_observation,
+        Vec3f &triangulated_point,
+        bool &valid);
 
 void compute_3d_point(const SfMDataWrapper &sfmd,
-        const std::vector<Vec2f> &selected_2d_reprojections_coords,
-        const std::vector<int> &selected_2d_reprojections_ids,
-		ReprejectedPoint3dData &new_point_data,
-		bool &valid);
+                      const std::vector<PolylineGraphPoint2DObservation>& selected_2d_reprojections,
+                      ReprejectedPoint3dData &new_point_data,
+                      bool &valid);
 
 void compute_3D_point_multiple_views_plg_following_expandallviews(
         const SfMDataWrapper &sfmd, const std::vector<PolyLineGraph2DHMapImpl> &plgs,
