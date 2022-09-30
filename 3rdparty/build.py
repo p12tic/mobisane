@@ -276,6 +276,7 @@ def build_boost(srcdir, builddir, settings):
     bsh([
         './bootstrap.sh',
         f'--prefix={settings.prefix}',
+        '--without-icu',
         '--with-libraries=atomic,container,date_time,exception,filesystem,graph,log,math,program_options,regex,serialization,system,test,thread,stacktrace,timer',
     ])
     bsh([
@@ -284,6 +285,7 @@ def build_boost(srcdir, builddir, settings):
         'variant=release',
         f'link={linktype}',
         'threading=multi',
+        '--disable-icu',
         f'-j{settings.parallel}',
     ])
     bsh([
@@ -292,6 +294,7 @@ def build_boost(srcdir, builddir, settings):
         'variant=release',
         f'link={linktype}',
         'threading=multi',
+        '--disable-icu',
         'install',
     ])
 
