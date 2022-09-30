@@ -226,6 +226,9 @@ def build_mpfr(srcdir, builddir, settings):
 
 
 def build_lapack(srcdir, builddir, settings):
+    if settings.get_platform() == 'apple':
+        return
+
     bsh = sh_with_cwd(builddir)
     bsh(['cmake',
          '-GNinja',
