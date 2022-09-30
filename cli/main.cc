@@ -99,6 +99,44 @@ void write_image_with_mask_overlay(const std::string& debug_folder_path, const s
     cv::imwrite(flood_fill_debug_path.c_str(), flood_fill_debug);
 }
 
+void write_image_with_edges(const std::string& debug_folder_path, const std::string& filename,
+                            const cv::Mat& image, const std::vector<std::vector<cv::Point>>& edges)
+{
+    auto output_path = std::filesystem::path{debug_folder_path} / filename;
+
+    auto output = image.clone();
+    auto color = cv::Scalar{0, 0, 255};
+    auto direction_color = cv::Scalar{0, 255, 255};
+
+    auto draw_point = [&](const cv::Point& point)
+    {
+        cv::circle(output, point, 10, color, cv::FILLED);
+    };
+
+    auto draw_direction_point = [&](const cv::Point& p1, const cv::Point& p2)
+    {
+        auto dir_vector = p2 - p1;
+        auto x_mult = dir_vector.x / std::hypot(dir_vector.x, dir_vector.y);
+        auto y_mult = dir_vector.y / std::hypot(dir_vector.x, dir_vector.y);
+        cv::circle(output, p1 + cv::Point(8 * x_mult, 8 * y_mult), 5, direction_color, cv::FILLED);
+    };
+
+    for (auto& edge : edges) {
+        if (edge.empty()) {
+            continue;
+        }
+
+        draw_point(edge[0]);
+        for (std::size_t i = 1; i < edge.size(); ++i) {
+            draw_point(edge[i]);
+            cv::line(output, edge[i - 1], edge[i], color, 5);
+            draw_direction_point(edge[i - 1], edge[i]);
+        }
+    }
+
+    cv::imwrite(output_path.c_str(), output);
+}
+
 int main(int argc, char* argv[])
 {
     namespace po = boost::program_options;
@@ -319,6 +357,19 @@ input_path and output_path options can be passed either as positional or named a
             sanescan::split_contour_to_straight_edges(contour, edges, edge_min_length,
                                                       edge_max_angle_diff_deg,
                                                       edge_segment_min_length);
+        }
+
+        // Convert edges back to the space of the input image
+        for (auto& edge : edges) {
+            for (auto& point : edge) {
+                point.x *= initial_point_image_shrink;
+                point.y *= initial_point_image_shrink;
+            }
+        }
+
+        if (!debug_folder_path.empty()) {
+            write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
+                                   image, edges);
         }
 
         cv::imwrite(output_path, image);
