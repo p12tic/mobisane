@@ -209,6 +209,22 @@ def build_imath(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_openexr(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DOPENEXR_BUILD_PYTHON_LIBS=OFF',
+        '-DOPENEXR_ENABLE_TESTS=OFF',
+        srcdir,
+        ] + flags_zlib(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -220,6 +236,7 @@ known_dependencies = [
     ('ceres', build_ceres),
     ('boost', build_boost),
     ('imath', build_imath),
+    ('openexr', build_openexr),
 ]
 
 
