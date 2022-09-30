@@ -992,6 +992,22 @@ def build_sanescan(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_mobisane(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+
+    bsh([
+        'cmake',
+        '-GNinja',
+        '-DMOBISANE_BUILD_CLI:BOOL=OFF',
+        '-DMOBISANE_BUILD_TESTS:BOOL=OFF',
+        f'-DOpenCV_DIR={settings.prefix}/sdk/native/jni',
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('bzip2', build_bzip2),
@@ -1025,6 +1041,7 @@ known_dependencies = [
     ('taskflow', build_taskflow),
     ('alicevision', build_alicevision),
     ('sanescan', build_sanescan),
+    (('mobisane', '..'), build_mobisane),
 ]
 
 
