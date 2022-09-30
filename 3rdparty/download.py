@@ -38,6 +38,7 @@ def sh(cmd, cwd, env=None):
 
 known_dependencies = [
     ('zlib', 'https://github.com/madler/zlib', 'v1.2.12'),
+    ('libpng', 'https://github.com/glennrp/libpng', 'v1.6.35'),
 ]
 
 
