@@ -368,6 +368,22 @@ def build_freetype(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_fontconfig(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'meson',
+        f'--prefix={settings.prefix}',
+        '-Ddoc=disabled',
+        '-Dnls=disabled',
+        '-Dtests=disabled',
+        '-Dtools=disabled',
+        '-Dcache-build=disabled',
+        srcdir,
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -385,6 +401,7 @@ known_dependencies = [
     ('tbb', build_tbb),
     ('opencv', build_opencv),
     ('freetype', build_freetype),
+    ('fontconfig', build_fontconfig),
 ]
 
 
