@@ -21,6 +21,7 @@
 @interface ImageCaptureConsumer : NSObject<AVCapturePhotoCaptureDelegate>
 
 - (instancetype) initWithId:(int)identifier
+           willCapturePhoto:(void (^)(void))willCapturePhoto
       didFinishCapturePhoto:(void (^)(void))didFinishCapturePhoto;
 
 @property (nonatomic) int identifier;

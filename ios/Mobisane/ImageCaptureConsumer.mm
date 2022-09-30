@@ -31,6 +31,7 @@
 @implementation ImageCaptureConsumer
 
 - (instancetype) initWithId:(int)identifier
+           willCapturePhoto:(void (^)(void))willCapturePhoto
       didFinishCapturePhoto:(void (^)(void))didFinishCapturePhoto
 {
     self = [super init];
@@ -39,8 +40,15 @@
     }
 
     self.identifier = identifier;
+    self.willCapturePhoto = willCapturePhoto;
     self.didFinishCapturePhoto = didFinishCapturePhoto;
     return self;
+}
+
+- (void) captureOutput:(AVCapturePhotoOutput*)captureOutput
+    willCapturePhotoForResolvedSettings:(AVCaptureResolvedPhotoSettings*)resolvedSettings
+{
+    self.willCapturePhoto();
 }
 
 - (void) captureOutput:(AVCapturePhotoOutput*)captureOutput

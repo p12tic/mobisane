@@ -111,7 +111,14 @@
         photoSettings.photoQualityPrioritization = AVCapturePhotoQualityPrioritizationQuality;
         int identifier = self->nextConsumerId++;
         auto* captureConsumer = [[ImageCaptureConsumer alloc] initWithId:identifier
-                                                       didFinishCapturePhoto:^{
+                                                       willCapturePhoto:^{
+            dispatch_async(dispatch_get_main_queue(), ^{
+                self.displayView.previewLayer.opacity = 0.0;
+                [UIView animateWithDuration:0.15 animations:^{
+                    self.displayView.previewLayer.opacity = 1.0;
+                }];
+            });
+       } didFinishCapturePhoto:^{
            dispatch_async(self.sessionQueue, ^{
                self->consumers.erase(identifier);
            });
