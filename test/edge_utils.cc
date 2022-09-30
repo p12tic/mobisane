@@ -212,8 +212,8 @@ TEST(ComputeOffsetsForEdgeSlope, vertical_slope_positive)
     std::vector<cv::Point> offsets;
     compute_offsets_for_edge_slope(5, 0.45, OffsetDirection::VERTICAL, offsets);
     std::vector<cv::Point> expected_offsets = {
-        {-2, -5}, {-1, -4}, {-1, -3}, {0, -2}, {0, -1},
-        {0, 0}, {0, 1}, {0, 2}, {1, 3}, {1, 4}
+        {2, -5}, {1, -4}, {1, -3}, {0, -2}, {0, -1},
+        {0, 0}, {0, 1}, {0, 2}, {-1, 3}, {-1, 4}
     };
     ASSERT_EQ(offsets, expected_offsets);
 }
@@ -223,8 +223,8 @@ TEST(ComputeOffsetsForEdgeSlope, vertical_slope_negative)
     std::vector<cv::Point> offsets;
     compute_offsets_for_edge_slope(5, -0.45, OffsetDirection::VERTICAL, offsets);
     std::vector<cv::Point> expected_offsets = {
-        {2, -5}, {1, -4}, {1, -3}, {0, -2}, {0, -1},
-        {0, 0}, {0, 1}, {0, 2}, {-1, 3}, {-1, 4}
+        {-2, -5}, {-1, -4}, {-1, -3}, {0, -2}, {0, -1},
+        {0, 0}, {0, 1}, {0, 2}, {1, 3}, {1, 4}
     };
     ASSERT_EQ(offsets, expected_offsets);
 }
@@ -245,8 +245,8 @@ TEST(ComputeOffsetsForEdgeSlope, horizontal_slope_positive)
     std::vector<cv::Point> offsets;
     compute_offsets_for_edge_slope(5, 0.45, OffsetDirection::HORIZONTAL, offsets);
     std::vector<cv::Point> expected_offsets = {
-        {-5, -2}, {-4, -1}, {-3, -1}, {-2, 0}, {-1, 0},
-        {0, 0}, {1, 0}, {2, 0}, {3, 1}, {4, 1}
+        {-5, 2}, {-4, 1}, {-3, 1}, {-2, 0}, {-1, 0},
+        {0, 0}, {1, 0}, {2, 0}, {3, -1}, {4, -1}
     };
     ASSERT_EQ(offsets, expected_offsets);
 }
@@ -256,8 +256,8 @@ TEST(ComputeOffsetsForEdgeSlope, horizontal_slope_negative)
     std::vector<cv::Point> offsets;
     compute_offsets_for_edge_slope(5, -0.45, OffsetDirection::HORIZONTAL, offsets);
     std::vector<cv::Point> expected_offsets = {
-        {-5, 2}, {-4, 1}, {-3, 1}, {-2, 0}, {-1, 0},
-        {0, 0}, {1, 0}, {2, 0}, {3, -1}, {4, -1}
+        {-5, -2}, {-4, -1}, {-3, -1}, {-2, 0}, {-1, 0},
+        {0, 0}, {1, 0}, {2, 0}, {3, 1}, {4, 1}
     };
     ASSERT_EQ(offsets, expected_offsets);
 }

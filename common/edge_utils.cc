@@ -289,9 +289,9 @@ void compute_offsets_for_edge_slope(int half_length, float slope, OffsetDirectio
     offsets.clear();
     for (int d = -half_length; d < half_length; ++d) {
         if (direction == OffsetDirection::VERTICAL) {
-            offsets.emplace_back(slope * d, d);
+            offsets.emplace_back(-slope * d, d);
         } else {
-            offsets.emplace_back(d, slope * d);
+            offsets.emplace_back(d, -slope * d);
         }
     }
 }
