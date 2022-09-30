@@ -129,8 +129,10 @@ struct SharedAppManager::Data
 SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
     d_{std::make_unique<Data>(task_arena)}
 {
-    vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
-                                        std::make_unique<vfs::FilesystemTreeInMemory>());
+    if (!vfs::getManager().getTreeAtRootIfExists(d_->vfs_root_name)) {
+        vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
+                                            std::make_unique<vfs::FilesystemTreeInMemory>());
+    }
     vfs::create_directories(d_->vfs_project_path);
     vfs::current_path(d_->vfs_project_path);
     vfs::create_directories(d_->get_path_to_current_session());
