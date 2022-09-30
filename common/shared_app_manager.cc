@@ -51,6 +51,7 @@
 #include <aliceVision/vfs/filesystem.hpp>
 #include <aliceVision/vfs/FilesystemManager.hpp>
 #include <aliceVision/vfs/FilesystemTreeInMemory.hpp>
+#include <filesystem>
 #include <random>
 
 namespace vfs = aliceVision::vfs;
@@ -435,6 +436,14 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                             match.second,
                                             features_per_view);
         }
+    }));
+
+    d_->task_arena.enqueue(print_tasks.defer([&]()
+    {
+        // Debug info is written outside vfs, thus an absolute path is needed.
+        auto path = (std::filesystem::absolute(debug_folder_path) / "sfm_only_points.ply").string();
+        aliceVision::sfmDataIO::Save(d_->sfm_data, path.c_str(),
+                                     aliceVision::sfmDataIO::ESfMData::ALL);
     }));
 
     print_tasks.wait();
