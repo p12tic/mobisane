@@ -38,24 +38,36 @@ AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientati
 }
 
 @implementation ViewController
+{
+    bool is_shown = false; // between viewDidAppear and viewDidDisappear
+}
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    _manager = [[AppManager alloc] init];
+    _manager = [[AppManager alloc] initWithViewController:self];
 }
 
 - (void) viewDidAppear:(BOOL)animated
 {
-    _capture = [[VideoCapture alloc] init];
-    [_capture setAppManager:_manager];
-    [_capture setCameraView:_cameraView];
-    [_manager setPreviewLayer:_cameraView.overlayLayer];
-    [_capture start];
+    is_shown = true;
+    [_manager prepareSetupWithCallback:^{
+        if (!self.is_shown) {
+            return;
+        }
+        self.capture = [[VideoCapture alloc] init];
+        [self.capture setAppManager:self.manager];
+        [self.capture setCameraView:self.cameraView];
+        [self.manager setPreviewLayer:self.cameraView.overlayLayer];
+        [self.capture start];
+    }];
 }
 
 - (void) viewDidDisappear:(BOOL)animated
 {
-    [_capture stop];
+    is_shown = false;
+    if (_capture) {
+        [_capture stop];
+    }
 }
 
 - (void) viewWillTransitionToSize:(CGSize)size

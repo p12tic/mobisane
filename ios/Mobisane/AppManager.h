@@ -19,8 +19,12 @@
 @import CoreVideo;
 @import QuartzCore;
 
+@class ViewController;
+
 @interface AppManager : NSObject
 
+- (instancetype) initWithViewController:(ViewController*)view_controler;
+- (void) prepareSetupWithCallback:(void(^)())callback;
 - (void) onPreviewCaptured:(CVImageBufferRef)imageBuffer;
 - (void) setPreviewLayer:(CALayer*)layer;
 

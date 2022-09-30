@@ -17,6 +17,7 @@
 */
 
 #import "AppManager.h"
+#include "ViewController.h"
 #include "Utils.h"
 #include <mobisane/shared_app_manager.h>
 
@@ -30,9 +31,51 @@ sanescan::SharedAppManager& get_app_manager()
 
 @interface AppManager ()
 @property (nonatomic, strong) CALayer* preview_layer;
+@property (nonatomic, strong) ViewController* view_controler;
 @end
 
 @implementation AppManager
+
+- (instancetype) initWithViewController:(ViewController*)view_controler
+{
+    self = [super init];
+    if (!self) {
+        return self;
+    }
+
+    self.view_controler = view_controler;
+    return self;
+}
+
++ (void) downloadFileIfNotExists: (NSString*)url toPath:(NSString*)path
+{
+    NSArray* paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString* documentsDirectory = [paths objectAtIndex:0];
+
+    NSString* filePath = [NSString stringWithFormat:@"%@/%@", documentsDirectory, path];
+    if ([[NSFileManager defaultManager] fileExistsAtPath: filePath]) {
+        return;
+    }
+    NSData *urlData = [NSData dataWithContentsOfURL:[NSURL URLWithString:url]];
+    if (urlData) {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [urlData writeToFile:filePath atomically:YES];
+        });
+    }
+}
+
+- (void) prepareSetupWithCallback:(void(^)())callback
+{
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [AppManager downloadFileIfNotExists:@"https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata"
+                                     toPath:@"eng.traineddata"];
+        [AppManager downloadFileIfNotExists:@"https://raw.githubusercontent.com/alicevision/AliceVision/develop/src/aliceVision/sensorDB/cameraSensors.db"
+                                     toPath:@"cameraSensors.db"];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            callback();
+        });
+    });
+}
 
 - (void) onPreviewCaptured:(CVImageBufferRef)imageBuffer
 {
