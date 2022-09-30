@@ -26,7 +26,9 @@ public:
 
     ANativeWindowRef(ANativeWindow* win) : win_{win}
     {
-        ANativeWindow_acquire(win_);
+        if (win_) {
+            ANativeWindow_acquire(win_);
+        }
     }
 
     ~ANativeWindowRef()
