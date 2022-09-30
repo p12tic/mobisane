@@ -24,6 +24,7 @@
 */
 
 #include "shared_app_manager.h"
+#include "adjacency_grid.h"
 #include "edge_sfm.h"
 #include "edge_utils.h"
 #include "export_ply.h"
@@ -845,10 +846,19 @@ void SharedAppManager::compute_object_mesh()
                   cv::Point(max_coord.x() + 1, max_coord.y() + 1));
     Subdiv2D subdiv(rect);
 
+    cv::Rect2f grid_rect(cv::Point2f(min_coord.x(), min_coord.y()),
+                         cv::Point2f(max_coord.x(), max_coord.y()));
+    AdjacencyGrid grid{std::min(grid_rect.width, grid_rect.height) / 1000.0f, 1, grid_rect};
+
     std::unordered_map<int, aliceVision::IndexT> cv_to_landmark_id_map;
     cv_to_landmark_id_map.reserve(d_->sfm_landmarks_filtered_horiz.size() * 2);
 
     for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
+        if (!grid.can_be_placed(landmark.X.x(), landmark.X.y())) {
+            continue;
+        }
+        grid.place(landmark.X.x(), landmark.X.y());
+
         // The meshing is being done in 2D. It is assumed that the scanned page is not folded so
         // much that it overlaps.
         int index = 0;
