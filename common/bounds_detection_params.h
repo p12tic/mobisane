@@ -63,7 +63,7 @@ struct BoundsDetectionParams {
     {
         initial_point_image_shrink = pixels / downscale_target_size;
         // FIXME: final C++20 uses bit_floor
-#ifdef __clang__
+#if defined(__clang__) && !defined(__APPLE__)
         initial_point_image_shrink = std::max(std::floor2(initial_point_image_shrink), 1u);
 #else
         initial_point_image_shrink = std::max(std::bit_floor(initial_point_image_shrink), 1u);
