@@ -360,6 +360,10 @@ std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& c
     bool more_than_one_peak_by_min_value =
             std::abs(min_value) * max_allowed_other_peak_multiplier < std::abs(min_value2);
 
+    if (min_value == 0 || max_value == 0) {
+        // No zero cross has been found
+        return {};
+    }
 
     if (reverse_intensities) {
         // We're going backwards, take whichever min or max has the highest index. Note that

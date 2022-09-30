@@ -416,4 +416,16 @@ TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_backwards_too_large_secondary_p
     ASSERT_FALSE(res.has_value());
 }
 
+TEST(FindEdgeInZeroCrosses, no_crosses_almost_cross_positive_backwards)
+{
+    auto res = find_edge_in_zero_crosses({{10, 3}, {0, 6}, {5, 9}, {0, 12}}, true, 0.5);
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(FindEdgeInZeroCrosses, no_crosses_almost_cross_negative_backwards)
+{
+    auto res = find_edge_in_zero_crosses({{-10, 3}, {0, 6}, {-5, 9}, {0, 12}}, true, 0.5);
+    ASSERT_FALSE(res.has_value());
+}
+
 } // namespace sanescan
