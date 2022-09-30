@@ -31,6 +31,7 @@ set(SOURCES
     edge_sfm.cc
     edge_utils.cc
     segment_calculator_precise.cc
+    sfm_refpoints.cc
     shared_app_manager.cc
 
     bff/Bff.cpp
@@ -90,6 +91,7 @@ set(PUBLIC_HEADERS
     longest_line_recognizer.h
     mean_flood_fill.h
     segment_calculator_precise.h
+    sfm_refpoints.h
     shared_app_manager.h
 
     bff/Bff.h

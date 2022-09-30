@@ -33,6 +33,7 @@
 #include "image_debug_utils.h"
 #include "image_utils.h"
 #include "parallel_alicevision.h"
+#include "sfm_refpoints.h"
 #include "time_logger.h"
 #include <common/edgegraph3d/io/input/convert_edge_images_pixel_to_segment.hpp>
 #include <common/edgegraph3d/plg_edge_manager.hpp>
@@ -48,23 +49,10 @@
 #include <common/bff/MeshIO.h>
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
-#include <aliceVision/imageMatching/ImageMatching.hpp>
-#include <aliceVision/matchingImageCollection/matchingCommon.hpp>
-#include <aliceVision/matchingImageCollection/GeometricFilterType.hpp>
-#include <aliceVision/matchingImageCollection/GeometricFilter.hpp>
-#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_E_AC.hpp>
-#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_F_AC.hpp>
-#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_H_AC.hpp>
-#include <aliceVision/matchingImageCollection/GeometricFilterMatrix_HGrowing.hpp>
-#include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
 #include <aliceVision/matching/io.hpp>
-#include <aliceVision/matching/matchesFiltering.hpp>
-#include <aliceVision/robustEstimation/estimators.hpp>
+#include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
 #include <aliceVision/sensorDB/parseDatabase.hpp>
 #include <aliceVision/sfm/pipeline/regionsIO.hpp>
-#include <aliceVision/sfm/pipeline/sequential/ReconstructionEngine_sequentialSfM.hpp>
-#include <aliceVision/sfm/pipeline/structureFromKnownPoses/StructureEstimationFromKnownPoses.hpp>
-#include <aliceVision/sfm/sfmFilters.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfmDataIO/viewIO.hpp>
 #include <aliceVision/system/ParallelismBackend.hpp>
@@ -492,7 +480,6 @@ void SharedAppManager::print_debug_info(std::ostream& stream)
 void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 {
     tf::Taskflow taskflow;
-
     taskflow.emplace([&]()
     {
         int i = 0;
@@ -624,15 +611,9 @@ void SharedAppManager::serial_detect()
 void SharedAppManager::match_images()
 {
     TimeLogger time_logger{"match_images()"};
-    aliceVision::imageMatching::OrderedPairList matched_image_pairs_list;
-    aliceVision::imageMatching::generateAllMatchesInOneMap(d_->sfm_data.getViewsKeys(),
-                                                           matched_image_pairs_list);
-    d_->matched_image_pairs.clear();
-    for (const auto& image_pairs : matched_image_pairs_list) {
-        for (const auto& index : image_pairs.second) {
-            d_->matched_image_pairs.emplace(image_pairs.first, index);
-        }
-    }
+
+    d_->matched_image_pairs = sanescan::match_images(d_->sfm_data);
+
     if (d_->matched_image_pairs.empty()) {
         throw std::runtime_error("No matched image pairs");
     }
@@ -669,124 +650,14 @@ void SharedAppManager::match_features()
 {
     TimeLogger time_logger{"match_features()"};
 
-    using namespace aliceVision::matchingImageCollection;
-
-    auto geometric_estimator = aliceVision::robustEstimation::ERobustEstimator::ACRANSAC;
-    auto geometric_error_max = std::numeric_limits<double>::infinity();
-    auto nearest_matching_method = aliceVision::matching::EMatcherType::ANN_L2;
-    auto distance_ratio = 0.8;
-    auto cross_matching = false;
-    auto min_required_2d_motion = -1.0;
-    auto guided_matching = false;
-    auto max_iteration_count = 2048;
-    auto use_grid_sort = true;
-    auto num_matches_to_keep = 0;
-
-    d_->pairwise_putative_matches.clear();
-    d_->pairwise_geometric_matches.clear();
-    d_->pairwise_geometric_matches.clear();
-
-    auto geometric_filter_type = EGeometricFilterType::FUNDAMENTAL_MATRIX;
-    auto describer_types = get_describer_types();
-
-    auto matcher = createImageCollectionMatcher(nearest_matching_method, distance_ratio,
-                                                cross_matching);
-
-
-    for (auto describer_type : describer_types) {
-        matcher->Match(d_->rng, d_->regions_per_view, d_->matched_image_pairs, describer_type,
-                       d_->pairwise_putative_matches);
-    }
-
-    aliceVision::matching::filterMatchesByMin2DMotion(d_->pairwise_putative_matches,
-                                                      d_->regions_per_view,
-                                                      min_required_2d_motion);
-
-    if (d_->pairwise_putative_matches.empty()) {
-        throw std::runtime_error("No feature matches");
-    }
-
-    ALICEVISION_LOG_TRACE("match_features(): End regions matching");
-
-    switch(geometric_filter_type) {
-        case aliceVision::matchingImageCollection::EGeometricFilterType::NO_FILTERING: {
-            d_->pairwise_geometric_matches = d_->pairwise_putative_matches;
-            break;
-        }
-
-        case EGeometricFilterType::FUNDAMENTAL_MATRIX: {
-            robustModelEstimation(
-                d_->pairwise_geometric_matches,
-                &d_->sfm_data,
-                d_->regions_per_view,
-                GeometricFilterMatrix_F_AC(geometric_error_max, max_iteration_count,
-                                           geometric_estimator),
-                d_->pairwise_putative_matches,
-                d_->rng,
-                guided_matching);
-            break;
-        }
-
-        case EGeometricFilterType::FUNDAMENTAL_WITH_DISTORTION: {
-            robustModelEstimation(
-                d_->pairwise_geometric_matches,
-                &d_->sfm_data,
-                d_->regions_per_view,
-                GeometricFilterMatrix_F_AC(geometric_error_max, max_iteration_count,
-                                           geometric_estimator, true),
-                d_->pairwise_putative_matches,
-                d_->rng,
-                guided_matching);
-            break;
-        }
-        case EGeometricFilterType::ESSENTIAL_MATRIX: {
-            robustModelEstimation(
-                d_->pairwise_geometric_matches,
-                &d_->sfm_data,
-                d_->regions_per_view,
-                GeometricFilterMatrix_E_AC(geometric_error_max, max_iteration_count),
-                d_->pairwise_putative_matches,
-                d_->rng,
-                guided_matching);
-
-            removePoorlyOverlappingImagePairs(d_->pairwise_geometric_matches,
-                                              d_->pairwise_putative_matches, 0.3f, 50);
-            break;
-        }
-        case EGeometricFilterType::HOMOGRAPHY_MATRIX: {
-            const bool only_guided_matching = true;
-            robustModelEstimation(
-                d_->pairwise_geometric_matches,
-                &d_->sfm_data,
-                d_->regions_per_view,
-                GeometricFilterMatrix_H_AC(geometric_error_max, max_iteration_count),
-                d_->pairwise_putative_matches,
-                d_->rng, guided_matching,
-                only_guided_matching ? -1.0 : 0.6);
-            break;
-        }
-        case EGeometricFilterType::HOMOGRAPHY_GROWING: {
-            robustModelEstimation(
-                d_->pairwise_geometric_matches,
-                &d_->sfm_data,
-                d_->regions_per_view,
-                GeometricFilterMatrix_HGrowing(geometric_error_max, max_iteration_count),
-                d_->pairwise_putative_matches,
-                d_->rng,
-                guided_matching);
-            break;
-        }
-    }
-
-    ALICEVISION_LOG_TRACE("match_features(): End geometric matching");
-
-    aliceVision::matching::matchesGridFilteringForAllPairs(d_->pairwise_geometric_matches,
-                                                           d_->sfm_data,
-                                                           d_->regions_per_view, use_grid_sort,
-                                                           num_matches_to_keep,
-                                                           d_->pairwise_final_matches);
-
-    ALICEVISION_LOG_TRACE("match_features(): End grid filtering");
+    sanescan::match_features(d_->sfm_data,
+                             get_describer_types(),
+                             d_->matched_image_pairs,
+                             d_->regions_per_view,
+                             d_->rng,
+                             d_->pairwise_putative_matches,
+                             d_->pairwise_geometric_matches,
+                             d_->pairwise_final_matches);
 
     aliceVision::matching::Save(d_->pairwise_final_matches,
                                 d_->get_path_to_current_session_feature_matches_folder().string(),
@@ -802,43 +673,15 @@ void SharedAppManager::compute_structure_from_motion()
 {
     TimeLogger time_logger{"compute_structure_from_motion()"};
 
-    aliceVision::sfm::ReconstructionEngine_sequentialSfM::Params sfm_params;
-    sfm_params.localizerEstimator = aliceVision::robustEstimation::ERobustEstimator::ACRANSAC;
-    sfm_params.localizerEstimatorError = std::numeric_limits<double>::infinity();
-    sfm_params.minNbObservationsForTriangulation = 3;
-
-    auto describer_types = get_describer_types();
-
-    aliceVision::matching::PairwiseMatches& pairwise_matches = d_->pairwise_final_matches;
-
-    // TODO: investigate whether to set initial pair
-
-    aliceVision::sfm::ReconstructionEngine_sequentialSfM sfm_engine(
-                d_->sfm_data, sfm_params,
+    d_->sfm_data = sanescan::compute_structure_from_motion(
+                d_->sfm_data,
+                d_->pairwise_final_matches,
+                d_->features_per_view,
+                get_describer_types(),
                 d_->get_path_to_current_session_sfm_folder().string(),
-                (d_->get_path_to_current_session_sfm_folder() / "sfm_log.html").string());
+                d_->get_path_to_current_session_features_folder().string(),
+                d_->random_seed);
 
-    sfm_engine.initRandomSeed(d_->random_seed);
-    sfm_engine.setFeatures(&d_->features_per_view);
-    sfm_engine.setMatches(&pairwise_matches);
-
-    if (!sfm_engine.process()) {
-        throw std::runtime_error("Could not run SfM algorithm");
-    }
-
-    sfm_engine.getSfMData().addFeaturesFolders(
-                {d_->get_path_to_current_session_features_folder().string()});
-    sfm_engine.getSfMData().addMatchesFolders(
-                {d_->get_path_to_current_session_features_folder().string()});
-    sfm_engine.getSfMData().setAbsolutePath(
-                {d_->get_path_to_current_session_sfm_folder().string()});
-
-    sfm_engine.retrieveMarkersId();
-
-    // sfm::generateSfMReport(sfm_engine.getSfMData(),
-    //                       (d_->get_path_to_current_session_sfm_folder() / "sfm_report.html").string());
-
-    d_->sfm_data = std::move(sfm_engine.getSfMData());
     std::swap(d_->sfm_landmarks_exact, d_->sfm_data.getLandmarks());
 }
 
@@ -846,16 +689,11 @@ void SharedAppManager::compute_structure_from_motion_inexact()
 {
     TimeLogger time_logger{"compute_structure_from_motion_inexact()"};
 
-    double geometric_error_max = 5.5;
-
-    std::mt19937 rng(1);
-
-    aliceVision::sfm::StructureEstimationFromKnownPoses estimator;
-    estimator.match(d_->sfm_data, d_->matched_image_pairs, d_->regions_per_view,
-                    geometric_error_max);
-    estimator.filter(d_->sfm_data, d_->matched_image_pairs, d_->regions_per_view);
-    estimator.triangulate(d_->sfm_data, d_->regions_per_view, rng);
-    aliceVision::sfm::RemoveOutliers_AngleError(d_->sfm_data, 2.0);
+    sanescan::compute_structure_from_motion_inexact(d_->sfm_data,
+                                                    d_->matched_image_pairs,
+                                                    d_->regions_per_view,
+                                                    d_->features_per_view,
+                                                    d_->rng);
 
     std::swap(d_->sfm_data.getLandmarks(), d_->sfm_landmarks_inexact);
 }
