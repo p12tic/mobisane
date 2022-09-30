@@ -48,6 +48,17 @@ public:
 
 std::pair<Vec3, Vec3> minmax_landmark_coords(const aliceVision::sfmData::Landmarks& landmarks);
 
+std::vector<Vec3> get_translations_for_all_views(
+        const aliceVision::sfmData::SfMData& sfm_data,
+        const std::vector<aliceVision::IndexT>& view_ids);
+
+Mat3x4 get_projection_matrix(const aliceVision::sfmData::SfMData& sfm_data,
+                             aliceVision::IndexT view_id);
+
+std::vector<Mat3x4> get_projection_matrices_for_all_views(
+        const aliceVision::sfmData::SfMData& sfm_data,
+        const std::vector<aliceVision::IndexT>& view_ids);
+
 Mat3 get_fundamental_for_views(const aliceVision::sfmData::SfMData& sfm_data,
                                aliceVision::IndexT view_a_id,
                                aliceVision::IndexT view_b_id);

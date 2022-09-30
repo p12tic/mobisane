@@ -17,6 +17,8 @@
 */
 
 #include "geometry_utils.h"
+#include <aliceVision/camera/Pinhole.hpp>
+#include <aliceVision/numeric/projection.hpp>
 #include <Eigen/Geometry>
 
 namespace sanescan {
@@ -72,24 +74,53 @@ std::pair<Vec3, Vec3> minmax_landmark_coords(const aliceVision::sfmData::Landmar
     return {min, max};
 }
 
+std::vector<Vec3> get_translations_for_all_views(
+        const aliceVision::sfmData::SfMData& sfm_data,
+        const std::vector<aliceVision::IndexT>& view_ids)
+{
+    std::vector<Vec3> res;
+    res.reserve(view_ids.size());
+    for (auto id : view_ids) {
+        const auto& view = sfm_data.getView(id);
+        const auto& transform = sfm_data.getPose(view).getTransform();
+        res.push_back(transform.translation());
+    }
+    return res;
+
+}
+
+Mat3x4 get_projection_matrix(const aliceVision::sfmData::SfMData& sfm_data,
+                             aliceVision::IndexT view_id)
+{
+    const auto& view = sfm_data.getView(view_id);
+    auto transform = sfm_data.getPose(view).getTransform();
+    auto intrinsic_base = sfm_data.getIntrinsicsharedPtr(view.getIntrinsicId());
+    auto intrinsic = std::dynamic_pointer_cast<aliceVision::camera::Pinhole>(intrinsic_base);
+    if (!intrinsic) {
+        throw std::runtime_error("Unsupported camera intrinsic type for projection matrix calc");
+    }
+
+    return intrinsic->getProjectiveEquivalent(transform);
+}
+
+std::vector<Mat3x4> get_projection_matrices_for_all_views(
+        const aliceVision::sfmData::SfMData& sfm_data,
+        const std::vector<aliceVision::IndexT>& view_ids)
+{
+    std::vector<Mat3x4> matrices;
+    matrices.reserve(view_ids.size());
+    for (auto id : view_ids) {
+        matrices.push_back(get_projection_matrix(sfm_data, id));
+    }
+    return matrices;
+}
+
 Mat3 get_fundamental_for_views(const aliceVision::sfmData::SfMData& sfm_data,
                                aliceVision::IndexT view_a_id,
                                aliceVision::IndexT view_b_id)
 {
-    const auto& view_a = sfm_data.getView(view_a_id);
-    const auto& view_b = sfm_data.getView(view_b_id);
-    const auto& transform_a = sfm_data.getPose(view_a).getTransform();
-    const auto& transform_b = sfm_data.getPose(view_b).getTransform();
-    auto intrinsic_a_base = sfm_data.getIntrinsicsharedPtr(view_a.getIntrinsicId());
-    auto intrinsic_b_base = sfm_data.getIntrinsicsharedPtr(view_b.getIntrinsicId());
-    auto intrinsic_a = std::dynamic_pointer_cast<aliceVision::camera::Pinhole>(intrinsic_a_base);
-    auto intrinsic_b = std::dynamic_pointer_cast<aliceVision::camera::Pinhole>(intrinsic_b_base);
-    if (!intrinsic_a || !intrinsic_b) {
-        throw std::runtime_error("Unsupported camera intrinsic type for fundamental matrix calc");
-    }
-
-    auto P_a = intrinsic_a->getProjectiveEquivalent(transform_a);
-    auto P_b = intrinsic_b->getProjectiveEquivalent(transform_b);
+    auto P_a = get_projection_matrix(sfm_data, view_a_id);
+    auto P_b = get_projection_matrix(sfm_data, view_b_id);
 
     return aliceVision::F_from_P(P_a, P_b);
 }
