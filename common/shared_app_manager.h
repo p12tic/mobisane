@@ -36,6 +36,7 @@ public:
     enum Options {
         NONE = 0,
         PRESERVE_INTERMEDIATE_DATA = 1,
+        COLLECT_DEBUG_INFO = 2,
     };
 
     SharedAppManager(tbb::task_arena& task_arena);

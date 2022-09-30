@@ -227,7 +227,9 @@ input_path and output_path options can be passed either as positional or named a
 
     tbb::task_arena task_arena;
     sanescan::SharedAppManager app_manager{task_arena};
-    app_manager.set_options(sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA);
+    app_manager.set_options(static_cast<sanescan::SharedAppManager::Options>(
+                                sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA |
+                                sanescan::SharedAppManager::COLLECT_DEBUG_INFO));
     app_manager.set_bounds_detection_params(bounds_params);
 
     try {
