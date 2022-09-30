@@ -952,6 +952,7 @@ def build_assimp(srcdir, builddir, settings):
         '-GNinja',
         '-DASSIMP_BUILD_ASSIMP_TOOLS:BOOL=OFF',
         '-DASSIMP_BUILD_TESTS:BOOL=OFF',
+        '-DASSIMP_WARNINGS_AS_ERRORS=OFF',
         srcdir,
         ] + cmake_flags_from_settings(settings)
     )
