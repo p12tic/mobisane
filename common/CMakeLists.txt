@@ -61,6 +61,7 @@ target_link_libraries(mobisanecommon PUBLIC
     aliceVision_sfm
     aliceVision_vfs
 )
+target_link_directories(mobisanecommon PUBLIC ${CMAKE_PREFIX_PATH}/lib)
 
 target_include_directories(mobisanecommon PUBLIC
     ${CMAKE_INSTALL_PREFIX}/include
