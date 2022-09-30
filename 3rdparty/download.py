@@ -61,6 +61,7 @@ known_dependencies = [
     ('osi', 'https://github.com/alicevision/Osi', '52bafbabf8d29bcfd57818f0dd50ee226e01db7f'),
     ('clp', 'https://github.com/alicevision/Clp', '4da587acebc65343faafea8a134c9f251efab5b9'),
     ('alicevision', 'https://github.com/p12tic/aliceVision', '789fecbe4132d9e85d712230be78784f24e134e5'),
+    ('assimp', 'https://github.com/assimp/assimp', 'e477533a6d0953d0a2f93cfaaaa2304620cc0229'),
 ]
 
 
