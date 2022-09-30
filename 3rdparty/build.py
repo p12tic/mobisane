@@ -79,9 +79,17 @@ def build_libpng(prefix, srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_gmp(prefix, srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([os.path.join(srcdir, 'configure'), f'--prefix={prefix}', '--enable-cxx'])
+    bsh(['make', f'-j{settings.parallel}'])
+    bsh(['make', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
+    ('gmp', build_gmp),
 ]
 
 
