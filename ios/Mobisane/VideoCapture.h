@@ -17,7 +17,7 @@
 */
 
 #import "CameraView.h"
-#import <UIKit/UIKit.h>
+@import UIKit;
 
 @interface VideoCapture : NSObject
 

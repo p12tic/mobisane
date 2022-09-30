@@ -17,7 +17,7 @@
 */
 
 #import "VideoCapture.h"
-#import <AVFoundation/AVFoundation.h>
+@import AVFoundation;
 
 @interface VideoCapture () <AVCaptureVideoDataOutputSampleBufferDelegate>
 @property (nonatomic) dispatch_queue_t sessionQueue;

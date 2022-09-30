@@ -16,8 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#import <UIKit/UIKit.h>
-#import <AVFoundation/AVFoundation.h>
+@import UIKit;
+@import AVFoundation;
 
 @interface CameraView : UIView
 
