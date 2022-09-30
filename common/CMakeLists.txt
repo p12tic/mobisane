@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Copyright (C) 2021  Povilas Kanapickas <povilas@radix.lt>
+# Copyright (C) 2022  Povilas Kanapickas <povilas@radix.lt>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,13 +15,19 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.16.0)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(SOURCES
+    mean_flood_fill.cc
+)
 
-set(MOBISANE_VERSION 0.0.1)
+find_package(OpenCV REQUIRED)
 
-project(mobisane VERSION ${MOBISANE_VERSION})
+add_library(mobisanecommon OBJECT ${SOURCES})
 
-add_subdirectory(cli)
-add_subdirectory(common)
+target_link_libraries(mobisanecommon PUBLIC
+    ${OpenCV_LIBS}
+)
+
+target_include_directories(mobisanecommon PUBLIC
+    ${CMAKE_INSTALL_PREFIX}/include
+    ${OpenCV_INCLUDE_DIRS}
+)
