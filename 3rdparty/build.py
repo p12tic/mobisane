@@ -313,6 +313,45 @@ def build_tbb(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_opencv(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_PythonInterp=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_PythonLibs=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_OpenJPEG=ON',
+        '-DWITH_TBB=ON',
+        '-DWITH_OPENMP=OFF',
+        '-DBUILD_opencv_python2=OFF',
+        '-DBUILD_opencv_python3=OFF',
+        '-DENABLE_PRECOMPILED_HEADERS=OFF',
+        '-DINSTALL_C_EXAMPLES=OFF',
+        '-DINSTALL_PYTHON_EXAMPLES=OFF',
+        '-DBUILD_TESTS=OFF',
+        '-DBUILD_LIST=core,improc,photo,objdetect,video,imgcodecs,videoio,features2d,xfeatures2d,version,mcc',
+        '-DBUILD_EXAMPLES=OFF',
+        '-DWITH_1394=OFF',
+        '-DWITH_CUDA=OFF',
+        '-DWITH_FFMPEG=OFF',
+        '-DWITH_GSTREAMER=OFF',
+        '-DWITH_GTK_2_X=OFF',
+        '-DWITH_OPENCL=OFF',
+        '-DWITH_OPENEXR=OFF',
+        '-DWITH_OPENGL=OFF',
+        '-DWITH_OPENJPEG=OFF',
+        '-DWITH_QT=OFF',
+        '-DWITH_V4L=OFF',
+        '-DWITH_VTK=OFF',
+        '-DWITH_WEBP=OFF',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -328,6 +367,7 @@ known_dependencies = [
     ('openexr', build_openexr),
     ('openimageio', build_openimageio),
     ('tbb', build_tbb),
+    ('opencv', build_opencv),
 ]
 
 
