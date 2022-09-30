@@ -246,11 +246,11 @@ input_path and output_path options can be passed either as positional or named a
              po::value(&bounds_params.edge_segment_min_length),
              "minimum length of segments within detected edges")
             (Options::EDGE_SIMPLIFY_POS_APPROX,
-             po::value(&bounds_params.edge_simplify_pos_approx),
-             "the position deviation to allow during edge simplification")
+             po::value(&bounds_params.downscaled_edge_simplify_pos_approx),
+             "the position deviation to allow during edge simplification (downscaled)")
             (Options::EDGE_PRECISE_SEARCH_RADIUS,
-             po::value(&bounds_params.edge_precise_search_radius),
-             "the radius of the search area for precise edge locations" )
+             po::value(&bounds_params.downscaled_edge_precise_search_radius),
+             "the radius of the search area for precise edge locations (downscaled)" )
     ;
 
     po::options_description all_options_desc;
@@ -306,6 +306,8 @@ input_path and output_path options can be passed either as positional or named a
 
         auto size_x = image.size.p[1];
         auto size_y = image.size.p[0];
+
+        bounds_params.setup_for_pixels(std::min(size_x, size_y));
 
         if (initial_points.empty()) {
             initial_points.push_back({size_x / 2, size_y / 2});

@@ -33,8 +33,10 @@ void BoundsDetectionPipeline::run(const cv::Mat& input_image)
     auto size_x = input_image.size.p[1];
     auto size_y = input_image.size.p[0];
 
+    params.setup_for_pixels(std::min(size_x, size_y));
+
     resized_flood_params = params.flood_params;
-    resized_edge_simplify_pos_approx = params.edge_simplify_pos_approx;
+    resized_edge_simplify_pos_approx = params.edge_simplify_pos_approx();
 
     if (params.initial_point_image_shrink != 1) {
         cv::resize(input_image, small_for_fill,
@@ -112,10 +114,10 @@ void BoundsDetectionPipeline::run(const cv::Mat& input_image)
     cv::GaussianBlur(hsv, hsv_blurred, cv::Size{7, 7}, 0);
 
     compute_edge_directional_2nd_deriv(hsv_blurred, hsv_derivatives, edges,
-                                       params.edge_precise_search_radius);
+                                       params.edge_precise_search_radius());
 
     precise_edges = compute_precise_edges(hsv_derivatives, edges,
-                                          params.edge_precise_search_radius,
+                                          params.edge_precise_search_radius(),
                                           20, 2, 2.5f, 0.5);
 }
 
