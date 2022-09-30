@@ -153,10 +153,10 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
         unsigned count = 0;
 
         for (unsigned y = start_y; y < end_y; ++y) {
+            const std::uint8_t* row = image.ptr(y);
             auto* colored_row = colored.ptr(y);
             for (unsigned x = start_x; x < end_x; ++x) {
                 if (colored_row[x]) {
-                    const std::uint8_t* row = image.ptr(y);
                     auto h = row[3 * x];
                     auto s = row[3 * x + 1];
                     auto v = row[3 * x + 2];
@@ -178,6 +178,7 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
         unsigned base_v = sum_v / count;
 
         for (unsigned y = start_y; y < end_y; ++y) {
+            const std::uint8_t* row = image.ptr(y);
             auto* colored_row = colored.ptr(y);
 
             for (unsigned x = start_x; x < end_x; ++x) {
@@ -185,7 +186,6 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
                     continue;
                 }
 
-                const std::uint8_t* row = image.ptr(y);
                 auto h = row[3 * x];
                 auto s = row[3 * x + 1];
                 auto v = row[3 * x + 2];
