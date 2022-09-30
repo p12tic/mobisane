@@ -22,5 +22,6 @@
 @interface CameraView : UIView
 
 @property (nonatomic, readonly) AVCaptureVideoPreviewLayer* previewLayer;
+@property (nonatomic, strong) CALayer* overlayLayer;
 
 @end

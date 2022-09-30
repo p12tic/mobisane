@@ -16,12 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#define AudioSession_AVAudioSession_Deprecated_h 1
-@import AVFoundation;
+#include <CoreVideo/CoreVideo.h>
+#include <opencv2/core/mat.hpp>
 
-@interface PreviewCaptureConsumer : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
-
-- (instancetype) initWithDidCaptureBuffer:(void (^)(CVImageBufferRef))didCaptureBuffer;
-
-@end
-
+cv::Mat CVImageBufferRef_to_cv_bgr_mat(const CVImageBufferRef& image_buffer);
+CGImageRef cv_mat_to_CGImageRef(const cv::Mat& image);

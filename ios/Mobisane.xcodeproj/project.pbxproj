@@ -25,6 +25,10 @@
 		1C1CD0A128E077FF00C70EC8 /* ImageCaptureConsumer.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0A028E077FF00C70EC8 /* ImageCaptureConsumer.h */; };
 		1C1CD0A328E611F800C70EC8 /* PreviewCaptureConsumer.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0A228E611F800C70EC8 /* PreviewCaptureConsumer.mm */; };
 		1C1CD0A528E6120A00C70EC8 /* PreviewCaptureConsumer.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0A428E6120A00C70EC8 /* PreviewCaptureConsumer.h */; };
+		1C1CD0A728E6233D00C70EC8 /* AppManager.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0A628E6233D00C70EC8 /* AppManager.h */; };
+		1C1CD0A928E6235300C70EC8 /* AppManager.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0A828E6235300C70EC8 /* AppManager.mm */; settings = {COMPILER_FLAGS = "-std=c++20"; }; };
+		1C1CD0AB28E6344800C70EC8 /* Utils.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0AA28E6344800C70EC8 /* Utils.h */; };
+		1C1CD0AD28E65C5A00C70EC8 /* Utils.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD0AC28E65C5A00C70EC8 /* Utils.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -70,6 +74,10 @@
 		1C1CD0A028E077FF00C70EC8 /* ImageCaptureConsumer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ImageCaptureConsumer.h; sourceTree = "<group>"; };
 		1C1CD0A228E611F800C70EC8 /* PreviewCaptureConsumer.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = PreviewCaptureConsumer.mm; sourceTree = "<group>"; };
 		1C1CD0A428E6120A00C70EC8 /* PreviewCaptureConsumer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PreviewCaptureConsumer.h; sourceTree = "<group>"; };
+		1C1CD0A628E6233D00C70EC8 /* AppManager.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppManager.h; sourceTree = "<group>"; };
+		1C1CD0A828E6235300C70EC8 /* AppManager.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppManager.mm; sourceTree = "<group>"; };
+		1C1CD0AA28E6344800C70EC8 /* Utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Utils.h; sourceTree = "<group>"; };
+		1C1CD0AC28E65C5A00C70EC8 /* Utils.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = Utils.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -139,6 +147,10 @@
 				1C1CD0A028E077FF00C70EC8 /* ImageCaptureConsumer.h */,
 				1C1CD0A228E611F800C70EC8 /* PreviewCaptureConsumer.mm */,
 				1C1CD0A428E6120A00C70EC8 /* PreviewCaptureConsumer.h */,
+				1C1CD0A628E6233D00C70EC8 /* AppManager.h */,
+				1C1CD0A828E6235300C70EC8 /* AppManager.mm */,
+				1C1CD0AA28E6344800C70EC8 /* Utils.h */,
+				1C1CD0AC28E65C5A00C70EC8 /* Utils.mm */,
 			);
 			path = Mobisane;
 			sourceTree = "<group>";
@@ -290,11 +302,15 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1C1CD0AB28E6344800C70EC8 /* Utils.h in Sources */,
 				1C1CD09F28E077EB00C70EC8 /* ImageCaptureConsumer.mm in Sources */,
 				1C1CD06928DC1F0100C70EC8 /* ViewController.mm in Sources */,
+				1C1CD0AD28E65C5A00C70EC8 /* Utils.mm in Sources */,
 				1C1CD06328DC1F0100C70EC8 /* AppDelegate.mm in Sources */,
 				1C1CD09728DEB0A100C70EC8 /* CameraView.mm in Sources */,
 				1C1CD0A328E611F800C70EC8 /* PreviewCaptureConsumer.mm in Sources */,
+				1C1CD0A928E6235300C70EC8 /* AppManager.mm in Sources */,
+				1C1CD0A728E6233D00C70EC8 /* AppManager.h in Sources */,
 				1C1CD0A128E077FF00C70EC8 /* ImageCaptureConsumer.h in Sources */,
 				1C1CD07428DC1F0100C70EC8 /* main.mm in Sources */,
 				1C1CD09D28DEB6D000C70EC8 /* VideoCapture.h in Sources */,
@@ -506,7 +522,14 @@
 					"$(OTHER_CFLAGS)",
 					"-fcxx-modules",
 				);
-				OTHER_LDFLAGS = "-ObjC";
+				OTHER_LDFLAGS = (
+					"-ObjC",
+					"-lmobisanecommon",
+					"-lopencv_core",
+					"-lopencv_imgproc",
+					"-ltbb",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = lt.radix.Mobisane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "Povilas dev";
@@ -541,7 +564,14 @@
 					"$(OTHER_CFLAGS)",
 					"-fcxx-modules",
 				);
-				OTHER_LDFLAGS = "-ObjC";
+				OTHER_LDFLAGS = (
+					"-ObjC",
+					"-lmobisanecommon",
+					"-lopencv_core",
+					"-lopencv_imgproc",
+					"-ltbb",
+					"-lz",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = lt.radix.Mobisane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "Povilas dev";

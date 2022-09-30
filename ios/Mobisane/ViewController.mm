@@ -18,9 +18,11 @@
 
 #import "ViewController.h"
 #import "VideoCapture.h"
+#import "AppManager.h"
 
 @interface ViewController ()
 @property(nonatomic, strong) VideoCapture* capture;
+@property(nonatomic, strong) AppManager* manager;
 @end
 
 AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientation)
@@ -39,13 +41,15 @@ AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientati
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view.
+    _manager = [[AppManager alloc] init];
 }
 
 - (void) viewDidAppear:(BOOL)animated
 {
     _capture = [[VideoCapture alloc] init];
+    [_capture setAppManager:_manager];
     [_capture setCameraView:_cameraView];
+    [_manager setPreviewLayer:_cameraView.overlayLayer];
     [_capture start];
 }
 

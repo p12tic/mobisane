@@ -16,12 +16,13 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#define AudioSession_AVAudioSession_Deprecated_h 1
-@import AVFoundation;
+@import CoreVideo;
+@import QuartzCore;
 
-@interface PreviewCaptureConsumer : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
+@interface AppManager : NSObject
 
-- (instancetype) initWithDidCaptureBuffer:(void (^)(CVImageBufferRef))didCaptureBuffer;
+- (void) onPreviewCaptured:(CVImageBufferRef)imageBuffer;
+- (void) setPreviewLayer:(CALayer*)layer;
 
 @end
 

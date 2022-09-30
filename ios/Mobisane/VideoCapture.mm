@@ -23,6 +23,7 @@
 #include <unordered_map>
 
 @interface VideoCapture ()
+@property (nonatomic, strong) AppManager* manager;
 @property (nonatomic) dispatch_queue_t sessionQueue;
 @property (nonatomic, strong) AVCaptureSession* session;
 @property (nonatomic, strong) AVCapturePhotoOutput* photoOutput;
@@ -54,7 +55,12 @@
         [self.session beginConfiguration];
 
         self.session.sessionPreset = AVCaptureSessionPresetPhoto;
-        self.previewConsumer = [[PreviewCaptureConsumer alloc] init];
+        self.previewConsumer = [[PreviewCaptureConsumer alloc]
+                                initWithDidCaptureBuffer: ^(CVImageBufferRef buffer) {
+            if (self.manager != nullptr) {
+                [self.manager onPreviewCaptured:buffer];
+            }
+        }];
 
         auto* device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
         auto* input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
@@ -115,6 +121,11 @@
 {
     _displayView = view;
     _displayView.previewLayer.session = _session;
+}
+
+- (void) setAppManager:(AppManager*) manager
+{
+    _manager = manager;
 }
 
 - (void) captureImage

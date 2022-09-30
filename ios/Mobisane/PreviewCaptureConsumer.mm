@@ -18,7 +18,24 @@
 
 #import "PreviewCaptureConsumer.h"
 
+@interface PreviewCaptureConsumer ()
+
+@property (nonatomic) void (^didCaptureBuffer)(CVImageBufferRef);
+
+@end
+
 @implementation PreviewCaptureConsumer
+
+- (instancetype) initWithDidCaptureBuffer:(void (^)(CVImageBufferRef))didCaptureBuffer
+{
+    self = [super init];
+    if (!self) {
+        return self;
+    }
+
+    self.didCaptureBuffer = didCaptureBuffer;
+    return self;
+}
 
 - (void) captureOutput:(AVCaptureOutput*)captureOutput
  didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
@@ -27,13 +44,10 @@
     CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
     CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
-    const auto* base = CVPixelBufferGetBaseAddress(imageBuffer);
-    auto width = CVPixelBufferGetWidth(imageBuffer);
-    auto height = CVPixelBufferGetHeight(imageBuffer);
-    auto bytesPerRow = CVPixelBufferGetBytesPerRow(imageBuffer);
+    self.didCaptureBuffer(imageBuffer);
 
-    NSLog(@"got image width %zu height %zu bpp %zu: %p", width, height, bytesPerRow, base);
     CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
 }
+
 
 @end

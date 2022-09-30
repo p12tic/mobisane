@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#import "AppManager.h"
 #import "CameraView.h"
 @import UIKit;
 
@@ -24,6 +25,7 @@
 - (void) start;
 - (void) stop;
 - (void) setCameraView:(CameraView*) view;
+- (void) setAppManager:(AppManager*) manager;
 - (void) captureImage;
 
 @end

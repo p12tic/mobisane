@@ -31,4 +31,25 @@
     return (AVCaptureVideoPreviewLayer*) self.layer;
 }
 
+- (void) layoutSubviews
+{
+    [super layoutSubviews];
+    if (self.overlayLayer == nullptr) {
+        self.overlayLayer = [CALayer layer];
+        [self.layer addSublayer:self.overlayLayer];
+        self.overlayLayer.bounds = self.bounds;
+    }
+    self.overlayLayer.position = {self.bounds.origin.x + self.bounds.size.width / 2,
+                                  self.bounds.origin.y + self.bounds.size.height / 2};
+}
+
+/*
+- (void) viewDidLayoutSubviews
+{
+    [super viewDidLayoutSubviews];
+
+    //self.overlayLayer.frame = self.layer.bounds;
+    self.overlayLayer.transform = CATransform3DMakeRotation(0.5 * M_PI, 0, 0, 1.0);
+}*/
+
 @end
