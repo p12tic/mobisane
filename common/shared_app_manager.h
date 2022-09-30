@@ -79,6 +79,7 @@ private:
     void compute_edge_structure_from_motion();
     void compute_object_bounds();
     void compute_object_mesh();
+    void unfold_object_mesh();
 
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,

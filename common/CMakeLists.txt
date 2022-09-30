@@ -33,6 +33,16 @@ set(SOURCES
     segment_calculator_precise.cc
     shared_app_manager.cc
 
+    bff/Bff.cpp
+    bff/Corner.cpp
+    bff/Distortion.cpp
+    bff/Edge.cpp
+    bff/Face.cpp
+    bff/HalfEdge.cpp
+    bff/Mesh.cpp
+    bff/MeshIO.cpp
+    bff/Vertex.cpp
+
     edgegraph3d/plgs/polyline_2d.cpp
     edgegraph3d/plgs/graph_adjacency_set_undirected_no_type_weighted.cpp
     edgegraph3d/plgs/graph_adjacency_set_no_type.cpp
@@ -81,6 +91,23 @@ set(PUBLIC_HEADERS
     mean_flood_fill.h
     segment_calculator_precise.h
     shared_app_manager.h
+
+    bff/Bff.h
+    bff/Cholesky.h
+    bff/Corner.h
+    bff/CutIterator.h
+    bff/DenseMatrix.h
+    bff/Distortion.h
+    bff/Edge.h
+    bff/Face.h
+    bff/HalfEdge.h
+    bff/MeshData.h
+    bff/Mesh.h
+    bff/MeshIO.h
+    bff/SparseMatrix.h
+    bff/Types.h
+    bff/Vector.h
+    bff/Vertex.h
 
     edgegraph3d/plg_edge_manager.hpp
     edgegraph3d/filtering/filtering_close_plgps.hpp
@@ -131,6 +158,9 @@ find_package(Eigen3 REQUIRED)
 find_package(OpenEXR REQUIRED)
 
 add_library(mobisanecommon ${SOURCES})
+
+# Disable openmp support
+target_compile_definitions(mobisanecommon PRIVATE -DEIGEN_DONT_PARALLELIZE=1)
 
 target_include_directories(mobisanecommon PUBLIC
     $<INSTALL_INTERFACE:${INSTALL_INCLUDE_DIR}>

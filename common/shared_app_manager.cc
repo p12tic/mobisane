@@ -43,6 +43,8 @@
 #include <common/edgegraph3d/plgs/polyline_graph_3d_hmap_impl.hpp>
 #include <common/edgegraph3d/utils/geometric_utilities.hpp>
 #include <common/edgegraph3d/utils/data_bundle.hpp>
+#include <common/bff/Bff.h>
+#include <common/bff/MeshIO.h>
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/imageMatching/ImageMatching.hpp>
@@ -214,6 +216,9 @@ struct SharedAppManager::Data
     // Results from compute_object_mesh()
     // IDs corresponds to landmarks from sfm_landmarks_filtered_horiz
     std::vector<MeshTriangle> mesh_triangles_filtered;
+
+    // Results from unfold_object_mesh()
+    aliceVision::sfmData::Landmarks sfm_landmarks_unfolded;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -515,6 +520,12 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         write_mesh_debug_2d_image(debug_folder_path, "sfm_mesh_horiz_2d.png",
                                   d_->sfm_landmarks_filtered_horiz, d_->mesh_triangles_filtered);
+
+        export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_unfolded_hz.ply",
+                   d_->sfm_landmarks_unfolded, {});
+
+        export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_unfolded_hz_mesh.ply",
+                   d_->sfm_landmarks_unfolded, d_->mesh_triangles_filtered);
     }));
 
     print_tasks.wait();
@@ -602,6 +613,7 @@ void SharedAppManager::serial_detect()
     compute_edge_structure_from_motion();
     compute_object_bounds();
     compute_object_mesh();
+    unfold_object_mesh();
 }
 
 void SharedAppManager::match_images()
@@ -942,6 +954,10 @@ void SharedAppManager::compute_object_bounds()
 {
     TimeLogger time_logger{"compute_object_bounds()"};
 
+    if (d_->sfm_landmarks_bounds.empty()) {
+        throw std::runtime_error("sfm_landmarks_bounds is empty");
+    }
+
     // Calculate parameters to rotate 3D points to a horizontal plane for easier processing.
     // The parameters are such that the plane will fit points in sfm_landmarks_bounds.
     std::vector<Vec3> boundary_points;
@@ -1032,6 +1048,60 @@ void SharedAppManager::compute_object_mesh()
                               cv_to_landmark_id_map.at(vertex_b),
                               cv_to_landmark_id_map.at(vertex_c)};
         d_->mesh_triangles_filtered.push_back(triangle);
+    }
+}
+
+void SharedAppManager::unfold_object_mesh()
+{
+    TimeLogger time_logger{"unfold_object_mesh()"};
+
+    if (d_->sfm_landmarks_filtered_horiz.size() < 2) {
+        throw std::runtime_error("Not enough filtered landmarks");
+    }
+
+    // load model
+    bff::Model model;
+    bff::PolygonSoup polygon_soup;
+
+    std::unordered_map<int, aliceVision::IndexT> model_id_to_landmark_id;
+    std::unordered_map<aliceVision::IndexT, int> landmark_id_to_model_id;
+
+    landmark_id_to_model_id.reserve(d_->sfm_landmarks_filtered_horiz.size());
+
+    for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
+        auto model_id = polygon_soup.positions.size();
+        polygon_soup.positions.push_back({landmark.X.x(), landmark.X.y(), landmark.X.z()});
+        landmark_id_to_model_id.emplace(id, model_id);
+    }
+
+    for (const auto& triangle : d_->mesh_triangles_filtered) {
+        for (auto landmark_id : triangle.indices) {
+            polygon_soup.indices.push_back(landmark_id_to_model_id.at(landmark_id));
+        }
+    }
+
+    std::string error;
+    if (!bff::MeshIO::read(polygon_soup, model, error)) {
+        throw std::runtime_error("While unfolding mesh: " + error);
+    }
+    if (model.size() != 1) {
+        throw std::runtime_error("Got more than one mesh to unfold");
+    }
+    bff::Mesh& mesh = model[0];
+    bff::BFF bff_calculator(mesh);
+    bff::DenseMatrix u(bff_calculator.data->bN);
+    bff_calculator.flatten(u, true);
+
+    for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
+        auto model_id = landmark_id_to_model_id.at(id);
+        const auto& vertex = mesh.vertices[model_id];
+        auto unfolded_pos = vertex.wedge()->uv;
+
+        auto landmark_copy = landmark;
+        landmark_copy.X.x() = unfolded_pos.x;
+        landmark_copy.X.y() = unfolded_pos.y;
+        landmark_copy.X.z() = 0;
+        d_->sfm_landmarks_unfolded.emplace(id, landmark_copy);
     }
 }
 
