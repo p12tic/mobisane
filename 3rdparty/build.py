@@ -480,6 +480,22 @@ def build_clp(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_assimp(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DASSIMP_BUILD_ASSIMP_TOOLS:BOOL=OFF',
+        '-DASSIMP_BUILD_TESTS:BOOL=OFF',
+        srcdir,
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_alicevision(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([
@@ -531,6 +547,7 @@ known_dependencies = [
     ('coinutils', build_coinutils),
     ('osi', build_osi),
     ('clp', build_clp),
+    ('assimp', build_assimp),
     ('alicevision', build_alicevision),
 ]
 
