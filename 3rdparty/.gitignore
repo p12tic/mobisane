@@ -1,3 +1,5 @@
+build-linux-prefix-x86_64
+build-linux-tmp-x86_64
 build-android-tmp-arm64-v8a
 build-android-prefix-arm64-v8a
 build-ios-tmp
