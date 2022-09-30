@@ -23,6 +23,10 @@
 #include <array>
 #include <bit>
 
+#if __NEON__
+#include <arm_neon.h>
+#endif
+
 namespace sanescan {
 
 constexpr std::size_t HISTOGRAM_BUCKET_SIZE = 8;
@@ -156,9 +160,75 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
         std::uint32_t sum_v = 0;
         unsigned count = 0;
 
+#if __ARM_NEON__
+        // FIXME: the code below likely uses A64-specific instructions
+        const std::uint8_t end_mask[32] = {
+            0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0
+        };
+        uint8x16_t zero = {0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0,  0, 0, 0, 0};
+
+        uint32x4_t v_sum_h = { 0, 0, 0, 0 };
+        uint32x4_t v_sum_s = { 0, 0, 0, 0 };
+        uint32x4_t v_sum_v = { 0, 0, 0, 0 };
+        uint32x4_t v_sum_count = { 0, 0, 0, 0 };
+
         for (unsigned y = start_y; y < end_y; ++y) {
             const std::uint8_t* row = image.ptr(y);
-            auto* colored_row = colored.ptr(y);
+            const std::uint8_t* colored_row = colored.ptr(y);
+            row += 3 * start_x;
+            colored_row += start_x;
+            std::size_t count = end_x - start_x;
+
+            for (unsigned x = 0; x < count; x += 16) {
+                // We can safely read out of bounds because of nofill_border_size, as there are
+                // at least one full line at the end of the image.
+                uint8x16x3_t v_pixel = vld3q_u8(row);
+                uint8x16_t v_pixel_h = v_pixel.val[0];
+                uint8x16_t v_pixel_s = v_pixel.val[1];
+                uint8x16_t v_pixel_v = v_pixel.val[2];
+
+                uint8x16_t v_colored = vld1q_u8(colored_row);
+
+                unsigned end_mask_offset = x + 16 > count ? x + 16 - count : 0;
+                uint8x16_t v_end_mask = vld1q_u8(end_mask + end_mask_offset);
+
+                v_colored = vandq_u8(v_colored, v_end_mask);
+                uint8x16_t v_colored_mask = vcgtq_u8(v_colored, zero);
+
+                v_pixel_h = vandq_u8(v_pixel_h, v_colored_mask);
+                v_pixel_s = vandq_u8(v_pixel_s, v_colored_mask);
+                v_pixel_v = vandq_u8(v_pixel_v, v_colored_mask);
+
+                v_sum_h = vaddq_u32(v_sum_h, vpaddlq_u16(vpaddlq_u8(v_pixel_h)));
+                v_sum_s = vaddq_u32(v_sum_s, vpaddlq_u16(vpaddlq_u8(v_pixel_s)));
+                v_sum_v = vaddq_u32(v_sum_v, vpaddlq_u16(vpaddlq_u8(v_pixel_v)));
+                v_sum_count = vaddq_u32(v_sum_count, vpaddlq_u16(vpaddlq_u8(v_colored)));
+
+                row += 3 * 16;
+                colored_row += 16;
+            }
+        }
+
+        uint64x2_t v_sum64_h = vpaddlq_u32(v_sum_h);
+        uint64x2_t v_sum64_s = vpaddlq_u32(v_sum_s);
+        uint64x2_t v_sum64_v = vpaddlq_u32(v_sum_v);
+        uint64x2_t v_sum64_count = vpaddlq_u32(v_sum_count);
+
+        sum_h = vdupd_laneq_u64(v_sum64_h, 0) + vdupd_laneq_u64(v_sum64_h, 1);
+        sum_s = vdupd_laneq_u64(v_sum64_s, 0) + vdupd_laneq_u64(v_sum64_s, 1);
+        sum_v = vdupd_laneq_u64(v_sum64_v, 0) + vdupd_laneq_u64(v_sum64_v, 1);
+        count = vdupd_laneq_u64(v_sum64_count, 0) + vdupd_laneq_u64(v_sum64_count, 1);
+#else
+        for (unsigned y = start_y; y < end_y; ++y) {
+            const std::uint8_t* row = image.ptr(y);
+            const std::uint8_t* colored_row = colored.ptr(y);
             for (unsigned x = start_x; x < end_x; ++x) {
                 if (colored_row[x]) {
                     auto h = row[3 * x];
@@ -172,6 +242,7 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
                 }
             }
         }
+#endif
 
         if (count == 0) {
             continue;
