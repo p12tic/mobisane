@@ -28,4 +28,5 @@ target_include_directories(mobisanecli PUBLIC
 target_link_libraries(mobisanecli
     ${OpenCV_LIBS}
     Boost::program_options
+    mobisanecommon
 )

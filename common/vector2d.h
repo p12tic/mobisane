@@ -55,6 +55,9 @@ public:
         data_[get_index(x, y)] = t;
     }
 
+    std::size_t width() const { return width_; }
+    std::size_t height() const { return height_; }
+
 private:
     std::size_t get_index(std::size_t x, std::size_t y) const
     {
