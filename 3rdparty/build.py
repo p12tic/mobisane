@@ -38,6 +38,15 @@ class Settings:
     prefix = attr.ib(converter=str)
     parallel = attr.ib(converter=int)
     libtype = attr.ib()
+    cc = attr.ib()
+    cxx = attr.ib()
+    target = attr.ib(default=None)
+
+    def get_arch(self):
+        return self.target.split('-')[0]
+
+    def get_platform(self):
+        return self.target.split('-')[1]
 
 
 def sh(cmd, cwd, env=None):
@@ -62,6 +71,15 @@ def sh_with_cwd(cwd):
     def sh_wrapper(cmd, env=None):
         return sh(cmd, cwd, env=env)
     return sh_wrapper
+
+
+def detect_target(cc):
+    output = subprocess.check_output([cc, '-v'], stderr=subprocess.STDOUT)
+    output = output.decode('utf-8', errors='replace')
+    for line in output.split('\n'):
+        if line.startswith('Target:'):
+            return line[7:].strip()
+    raise Exception("Could not detect target triple")
 
 
 def cmake_flags_from_settings(settings):
@@ -576,6 +594,9 @@ def main():
         parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count(),
         prefix=args.prefix,
         libtype=LibType.STATIC if args.libtype == 'static' else LibType.SHARED,
+        cc='gcc',
+        cxx='g++',
+        target=detect_target('gcc'),
     )
 
     for name, fn in build_deps:
