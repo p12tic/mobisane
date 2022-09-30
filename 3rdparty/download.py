@@ -54,6 +54,7 @@ def prepare_dependency(root_path, name, remote, commit):
         sh(['git', 'clone', remote, repo_path], cwd=root_path)
 
     sh(['git', 'checkout', '-f', commit], cwd=repo_path)
+    sh(['git', 'submodule', 'update', '--init', '--recursive'], cwd=repo_path)
 
 
 def main():
