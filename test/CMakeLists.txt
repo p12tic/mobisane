@@ -17,6 +17,7 @@
 
 set(SOURCES
     main.cc
+    adjacency_grid.cc
     edge_utils.cc
     geometry_utils.cc
 )
