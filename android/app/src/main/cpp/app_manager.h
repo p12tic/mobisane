@@ -21,6 +21,7 @@
 #include "anativewindow_ref.h"
 #include "camera.h"
 #include <mobisane/shared_app_manager.h>
+#include <tbb/task_arena.h>
 
 namespace sanescan {
 
@@ -36,7 +37,8 @@ private:
 
     ANativeWindowRef preview_win_;
     Camera& camera_;
-    SharedAppManager shared_manager;
+    tbb::task_arena task_arena_;
+    SharedAppManager shared_manager_;
 };
 
 } // namespace sanescan

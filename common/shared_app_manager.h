@@ -19,6 +19,7 @@
 #pragma once
 
 #include "bounds_detection_pipeline.h"
+#include <tbb/task_arena.h>
 #include <opencv2/core/mat.hpp>
 #include <memory>
 
@@ -29,7 +30,7 @@ namespace sanescan {
 */
 class SharedAppManager {
 public:
-    SharedAppManager();
+    SharedAppManager(tbb::task_arena& task_arena);
     ~SharedAppManager();
 
     void submit_photo(const cv::Mat& rgb_image);

@@ -20,14 +20,19 @@
 #include "Utils.h"
 #include <mobisane/shared_app_manager.h>
 
+
+sanescan::SharedAppManager& get_app_manager()
+{
+    static tbb::task_arena task_arena;
+    static sanescan::SharedAppManager app_manager{task_arena};
+    return app_manager;
+}
+
 @interface AppManager ()
 @property (nonatomic, strong) CALayer* preview_layer;
 @end
 
 @implementation AppManager
-{
-    sanescan::SharedAppManager shared_manager;
-}
 
 - (void) onPreviewCaptured:(CVImageBufferRef)imageBuffer
 {
@@ -39,7 +44,7 @@
     auto size_x = src_image.size.p[1];
     auto size_y = src_image.size.p[0];
     cv::Mat dst_image(size_y, size_x, CV_8UC4);
-    shared_manager.calculate_bounds_overlay(src_image, dst_image);
+    get_app_manager().calculate_bounds_overlay(src_image, dst_image);
 
     auto dst_cg_image = cv_mat_to_CGImageRef(dst_image);
     dispatch_sync(dispatch_get_main_queue(), ^{

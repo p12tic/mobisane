@@ -84,6 +84,8 @@ struct PhotoData
 
 struct SharedAppManager::Data
 {
+    tbb::task_arena& task_arena;
+
     // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
     // to allow thread-safe concurrent modification of the array.
     std::vector<std::shared_ptr<PhotoData>> submitted_data;
@@ -103,13 +105,17 @@ struct SharedAppManager::Data
     // multiple.
     std::shared_ptr<aliceVision::feature::ImageDescriber> image_describer;
 
+    Data(tbb::task_arena& task_arena) : task_arena{task_arena}
+    {}
+
     vfs::path get_path_to_current_session()
     {
         return get_path_for_session(vfs_project_path, curr_session_id);
     }
 };
 
-SharedAppManager::SharedAppManager() : d_{std::make_unique<Data>()}
+SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
+    d_{std::make_unique<Data>(task_arena)}
 {
     vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
                                         std::make_unique<vfs::FilesystemTreeInMemory>());

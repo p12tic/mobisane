@@ -22,7 +22,8 @@
 namespace sanescan {
 
 AppManager::AppManager(Camera& camera) :
-    camera_{camera}
+    camera_{camera},
+    shared_manager_{task_arena_}
 {
     camera_.set_on_image_captured([this](const auto& image) { on_image_captured(image); });
     camera_.set_on_preview_captured([this](const auto& image) { on_preview_captured(image); });
@@ -52,7 +53,7 @@ void AppManager::on_preview_captured(const cv::Mat& image)
     auto dst_mat = cv::Mat(win_buffer.height, win_buffer.width, CV_8UC4, win_buffer.bits,
                            win_buffer.stride * 4);
 
-    shared_manager.calculate_bounds_overlay(image, dst_mat);
+    shared_manager_.calculate_bounds_overlay(image, dst_mat);
     ANativeWindow_unlockAndPost(preview_win_.get());
 }
 
