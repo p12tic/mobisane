@@ -295,6 +295,20 @@ def build_imath(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_fmt(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        '-DFMT_DOC=OFF',
+        '-DFMT_TEST=OFF',
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_openexr(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([
@@ -578,6 +592,7 @@ known_dependencies = [
     ('boost', build_boost),
     ('imath', build_imath),
     ('openexr', build_openexr),
+    ('fmt', build_fmt),
     ('openimageio', build_openimageio),
     ('tbb', build_tbb),
     ('opencv', build_opencv),
