@@ -18,6 +18,7 @@
 
 #include "edge_utils.h"
 #include <sanescanocr/util/math.h>
+#include <opencv2/imgproc.hpp>
 
 namespace sanescan {
 
@@ -170,6 +171,154 @@ void split_contour_to_straight_edges(const std::vector<cv::Point>& contour,
             case will be handled in by noticing the short segment in the next loop iteration.
         */
         start_i = end_i;
+    }
+}
+
+// x_multiplier and y_multiplier are both multiplied by 256
+std::int16_t compute_appended_2nd_deriv_value(std::int16_t dx, std::int16_t dy, std::int16_t value,
+                                              std::int16_t x_multiplier, std::int16_t y_multiplier)
+{
+    std::int16_t new_value = (dx * x_multiplier + dy * y_multiplier) >> 8;
+    if (new_value < 0) {
+        if (new_value < value) {
+            return new_value;
+        }
+    } else {
+        if (new_value > value) {
+            return new_value;
+        }
+    }
+    return value;
+}
+
+void append_2nd_deriv_pixel(const cv::Vec3s& dx, const cv::Vec3s& dy, cv::Vec3s& res,
+                            std::int16_t x_multiplier_8bit, std::int16_t y_multiplier_8bit)
+{
+    res[0] = compute_appended_2nd_deriv_value(dx[0], dy[0], res[0],
+                                              x_multiplier_8bit, y_multiplier_8bit);
+    res[1] = compute_appended_2nd_deriv_value(dx[1], dy[1], res[1],
+                                              x_multiplier_8bit, y_multiplier_8bit);
+    res[2] = compute_appended_2nd_deriv_value(dx[2], dy[2], res[2],
+                                              x_multiplier_8bit, y_multiplier_8bit);
+}
+
+void compute_edge_directional_2nd_deriv(const cv::Mat& src,
+                                        cv::Mat& derivatives,
+                                        const std::vector<std::vector<cv::Point>>& edges,
+                                        unsigned edge_precise_search_radius)
+{
+    auto size_x = src.size.p[1];
+    auto size_y = src.size.p[0];
+
+    cv::Mat d2vdx2, d2vdy2;
+    cv::Sobel(src, d2vdx2, CV_16S, 2, 0, 3);
+    cv::Sobel(src, d2vdy2, CV_16S, 0, 2, 3);
+
+    derivatives = cv::Mat_<cv::Vec3s>(size_y, size_x, cv::Vec3s{0, 0, 0});
+
+    for (const auto& edge : edges) {
+        for (std::size_t segment_i = 0; segment_i < edge.size() - 1; ++segment_i) {
+            const auto& pa = edge[segment_i];
+            const auto& pb = edge[segment_i + 1];
+
+            // The area to calculate the derivatives can't be just the segment bounding area in
+            // the image coordinate system because this would affect far away pixels in diagonal
+            // lines. Thus more complex approach is taken to calculate the derivatives for an
+            // area roughly corresponding to a rectangle of width edge_precise_search_radius * 2
+            // parallel to the segment.
+            auto min_area_x = std::max<int>(0, std::min(pa.x, pb.x) - edge_precise_search_radius);
+            auto max_area_x = std::min<int>(size_x, std::max(pa.x, pb.x) + edge_precise_search_radius);
+            auto min_area_y = std::max<int>(0, std::min(pa.y, pb.y) - edge_precise_search_radius);
+            auto max_area_y = std::min<int>(size_y, std::max(pa.y, pb.y) + edge_precise_search_radius);
+
+            auto segment_vec = pb - pa;
+
+            auto length = std::hypot(static_cast<float>(segment_vec.x),
+                                     static_cast<float>(segment_vec.y));
+
+            int search_radius_x = 0;
+            if (segment_vec.y == 0) {
+                search_radius_x = edge_precise_search_radius;
+            } else {
+                int max_search_radius_x = std::abs(segment_vec.x) + edge_precise_search_radius;
+                search_radius_x = std::abs(edge_precise_search_radius * length / segment_vec.y);
+                search_radius_x = std::min(search_radius_x, max_search_radius_x);
+            }
+            float slope = static_cast<float>(segment_vec.x) / segment_vec.y;
+
+            // Only the segment slope needs to be considered because the areas where edge segments
+            // of significantly different directions are present will be ignored in the final
+            // exact line position calculation.
+
+            // Note that the derivative is calculated in the direction that is perpendicular to
+            // the segment.
+            auto x_multiplier = segment_vec.y / length;
+            auto y_multiplier = segment_vec.x / length;
+
+            auto x_multiplier_8bit = static_cast<std::int16_t>(x_multiplier * 256);
+            auto y_multiplier_8bit = static_cast<std::int16_t>(y_multiplier * 256);
+
+            for (int iy = min_area_y; iy < max_area_y; ++iy) {
+                auto* row_deriv = derivatives.ptr<cv::Vec3s>(iy);
+                const auto* row_dx = d2vdx2.ptr<cv::Vec3s>(iy);
+                const auto* row_dy = d2vdy2.ptr<cv::Vec3s>(iy);
+
+                int segment_center_x_pos = pa.x + (iy - pa.y) * slope;
+                auto min_x = std::max(min_area_x, segment_center_x_pos - search_radius_x);
+                auto max_x = std::min(max_area_x, segment_center_x_pos + search_radius_x);
+
+                for (int ix = min_x; ix < max_x; ++ix) {
+                    append_2nd_deriv_pixel(row_dx[ix], row_dy[ix], row_deriv[ix],
+                                           x_multiplier_8bit, y_multiplier_8bit);
+                }
+            }
+        }
+    }
+}
+
+void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel)
+{
+    if (derivatives.type() != CV_16SC3) {
+        throw std::invalid_argument("Only CV_16SC3 is supported");
+    }
+
+    auto size_x = derivatives.size.p[1];
+    auto size_y = derivatives.size.p[0];
+    colors = cv::Mat_<cv::Vec3b>(size_y, size_x, static_cast<std::uint8_t>(0));
+
+    std::int16_t min_value = 0;
+    std::int16_t max_value = 0;
+
+    for (int iy = 0; iy < size_y; ++iy) {
+        const auto* derivatives_ptr = derivatives.ptr<cv::Vec3s>(iy);
+        for (int ix = 0; ix < size_x; ++ix) {
+            auto value = derivatives_ptr[ix][channel];
+            min_value = std::min(min_value, value);
+            max_value = std::max(max_value, value);
+        }
+    }
+
+    auto scale_to_color = [](std::int16_t value, std::int16_t max_value)
+    {
+        value = value * 255 / max_value; // works for both positive and negative
+        value *= 2.0; // make smaller differences more visible
+        return std::clamp<std::int16_t>(value, 0, 255);
+    };
+
+    for (int iy = 0; iy < size_y; ++iy) {
+        auto* colors_ptr = colors.ptr<cv::Vec3b>(iy);
+        const auto* derivatives_ptr = derivatives.ptr<cv::Vec3s>(iy);
+
+        for (int ix = 0; ix < size_x; ++ix) {
+            auto value = derivatives_ptr[ix][channel];
+            if (value == 0) {
+                colors_ptr[ix] = cv::Vec3b(0, 0, 0);
+            } else if (value < 0) {
+                colors_ptr[ix] = cv::Vec3b(0, scale_to_color(value, min_value), 0);
+            } else {
+                colors_ptr[ix] = cv::Vec3b(0, 0, scale_to_color(value, max_value));
+            }
+        }
     }
 }
 

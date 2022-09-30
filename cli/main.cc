@@ -52,6 +52,7 @@ struct Options {
     static constexpr const char* EDGE_MAX_ANGLE_DIFF = "edge-max-angle-diff";
     static constexpr const char* EDGE_SEGMENT_MIN_LENGTH = "edge-segment-min-length";
     static constexpr const char* EDGE_SIMPLIFY_POS_APPROX = "edge-simplify-pos-approx";
+    static constexpr const char* EDGE_PRECISE_SEARCH_RADIUS = "edge-precise-search-radius";
 };
 
 sanescan::OcrPoint parse_initial_point(const std::string& value)
@@ -193,6 +194,7 @@ input_path and output_path options can be passed either as positional or named a
     double edge_max_angle_diff_deg = 30;
     unsigned edge_segment_min_length = 4;
     unsigned edge_simplify_pos_approx = initial_point_image_shrink * 2;
+    unsigned edge_precise_search_radius = edge_simplify_pos_approx + 16;
 
     ocr_options_desc.add_options()
             (Options::INITIAL_POINT,
@@ -229,6 +231,8 @@ input_path and output_path options can be passed either as positional or named a
              "minimum length of segments within detected edges")
             (Options::EDGE_SIMPLIFY_POS_APPROX, po::value(&edge_simplify_pos_approx),
              "the position deviation to allow during edge simplification")
+            (Options::EDGE_PRECISE_SEARCH_RADIUS, po::value(&edge_precise_search_radius),
+             "the radius of the search area for precise edge locations" )
     ;
 
     po::options_description all_options_desc;
@@ -316,10 +320,11 @@ input_path and output_path options can be passed either as positional or named a
             small_for_fill = image;
         }
 
-        cv::Mat hsv;
-        cv::cvtColor(small_for_fill, hsv, cv::COLOR_BGR2HSV);
+        cv::Mat hsv_small_for_fill;
+        cv::cvtColor(small_for_fill, hsv_small_for_fill, cv::COLOR_BGR2HSV);
 
-        auto target_object_unfilled_mask = sanescan::mean_flood_fill(small_for_fill, flood_params);
+        auto target_object_unfilled_mask = sanescan::mean_flood_fill(hsv_small_for_fill,
+                                                                     flood_params);
 
         // Extract straight lines bounding the area of interest. We perform a combination of erosion
         // and dilation as a simple way to straighten up the contour. These introduce additional
@@ -374,6 +379,34 @@ input_path and output_path options can be passed either as positional or named a
         if (!debug_folder_path.empty()) {
             write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
                                    image, edges);
+        }
+
+        // TODO: note that we need to process only the part of the image that contains edges.
+        // This can be done by splitting image into tiles that overlap by the amount size of
+        // Gaussian kernel, processing each tile independently and then joining them with a mask.
+        cv::Mat hsv;
+        cv::cvtColor(image, hsv, cv::COLOR_BGR2HSV);
+
+        cv::Mat hsv_blurred;
+        cv::GaussianBlur(hsv, hsv_blurred, cv::Size{7, 7}, 0);
+
+        cv::Mat hsv_derivatives;
+        sanescan::compute_edge_directional_2nd_deriv(hsv_blurred, hsv_derivatives, edges,
+                                                     edge_precise_search_radius);
+
+        if (!debug_folder_path.empty()) {
+            cv::Mat colored_derivatives_h;
+            cv::Mat colored_derivatives_s;
+            cv::Mat colored_derivatives_v;
+            sanescan::edge_directional_deriv_to_color(hsv_derivatives, colored_derivatives_h, 0);
+            sanescan::edge_directional_deriv_to_color(hsv_derivatives, colored_derivatives_s, 1);
+            sanescan::edge_directional_deriv_to_color(hsv_derivatives, colored_derivatives_v, 2);
+            write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_h.png",
+                              colored_derivatives_h);
+            write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_s.png",
+                              colored_derivatives_s);
+            write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
+                              colored_derivatives_v);
         }
 
         cv::imwrite(output_path, image);

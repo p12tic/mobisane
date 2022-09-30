@@ -48,4 +48,20 @@ void split_contour_to_straight_edges(const std::vector<cv::Point>& contour,
                                      double edge_max_angle_diff_deg,
                                      unsigned edge_segment_min_length);
 
+/** Combine the X and Y 2-nd order derivatives into directional derivatives according to
+    the directions of the nearby edge segments.
+
+    Edge segments will have overlapping areas for which the derivatives are calculated. In
+    these areas the value farthest from zero is selected out of candidates. This
+    effectively considers the direction with the most abrupt change and still allows to
+    find the zero crossing point (the maximum 1st order derivative, i.e. precise edge location).
+*/
+void compute_edge_directional_2nd_deriv(const cv::Mat& src,
+                                        cv::Mat& derivatives,
+                                        const std::vector<std::vector<cv::Point>>& edges,
+                                        unsigned edge_precise_search_radius);
+
+/// Debugging function for converting signed derivatives image to green-red colored image.
+void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel);
+
 } // namespace sanescan
