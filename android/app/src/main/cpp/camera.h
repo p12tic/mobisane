@@ -72,6 +72,8 @@ private:
                              ACameraDevice_request_template request_template);
     void destroy_camera_stream(CameraStreamData& stream);
 
+    void on_image_available(AImageReader* reader);
+
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
 
@@ -94,19 +96,24 @@ private:
     static void on_capture_completed(void* context, ACameraCaptureSession* session,
                                      ACaptureRequest* request, const ACameraMetadata* result);
 
+    static void on_image_available_cb(void* context, AImageReader* reader);
+
     // The following 2 members are valid only between open() and close()
     ACameraManager* manager_ = nullptr;
     CameraInfo camera_;
 
-    // The following 7 members are not null only between start_for_window() and stop()
+    // The following 6 members are not null only between start_for_window() and stop()
     ACameraDevice* device_ = nullptr;
     ACameraCaptureSession* session_ = nullptr;
     ACaptureSessionOutputContainer* output_container_ = nullptr;
     CameraStreamData preview_stream_;
+    CameraStreamData capture_stream_;
+    AImageReader* capture_reader_ = nullptr;
 
     ACameraDevice_StateCallbacks device_callbacks_;
     ACameraCaptureSession_stateCallbacks session_callbacks_;
     ACameraCaptureSession_captureCallbacks session_capture_callbacks_;
+    AImageReader_ImageListener image_listener_;
 };
 
 } // namespace mobisane

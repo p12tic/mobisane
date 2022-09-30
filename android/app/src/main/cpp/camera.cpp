@@ -78,6 +78,9 @@ Camera::Camera()
     session_capture_callbacks_.onCaptureSequenceCompleted = on_capture_sequence_completed;
     session_capture_callbacks_.onCaptureSequenceAborted = on_capture_sequence_aborted;
     session_capture_callbacks_.onCaptureBufferLost = nullptr;
+
+    image_listener_.context = this;
+    image_listener_.onImageAvailable = on_image_available_cb;
 }
 
 void Camera::open()
@@ -158,11 +161,31 @@ void Camera::start_for_window(ANativeWindow* window)
     }
     stop();
 
+    std::int32_t width = ANativeWindow_getWidth(window);
+    std::int32_t height = ANativeWindow_getHeight(window);
+
+    if (width < 0 || height < 0) {
+        __android_log_print(ANDROID_LOG_ERROR, "Camera", "could not get window size");
+        return;
+    }
+
     CHECK_CAMERA_STATUS(ACameraManager_openCamera(manager_, camera_.id.c_str(), &device_callbacks_,
                                                   &device_));
     CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_create(&output_container_));
 
     setup_camera_stream(preview_stream_, ANativeWindowRef(window), TEMPLATE_PREVIEW);
+
+    image_listener_.context = this;
+    image_listener_.onImageAvailable = on_image_available_cb;
+
+    CHECK_MEDIA_STATUS(AImageReader_new(width, height, AIMAGE_FORMAT_YUV_420_888, 2,
+                                        &capture_reader_));
+    CHECK_MEDIA_STATUS(AImageReader_setImageListener(capture_reader_, &image_listener_));
+
+    ANativeWindow* reader_win = nullptr;
+    CHECK_MEDIA_STATUS(AImageReader_getWindow(capture_reader_, &reader_win));
+
+    setup_camera_stream(capture_stream_, ANativeWindowRef(reader_win), TEMPLATE_STILL_CAPTURE);
 
     CHECK_CAMERA_STATUS(ACameraDevice_createCaptureSession(device_, output_container_,
                                                            &session_callbacks_, &session_));
@@ -183,6 +206,8 @@ void Camera::stop()
         ACameraCaptureSession_close(session_);
     });
     destroy_camera_stream(preview_stream_);
+    destroy_camera_stream(capture_stream_);
+    clear_ptr_if_set(capture_reader_, [&](){ AImageReader_delete(capture_reader_); });
     clear_ptr_if_set(device_, [&](){ ACameraDevice_close(device_); });
     clear_ptr_if_set(output_container_,
                      [&](){ ACaptureSessionOutputContainer_free(output_container_); });
@@ -211,6 +236,7 @@ void Camera::destroy_camera_stream(CameraStreamData& stream)
     clear_ptr_if_set(stream.output, [&](){ ACaptureSessionOutput_free(stream.output); });
     clear_ptr_if_set(stream.request, [&](){ ACaptureRequest_free(stream.request); });
     clear_ptr_if_set(stream.output_target, [&](){ ACameraOutputTarget_free(stream.output_target); });
+    stream.window.reset();
 }
 
 std::vector<CameraInfo> Camera::enumerate_cameras()
@@ -285,6 +311,21 @@ std::optional<CameraInfo> Camera::select_camera(const std::vector<CameraInfo>& c
     return cameras.front();
 }
 
+void Camera::on_image_available(AImageReader* reader)
+{
+    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available");
+    AImage *image;
+    AImageReader_acquireLatestImage(capture_reader_, &image);
+
+    std::int32_t width = 0;
+    std::int32_t height = 0;
+    CHECK_MEDIA_STATUS(AImage_getWidth(image, &width));
+    CHECK_MEDIA_STATUS(AImage_getHeight(image, &height));
+    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available %d %d", width, height);
+
+    AImage_delete(image);
+}
+
 void Camera::on_session_active(void* context, ACameraCaptureSession* session)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_session_active");
@@ -333,6 +374,11 @@ void Camera::on_capture_completed(void* context, ACameraCaptureSession* session,
                                   ACaptureRequest* request, const ACameraMetadata* result)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_capture_completed");
+}
+
+void Camera::on_image_available_cb(void* context, AImageReader* reader)
+{
+    reinterpret_cast<Camera*>(context)->on_image_available(reader);
 }
 
 } // namespace mobisane
