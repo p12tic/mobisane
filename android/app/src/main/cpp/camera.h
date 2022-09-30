@@ -40,6 +40,7 @@ struct CameraStreamConfiguration {
 struct CameraInfo {
     std::string id;
     std::optional<std::uint8_t> lens_facing = 0;
+    // Multiples of 90 degrees.
     std::optional<std::int32_t> orientation = 0;
 
     std::vector<CameraStreamConfiguration> configs;

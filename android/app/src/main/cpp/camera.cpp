@@ -328,7 +328,7 @@ std::vector<CameraInfo> Camera::enumerate_cameras()
 
         e = {};
         if (ACameraMetadata_getConstEntry(metadata, ACAMERA_SENSOR_ORIENTATION, &e) == ACAMERA_OK) {
-            info.orientation = e.data.i32[0];
+            info.orientation = e.data.i32[0] / 90;
         }
 
         e = {};
