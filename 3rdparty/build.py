@@ -196,6 +196,19 @@ def build_boost(srcdir, builddir, settings):
     ])
 
 
+def build_imath(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -206,6 +219,7 @@ known_dependencies = [
     ('eigen', build_eigen),
     ('ceres', build_ceres),
     ('boost', build_boost),
+    ('imath', build_imath),
 ]
 
 
