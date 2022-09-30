@@ -702,6 +702,10 @@ void SharedAppManager::compute_edge_structure_from_motion()
 {
     TimeLogger time_logger{"compute_edge_structure_from_motion()"};
 
+    if (d_->submitted_data.empty()) {
+        throw std::invalid_argument("No images supplied");
+    }
+
     std::vector<aliceVision::IndexT> orig_view_ids;
     for (const auto& image_data : d_->submitted_data) {
         orig_view_ids.push_back(image_data->view_id);
@@ -719,7 +723,9 @@ void SharedAppManager::compute_edge_structure_from_motion()
                              image_data->bounds_pipeline.precise_edges));
     }
 
-    float starting_detection_dist = 400;
+    auto min_size = std::min(d_->submitted_data.front()->image.size().width,
+                             d_->submitted_data.front()->image.size().height);
+    float starting_detection_dist = 0.02 * min_size;
 
     std::vector<edgegraph3d::PolyLine2DMapSearch> pl_maps;
     for (std::size_t i = 0; i < graphs.size(); ++i) {
