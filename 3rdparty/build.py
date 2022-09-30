@@ -76,6 +76,11 @@ def recreate_dir(path):
     os.makedirs(path)
 
 
+def remove_if_exists(path):
+    if os.path.exists(path):
+        shutil.rmtree(path)
+
+
 def can_call_cmd(cmd):
     try:
         subprocess.check_output(cmd, stderr=subprocess.STDOUT)
@@ -1002,6 +1007,50 @@ def build_taskflow(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_moltenvk(srcdir, builddir, settings):
+    if settings.target_platform not in [TargetPlatform.IOS, TargetPlatform.MACOS]:
+        return
+
+    bsh = sh_with_cwd(srcdir)
+    bsh(['./fetchDependencies', '--macos', '--ios', '--maccat',])
+    bsh(['xcodebuild', 'build', '-quiet',
+         '-project', 'MoltenVKPackaging.xcodeproj',
+         '-scheme', "MoltenVK Package (macOS only)",
+         '-configuration', "Release"
+    ])
+    bsh(['xcodebuild', 'build', '-quiet',
+         '-project', 'MoltenVKPackaging.xcodeproj',
+         '-scheme', "MoltenVK Package (iOS only)",
+         '-configuration', "Release"
+    ])
+    bsh(['xcodebuild', 'build', '-quiet',
+         '-project', 'MoltenVKPackaging.xcodeproj',
+         '-scheme', "MoltenVK-macOS",
+         '-configuration', "Release"
+    ])
+    bsh(['xcodebuild', 'build', '-quiet',
+         '-project', 'MoltenVKPackaging.xcodeproj',
+         '-scheme', "MoltenVK-iOS",
+         '-configuration', "Release"
+    ])
+    remove_if_exists(os.path.join(settings.prefix, 'include/MoltenVK'))
+    bsh(['cp', '-r', 'Package/Release/MoltenVK/include/MoltenVK',
+         os.path.join(settings.prefix, 'include/MoltenVK')])
+    remove_if_exists(os.path.join(settings.prefix, 'include/vulkan'))
+    bsh(['cp', '-r', 'Package/Release/MoltenVK/include/vulkan',
+         os.path.join(settings.prefix, 'include/vulkan')])
+    remove_if_exists(os.path.join(settings.prefix, 'include/vk_video'))
+    bsh(['cp', '-r', 'Package/Release/MoltenVK/include/vk_video',
+         os.path.join(settings.prefix, 'include/vk_video')])
+
+    if settings.target_platform == TargetPlatform.IOS:
+        bsh(['cp', 'Package/Release/MoltenVK/MoltenVK.xcframework/ios-arm64/libMoltenVK.a',
+                    os.path.join(settings.prefix, 'lib/libMoltenVK.a')])
+    if settings.target_platform == TargetPlatform.MACOS:
+        bsh(['cp', 'Package/Release/MoltenVK/MoltenVK.xcframework/macos-arm64_x86_64/libMoltenVK.a',
+                    os.path.join(settings.prefix, 'lib/libMoltenVK.a')])
+
+
 def build_alicevision(srcdir, builddir, settings):
     extra_flags = []
     if settings.target_platform in [TargetPlatform.MACOS, TargetPlatform.IOS,
@@ -1106,6 +1155,7 @@ known_dependencies = [
     ('assimp', build_assimp),
     ('glm', build_glm),
     ('taskflow', build_taskflow),
+    ('moltenvk', build_moltenvk),
     ('alicevision', build_alicevision),
     ('sanescan', build_sanescan),
     (('mobisane', '..'), build_mobisane),
