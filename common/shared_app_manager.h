@@ -31,10 +31,15 @@ namespace sanescan {
 */
 class SharedAppManager {
 public:
+    enum Options {
+        NONE = 0,
+        PRESERVE_INTERMEDIATE_DATA = 1,
+    };
+
     SharedAppManager(tbb::task_arena& task_arena);
     ~SharedAppManager();
 
-    void submit_photo(const cv::Mat& rgb_image);
+    void submit_photo(const cv::Mat& rgb_image, Options options = NONE);
 
     // dst_image is assumed to be in BGRA format
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);

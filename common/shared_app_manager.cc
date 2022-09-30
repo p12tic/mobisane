@@ -138,7 +138,7 @@ SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
                 aliceVision::feature::EImageDescriberType::DSPSIFT);
 }
 
-void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
+void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
 {
     d_->task_arena.execute([&]()
     {
@@ -218,7 +218,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
         cloning_task_group.wait();
 
         started_bounds_calculation_task();
-        d_->pipeline_tasks.run([this, curr_photo_data]()
+        d_->pipeline_tasks.run([this, curr_photo_data, options]()
         {
             auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
 
@@ -239,6 +239,10 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
             }
 
             bounds_pipeline.run(image);
+
+            if ((options & PRESERVE_INTERMEDIATE_DATA) == 0) {
+                bounds_pipeline.clear_intermediate_data();
+            }
         });
     });
 }
