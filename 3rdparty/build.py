@@ -505,6 +505,8 @@ def build_leptonica(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         srcdir,
+        '-DLIBWEBP_SUPPORT=OFF',
+        '-DOPENJPEG_SUPPORT=OFF',
         ] + cmake_flags_from_settings(settings)
     )
     bsh(['ninja'])
