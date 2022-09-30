@@ -18,6 +18,7 @@
 
 #include "common/bounds_detection_pipeline.h"
 #include "common/edge_utils.h"
+#include "common/shared_app_manager.h"
 #include <sanescanocr/ocr/ocr_point.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -28,7 +29,7 @@
 #include <string>
 
 struct Options {
-    static constexpr const char* INPUT_PATH = "input-path";
+    static constexpr const char* INPUT_PATHS = "input-paths";
     static constexpr const char* OUTPUT_PATH = "output-path";
     static constexpr const char* HELP = "help";
 
@@ -163,11 +164,39 @@ void write_image_with_edges_precise(const std::string& debug_folder_path,
     write_debug_image(debug_folder_path, filename, output);
 }
 
+void write_debug_data(const std::string& debug_folder_path, const cv::Mat& image,
+                      const sanescan::BoundsDetectionPipeline& bp)
+{
+
+    write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
+                                  bp.small_for_fill, bp.target_object_unfilled_mask);
+    write_image_with_mask_overlay(debug_folder_path, "target_object.png",
+                                  bp.small_for_fill, bp.target_object_mask);
+
+    write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
+                           image, bp.edges);
+    cv::Mat colored_derivatives_h;
+    cv::Mat colored_derivatives_s;
+    cv::Mat colored_derivatives_v;
+    sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_h, 0);
+    sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_s, 1);
+    sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_v, 2);
+    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_h.png",
+                      colored_derivatives_h);
+    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_s.png",
+                      colored_derivatives_s);
+    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
+                      colored_derivatives_v);
+
+    write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
+                                   image, bp.precise_edges);
+}
+
 int main(int argc, char* argv[])
 {
     namespace po = boost::program_options;
 
-    std::string input_path;
+    std::vector<std::string> input_paths;
     std::string output_path;
     std::string debug_folder_path;
 
@@ -178,11 +207,10 @@ int main(int argc, char* argv[])
     sanescan::BoundsDetectionParams bounds_params;
 
     po::positional_options_description positional_options_desc;
-    positional_options_desc.add(Options::INPUT_PATH, 1);
-    positional_options_desc.add(Options::OUTPUT_PATH, 1);
+    positional_options_desc.add(Options::INPUT_PATHS, -1);
 
     auto introduction_desc = R"(Usage:
-    mobisanecli [OPTION]... [input_path] [output_path]
+    mobisanecli [OPTION]... [input_path]... [output_path]
 
 input_path and output_path options can be passed either as positional or named arguments.
 )";
@@ -190,7 +218,7 @@ input_path and output_path options can be passed either as positional or named a
     po::options_description options_desc("Options");
 
     options_desc.add_options()
-            (Options::INPUT_PATH, po::value(&input_path), "the path to the input image")
+            (Options::INPUT_PATHS, po::value(&input_paths), "the path to the input images")
             (Options::OUTPUT_PATH, po::value(&output_path), "the path to the output PDF file")
             (Options::DEBUG_DIR_PATH, po::value(&debug_folder_path),
              "path to the directory to put debugging artifacts into")
@@ -279,8 +307,8 @@ input_path and output_path options can be passed either as positional or named a
         return EXIT_SUCCESS;
     }
 
-    if (options.count(Options::INPUT_PATH) != 1) {
-        std::cerr << "Must specify single input path\n";
+    if (options.count(Options::INPUT_PATHS) < 1) {
+        std::cerr << "Must specify at least one input path\n";
         return EXIT_FAILURE;
     }
 
@@ -297,58 +325,46 @@ input_path and output_path options can be passed either as positional or named a
         }
     }
 
+    tbb::task_arena task_arena;
+    sanescan::SharedAppManager app_manager{task_arena};
+    app_manager.set_bounds_detection_params(bounds_params);
+
     try {
-        auto image = cv::imread(input_path);
+        for (const auto& input_path : input_paths) {
+            auto image = cv::imread(input_path);
+            if (image.empty()) {
+                throw std::invalid_argument("Image has not been found");
+            }
 
-        if (image.empty()) {
-            throw std::invalid_argument("Image has not been found");
+            app_manager.submit_photo(image, sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA);
         }
 
-        auto size_x = image.size.p[1];
-        auto size_y = image.size.p[0];
-
-        bounds_params.setup_for_pixels(std::min(size_x, size_y));
-
-        if (initial_points.empty()) {
-            initial_points.push_back({size_x / 2, size_y / 2});
-        }
-
-        for (const auto& point : initial_points) {
-            bounds_params.flood_params.start_areas.push_back(
-                        create_start_area(point, bounds_params.initial_point_area_radius,
-                                          size_x, size_y));
-        }
-
-        sanescan::BoundsDetectionPipeline bp;
-        bp.params = bounds_params;
-        bp.run(image);
+        app_manager.wait_for_photo_tasks();
 
         if (!debug_folder_path.empty()) {
-            write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
-                                          bp.small_for_fill, bp.target_object_unfilled_mask);
-            write_image_with_mask_overlay(debug_folder_path, "target_object.png",
-                                          bp.small_for_fill, bp.target_object_mask);
+            task_arena.execute([&]()
+            {
+                tbb::task_group debug_write_tasks;
 
-            write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
-                                   image, bp.edges);
-            cv::Mat colored_derivatives_h;
-            cv::Mat colored_derivatives_s;
-            cv::Mat colored_derivatives_v;
-            sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_h, 0);
-            sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_s, 1);
-            sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_v, 2);
-            write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_h.png",
-                              colored_derivatives_h);
-            write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_s.png",
-                              colored_derivatives_s);
-            write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
-                              colored_derivatives_v);
+                for (std::size_t i = 0; i < input_paths.size(); ++i) {
+                    debug_write_tasks.run([&, i]()
+                    {
+                        auto image_folder_path = std::filesystem::path(debug_folder_path) /
+                                ("image_" + std::to_string(i));
 
-            write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
-                                           image, bp.precise_edges);
+                        if (std::filesystem::exists(image_folder_path)) {
+                            std::filesystem::remove_all(image_folder_path);
+                        }
+                        std::filesystem::create_directories(image_folder_path);
+
+                        write_debug_data(image_folder_path,
+                                         app_manager.get_photo(i),
+                                         app_manager.get_bounds_detection_pipeline(i));
+                    });
+                }
+                debug_write_tasks.wait();
+            });
         }
-
-        cv::imwrite(output_path, image);
     } catch (const std::exception& e) {
         std::cerr << "Failed to do OCR: " << e.what() << "\n";
         return EXIT_FAILURE;

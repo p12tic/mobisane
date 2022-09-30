@@ -260,6 +260,21 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
     });
 }
 
+const cv::Mat& SharedAppManager::get_photo(std::size_t index) const
+{
+    return d_->submitted_data.at(index)->image;
+}
+
+const BoundsDetectionPipeline&
+    SharedAppManager::get_bounds_detection_pipeline(std::size_t index) const
+{
+    return d_->submitted_data.at(index)->bounds_pipeline;
+}
+
+void SharedAppManager::wait_for_photo_tasks()
+{
+    d_->pipeline_tasks.wait();
+}
 
 void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image)
 {

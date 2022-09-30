@@ -28,6 +28,8 @@ namespace sanescan {
 
 /** This is low-level shared entry-point into the shared low-level guts of Mobisane application.
     Only a single instance of SharedAppManager should live throughout the life of application.
+
+    Calls to member function are not thread safe and should not happen concurrently.
 */
 class SharedAppManager {
 public:
@@ -42,6 +44,11 @@ public:
     void set_bounds_detection_params(const BoundsDetectionParams& params);
 
     void submit_photo(const cv::Mat& rgb_image, Options options = NONE);
+
+    const cv::Mat& get_photo(std::size_t index) const;
+    const BoundsDetectionPipeline& get_bounds_detection_pipeline(std::size_t index) const;
+
+    void wait_for_photo_tasks();
 
     // dst_image is assumed to be in BGRA format
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
