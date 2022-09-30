@@ -17,6 +17,7 @@
 */
 
 #include "camera.h"
+#include <mobisane/image_utils.h>
 #include <android/log.h>
 #include <string>
 
@@ -243,12 +244,12 @@ void Camera::capture_image()
                                                       nullptr));
 }
 
-void Camera::set_on_image_captured(const std::function<void(const cv::Mat&)>& cb)
+void Camera::set_on_image_captured(const ImageCallback& cb)
 {
     image_captured_cb_ = cb;
 }
 
-void Camera::set_on_preview_captured(const std::function<void(const cv::Mat&)>& cb)
+void Camera::set_on_preview_captured(const ImageCallback& cb)
 {
     preview_captured_cb_ = cb;
 }
@@ -380,36 +381,26 @@ std::optional<CameraInfo> Camera::select_camera(const std::vector<CameraInfo>& c
 void Camera::on_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available");
-    AImage *image;
-    CHECK_MEDIA_STATUS(AImageReader_acquireLatestImage(capture_reader_, &image));
-
-    AImageCropRect src_rect;
-    CHECK_MEDIA_STATUS(AImage_getCropRect(image, &src_rect));
-
-    std::int32_t y_stride, uv_stride;
-    std::uint8_t* y_ptr = nullptr;
-    std::uint8_t* v_ptr = nullptr;
-    std::uint8_t* u_ptr = nullptr;
-    std::int32_t y_len, u_len, v_len;
-    std::int32_t uv_pixel_stride;
-    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 0, &y_ptr, &y_len));
-    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 1, &v_ptr, &v_len));
-    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 2, &u_ptr, &u_len));
-    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 0, &y_stride));
-    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 1, &uv_stride));
-    CHECK_MEDIA_STATUS(AImage_getPlanePixelStride(image, 1, &uv_pixel_stride));
-
-    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available %d %d",
-                        src_rect.right, src_rect.bottom);
-
-    AImage_delete(image);
+    deliver_image_to_cb(capture_reader_, image_captured_cb_, image_cached_mat_);
 }
 
 void Camera::on_preview_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available");
+    deliver_image_to_cb(preview_reader_, preview_captured_cb_, preview_cached_mat_);
+}
+
+void Camera::deliver_image_to_cb(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached)
+{
+    // Note that we need to acquire images even if we don't need them because otherwise the
+    // camera image queue will fill up and lock whole pipeline.
     AImage *image;
-    CHECK_MEDIA_STATUS(AImageReader_acquireLatestImage(preview_reader_, &image));
+    CHECK_MEDIA_STATUS(AImageReader_acquireLatestImage(reader, &image));
+
+    if (!cb) {
+        AImage_delete(image);
+        return;
+    }
 
     AImageCropRect src_rect;
     CHECK_MEDIA_STATUS(AImage_getCropRect(image, &src_rect));
@@ -427,10 +418,17 @@ void Camera::on_preview_image_available(AImageReader* reader)
     CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 1, &uv_stride));
     CHECK_MEDIA_STATUS(AImage_getPlanePixelStride(image, 1, &uv_pixel_stride));
 
-    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available %d %d",
-                        src_rect.right, src_rect.bottom);
+    sanescan::convert_yuv420_any_to_cv_mat_bgr(y_ptr, v_ptr, u_ptr,
+                                               src_rect.top, src_rect.left,
+                                               src_rect.bottom, src_rect.right,
+                                               y_stride, uv_stride, uv_pixel_stride,
+                                               cached, 3,
+                                               src_rect.right - src_rect.left,
+                                               src_rect.bottom - src_rect.top);
 
     AImage_delete(image);
+
+    cb(cached);
 }
 
 void Camera::on_session_active(void* context, ACameraCaptureSession* session)

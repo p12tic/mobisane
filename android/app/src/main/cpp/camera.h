@@ -61,6 +61,8 @@ struct CameraStreamData {
 
 class Camera {
 public:
+    using ImageCallback = std::function<void(const cv::Mat&)>;
+
     Camera();
 
     void open();
@@ -75,8 +77,8 @@ public:
 
     void capture_image();
 
-    void set_on_image_captured(const std::function<void(const cv::Mat&)>& cb);
-    void set_on_preview_captured(const std::function<void(const cv::Mat&)>& cb);
+    void set_on_image_captured(const ImageCallback& cb);
+    void set_on_preview_captured(const ImageCallback& cb);
 
 private:
     void setup_camera_stream_output(CameraStreamOutputData& output, ACaptureRequest* request,
@@ -92,6 +94,8 @@ private:
 
     void on_image_available(AImageReader* reader);
     void on_preview_image_available(AImageReader* reader);
+
+    void deliver_image_to_cb(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached);
 
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
@@ -138,8 +142,10 @@ private:
     AImageReader_ImageListener preview_listener_ = {};
     AImageReader_ImageListener image_listener_ = {};
 
-    std::function<void(const cv::Mat&)> image_captured_cb_;
-    std::function<void(const cv::Mat&)> preview_captured_cb_;
+    ImageCallback image_captured_cb_;
+    cv::Mat image_cached_mat_;
+    ImageCallback preview_captured_cb_;
+    cv::Mat preview_cached_mat_;
 };
 
 } // namespace mobisane
