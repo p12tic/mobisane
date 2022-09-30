@@ -28,7 +28,13 @@ class TimeLogger {
 public:
     TimeLogger(const std::string& desc) : desc_{desc}
     {
-        ALICEVISION_LOG_TRACE(desc << ": Start");
+        ALICEVISION_LOG_TRACE(desc_ << ": Start");
+    }
+
+    TimeLogger(const std::string& desc, std::size_t number) :
+        desc_{desc + "(" + std::to_string(number) + ")"}
+    {
+        ALICEVISION_LOG_TRACE(desc_ << ": Start");
     }
 
     ~TimeLogger()

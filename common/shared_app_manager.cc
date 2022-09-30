@@ -323,22 +323,26 @@ void SharedAppManager::set_options(Options options)
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
+    auto image_id = d_->next_image_id++;
+    TimeLogger time_logger{"submit_photo():sync submit", image_id};
+
     tf::Taskflow taskflow;
 
     d_->running_taskflows_any++;
     d_->running_taskflows_per_image++;
 
     auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
+    curr_photo_data->image_id = image_id;
+
     auto task_image_clone = taskflow.emplace([curr_photo_data, rgb_image]()
     {
+        TimeLogger time_logger{"submit_photo():initial copy", curr_photo_data->image_id};
         // The image is copied twice: once to a file on vfs and second time for further
         // processing here. It may be possible to optimize this copy out. The cost is
         // relatively small compared to the rest of image processing.
         curr_photo_data->image = rgb_image.clone();
     });
 
-    auto image_id = d_->next_image_id++;
-    curr_photo_data->image_id = image_id;
 
     auto session_path = d_->get_path_to_current_session();
     auto image_path = get_path_for_input_image(session_path, image_id);
@@ -386,8 +390,10 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                                     std::make_shared<aliceVision::sfmData::View>(sfm_view));
     d_->sfm_data.getIntrinsics().emplace(sfm_view.getIntrinsicId(), intrinsic);
 
-    taskflow.emplace([this, view_id]()
+    taskflow.emplace([this, view_id, image_id]()
     {
+        TimeLogger time_logger{"submit_photo():feature job", image_id};
+
         const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
 
         FeatureExtractionJob feature_job;
@@ -405,6 +411,8 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     auto task_bounds_calc = taskflow.emplace([this, curr_photo_data,
                                              params = d_->photo_bounds_pipeline_params]()
     {
+        TimeLogger time_logger{"submit_photo():bounds calc", curr_photo_data->image_id};
+
         auto& image = curr_photo_data->image;
         auto& bounds_pipeline = curr_photo_data->bounds_pipeline;
         bounds_pipeline.params = params;
