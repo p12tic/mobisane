@@ -386,18 +386,31 @@ std::optional<CameraInfo> Camera::select_camera(const std::vector<CameraInfo>& c
 void Camera::on_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available");
-    process_received_image(capture_reader_, image_captured_cb_, image_cached_mat_, false);
+    process_received_image(capture_reader_, image_cached_mat_, image_captured_cb_,
+                           [](){ return true; }, [](){});
 }
 
 void Camera::on_preview_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available");
-    process_received_image(preview_reader_, preview_captured_cb_, preview_cached_mat_,
-                           preview_counter_++ % 4 == 0);
+    process_received_image(preview_reader_, preview_cached_mat_, preview_captured_cb_, [&]()
+    {
+        // At most one concurrent preview pipeline is performed.
+        std::uint32_t expected_value = 0;
+        if (!preview_in_progress_count_.compare_exchange_strong(expected_value, 1)) {
+            return false;
+        }
+        return true;
+    }, [&]() {
+        preview_in_progress_count_ -= 1;
+    });
 }
 
-void Camera::process_received_image(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached,
-                                    bool skip_callback)
+void Camera::process_received_image(AImageReader* reader, cv::Mat& cached,
+                                    const ImageCallback& cb,
+                                    const ImageProcessingCheckCallback& before_processing_cb,
+                                    const ImageResponseCallback& after_processing_cb)
+
 {
     // Note that we need to acquire images even if we don't need them because otherwise the
     // camera image queue will fill up and lock whole pipeline.
@@ -408,7 +421,7 @@ void Camera::process_received_image(AImageReader* reader, const ImageCallback& c
         return;
     }
 
-    if (!cb || skip_callback) {
+    if (!before_processing_cb()) {
         AImage_delete(image);
         return;
     }
@@ -439,7 +452,7 @@ void Camera::process_received_image(AImageReader* reader, const ImageCallback& c
 
     AImage_delete(image);
 
-    cb(cached);
+    cb(cached, after_processing_cb);
 }
 
 void Camera::on_session_active(void* context, ACameraCaptureSession* session)

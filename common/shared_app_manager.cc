@@ -459,25 +459,31 @@ void SharedAppManager::wait_for_tasks()
     }
 }
 
-void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image)
+void SharedAppManager::schedule_calculate_bounds_overlay(const cv::Mat& rgb_image,
+                                                         cv::Mat& dst_image,
+                                                         const std::function<void()>& cb)
 {
-    auto size_x = rgb_image.size.p[1];
-    auto size_y = rgb_image.size.p[0];
+    tf::Taskflow taskflow;
+    taskflow.emplace([&]() {
+        auto size_x = rgb_image.size.p[1];
+        auto size_y = rgb_image.size.p[0];
 
-    std::vector<sanescan::OcrPoint> initial_points = {
-        {size_x / 2, size_y / 2}
-    };
+        std::vector<sanescan::OcrPoint> initial_points = {
+            {size_x / 2, size_y / 2}
+        };
 
-    for (const auto& point : initial_points) {
-        d_->bounds_pipeline.params.flood_params.start_areas.push_back(
-                    create_start_area(point, d_->bounds_pipeline.params.initial_point_area_radius,
-                                      size_x, size_y));
-    }
+        for (const auto& point : initial_points) {
+            d_->bounds_pipeline.params.flood_params.start_areas.push_back(
+                        create_start_area(point, d_->bounds_pipeline.params.initial_point_area_radius,
+                                          size_x, size_y));
+        }
 
-    d_->bounds_pipeline.run(rgb_image);
-    draw_bounds_overlay(rgb_image, dst_image, d_->bounds_pipeline.target_object_mask,
-                        d_->bounds_pipeline.params.initial_point_image_shrink,
-                        d_->bounds_pipeline.precise_edges);
+        d_->bounds_pipeline.run(rgb_image);
+        draw_bounds_overlay(rgb_image, dst_image, d_->bounds_pipeline.target_object_mask,
+                            d_->bounds_pipeline.params.initial_point_image_shrink,
+                            d_->bounds_pipeline.precise_edges);
+    });
+    d_->executor.run(std::move(taskflow), cb);
 }
 
 void SharedAppManager::print_debug_info(std::ostream& stream)

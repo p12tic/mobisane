@@ -64,7 +64,9 @@ struct CameraStreamData {
 
 class Camera {
 public:
-    using ImageCallback = std::function<void(const cv::Mat&)>;
+    using ImageResponseCallback = std::function<void()>;
+    using ImageProcessingCheckCallback = std::function<bool()>;
+    using ImageCallback = std::function<void(const cv::Mat&, const ImageResponseCallback&)>;
 
     Camera();
 
@@ -99,8 +101,16 @@ private:
     void on_image_available(AImageReader* reader);
     void on_preview_image_available(AImageReader* reader);
 
-    void process_received_image(AImageReader* reader, const ImageCallback& cb, cv::Mat& cached,
-                                bool skip_callback);
+    /** before_processing_cb should return true in case the image should be processed, false
+        otherwise.
+
+        If callback is invoked, then `after_processing_cb` will be invoked with image results
+        afterwards.
+    */
+    void process_received_image(AImageReader* reader, cv::Mat& cached,
+                                const ImageCallback& cb,
+                                const ImageProcessingCheckCallback& before_processing_cb,
+                                const ImageResponseCallback& after_processing_cb);
 
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
@@ -149,9 +159,10 @@ private:
 
     ImageCallback image_captured_cb_;
     cv::Mat image_cached_mat_;
+
     ImageCallback preview_captured_cb_;
     cv::Mat preview_cached_mat_;
-    std::uint64_t preview_counter_ = 0;
+    std::atomic<std::uint32_t> preview_in_progress_count_ = 0;
 };
 
 } // namespace sanescan

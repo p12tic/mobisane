@@ -44,7 +44,14 @@ sanescan::SharedAppManager& get_app_manager()
     auto size_x = src_image.size.p[1];
     auto size_y = src_image.size.p[0];
     cv::Mat dst_image(size_y, size_x, CV_8UC4);
-    get_app_manager().calculate_bounds_overlay(src_image, dst_image);
+
+    std::promise<void> promise;
+    auto future = promise.get_future();
+    get_app_manager().schedule_calculate_bounds_overlay(src_image, dst_image, [&]()
+    {
+        promise.set_value();
+    });
+    future.wait();
 
     auto dst_cg_image = cv_mat_to_CGImageRef(dst_image);
     dispatch_sync(dispatch_get_main_queue(), ^{

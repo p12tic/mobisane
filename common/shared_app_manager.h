@@ -50,8 +50,13 @@ public:
     void perform_detection();
     void wait_for_tasks();
 
-    // dst_image is assumed to be in BGRA format
-    void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
+    /** Schedules bounds overlay calculation. The calculation happens asynchronously, upon
+        completion the given `cb` will be called. `dst_image` is assumed to be in BGRA format.
+        Both `rgb_image` and `dst_image` must be valid from schedule_calculate_bounds_overlay() is
+        called until `cb` is invoked.
+    */
+    void schedule_calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image,
+                                           const std::function<void()>& cb);
 
     void print_debug_info(std::ostream& stream);
     void print_debug_images(const std::string& debug_folder_path);

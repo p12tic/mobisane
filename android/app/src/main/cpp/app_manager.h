@@ -34,13 +34,14 @@ public:
     void set_preview_surface(ANativeWindow* win);
 
 private:
-    void on_image_captured(const cv::Mat& image);
-    void on_preview_captured(const cv::Mat& image);
+    void on_image_captured(const cv::Mat& image, const std::function<void()>& cb);
+    void on_preview_captured(const cv::Mat& image, const std::function<void()>& cb);
 
     ANativeWindowRef preview_win_;
     Camera& camera_;
     tf::Executor executor_;
     SharedAppManager shared_manager_;
+    cv::Mat cached_preview_dst_mat_;
 };
 
 } // namespace sanescan
