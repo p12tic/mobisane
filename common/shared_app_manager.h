@@ -19,9 +19,7 @@
 #pragma once
 
 #include "bounds_detection_pipeline.h"
-#include <tbb/task_arena.h>
-#include <tbb/task_group.h>
-#include <opencv2/core/mat.hpp>
+#include <taskflow/core/executor.hpp>
 #include <memory>
 
 namespace sanescan {
@@ -39,7 +37,7 @@ public:
         COLLECT_DEBUG_INFO = 2,
     };
 
-    SharedAppManager(tbb::task_arena& task_arena);
+    SharedAppManager(tf::Executor& executor);
     ~SharedAppManager();
 
     void set_bounds_detection_params(const BoundsDetectionParams& params);
@@ -61,12 +59,6 @@ public:
 private:
     struct Data;
     std::unique_ptr<Data> d_;
-
-    void started_feature_extraction_task();
-    void finished_feature_extraction_task();
-
-    void started_bounds_calculation_task();
-    void finished_bounds_calculation_task();
 
     void maybe_on_photo_tasks_finished();
 

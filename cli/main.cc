@@ -23,6 +23,9 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 #include <Eigen/Core>
+#include <taskflow/algorithm/for_each.hpp>
+#include <taskflow/core/executor.hpp>
+#include <taskflow/core/taskflow.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <filesystem>
@@ -225,8 +228,8 @@ input_path and output_path options can be passed either as positional or named a
         }
     }
 
-    tbb::task_arena task_arena;
-    sanescan::SharedAppManager app_manager{task_arena};
+    tf::Executor executor;
+    sanescan::SharedAppManager app_manager{executor};
     app_manager.set_options(static_cast<sanescan::SharedAppManager::Options>(
                                 sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA |
                                 sanescan::SharedAppManager::COLLECT_DEBUG_INFO));
@@ -248,25 +251,23 @@ input_path and output_path options can be passed either as positional or named a
         if (!debug_folder_path.empty()) {
             app_manager.print_debug_info(std::cout);
 
-            tbb::task_group debug_write_tasks;
+            tf::Taskflow taskflow;
 
-            for (std::size_t i = 0; i < input_paths.size(); ++i) {
-                task_arena.enqueue(debug_write_tasks.defer([&, i]()
-                {
-                    app_manager.print_debug_images_for_photo(
-                                prepare_debug_subfolder(debug_folder_path,
-                                                        "image_" + std::to_string(i)),
-                                i);
-                }));
-            }
+            taskflow.for_each_index(0, static_cast<int>(input_paths.size()), 1, [&](int i)
+            {
+                app_manager.print_debug_images_for_photo(
+                            prepare_debug_subfolder(debug_folder_path,
+                                                    "image_" + std::to_string(i)),
+                            i);
+            });
 
-            task_arena.enqueue(debug_write_tasks.defer([&]()
+            taskflow.emplace([&]()
             {
                 app_manager.print_debug_images(prepare_debug_subfolder(debug_folder_path,
                                                                        "image_common"));
-            }));
+            });
 
-            debug_write_tasks.wait();
+            executor.run_and_wait(taskflow);
         }
     } catch (const std::exception& e) {
         std::cerr << "Failed to do OCR: " << e.what() << "\n";

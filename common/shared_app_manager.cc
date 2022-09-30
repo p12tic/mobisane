@@ -32,6 +32,7 @@
 #include "geometry_utils.h"
 #include "image_debug_utils.h"
 #include "image_utils.h"
+#include "parallel_alicevision.h"
 #include "time_logger.h"
 #include <common/edgegraph3d/io/input/convert_edge_images_pixel_to_segment.hpp>
 #include <common/edgegraph3d/plg_edge_manager.hpp>
@@ -66,9 +67,11 @@
 #include <aliceVision/sfm/sfmFilters.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfmDataIO/viewIO.hpp>
+#include <aliceVision/system/ParallelismBackend.hpp>
 #include <aliceVision/vfs/filesystem.hpp>
 #include <aliceVision/vfs/FilesystemManager.hpp>
 #include <aliceVision/vfs/FilesystemTreeInMemory.hpp>
+#include <taskflow/algorithm/for_each.hpp>
 #include <filesystem>
 #include <random>
 
@@ -152,18 +155,17 @@ struct PhotoData
 
 struct SharedAppManager::Data
 {
-    tbb::task_arena& task_arena;
+    tf::Executor& executor;
 
     std::mutex task_status_mutex;
 
     std::mt19937 rng;
 
     // Contains all tasks running for a single pipeline
-    tbb::task_group pipeline_tasks;
-    std::uint32_t running_feature_extraction_tasks = 0;
-    std::uint32_t running_bounds_calculation_tasks = 0;
+    std::atomic<std::uint32_t> running_taskflows_any = 0;
+    std::atomic<std::uint32_t> running_taskflows_per_image = 0;
 
-    tbb::task_handle serial_detection_task;
+    bool serial_detection_requested = false;
 
     // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
     // to allow thread-safe concurrent modification of the array.
@@ -229,8 +231,8 @@ struct SharedAppManager::Data
     // Extra debugging data
     std::vector<cv::Mat> edge_match_debug_images;
 
-    Data(tbb::task_arena& task_arena) :
-        task_arena{task_arena},
+    Data(tf::Executor& executor) :
+        executor{executor},
         rng{std::random_device()()}
     {}
 
@@ -260,13 +262,21 @@ struct SharedAppManager::Data
     }
 };
 
-SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
-    d_{std::make_unique<Data>(task_arena)}
+std::unique_ptr<aliceVision::system::IParallelismBackend> g_alicevision_parallelism_backend;
+
+SharedAppManager::SharedAppManager(tf::Executor& executor) :
+    d_{std::make_unique<Data>(executor)}
 {
-    if (!vfs::getManager().getTreeAtRootIfExists(d_->vfs_root_name)) {
+    static bool first_init = true;
+    if (first_init) {
+        first_init = false;
+
+        g_alicevision_parallelism_backend = std::make_unique<ParallelismBackendTaskflow>(executor);
+        aliceVision::system::setCurrentParallelistBackend(*g_alicevision_parallelism_backend);
         vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
                                             std::make_unique<vfs::FilesystemTreeInMemory>());
     }
+
     vfs::create_directories(d_->vfs_project_path);
     vfs::current_path(d_->vfs_project_path);
     vfs::create_directories(d_->get_path_to_current_session());
@@ -294,15 +304,19 @@ void SharedAppManager::set_options(Options options)
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
+    tf::Taskflow taskflow;
+
+    d_->running_taskflows_any++;
+    d_->running_taskflows_per_image++;
+
     auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
-    tbb::task_group cloning_task_group;
-    d_->task_arena.enqueue(cloning_task_group.defer([&]()
+    auto task_image_clone = taskflow.emplace([curr_photo_data, rgb_image]()
     {
         // The image is copied twice: once to a file on vfs and second time for further
         // processing here. It may be possible to optimize this copy out. The cost is
         // relatively small compared to the rest of image processing.
         curr_photo_data->image = rgb_image.clone();
-    }));
+    });
 
     auto image_id = d_->next_image_id++;
     curr_photo_data->image_id = image_id;
@@ -353,11 +367,9 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                                     std::make_shared<aliceVision::sfmData::View>(sfm_view));
     d_->sfm_data.getIntrinsics().emplace(sfm_view.getIntrinsicId(), intrinsic);
 
-    const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
-    started_feature_extraction_task();
-    d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, &attached_sfm_view]()
+    taskflow.emplace([this, view_id]()
     {
-        auto on_finish = finally([&](){ finished_feature_extraction_task(); });
+        const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
 
         FeatureExtractionJob feature_job;
         feature_job.params.output_path = d_->get_path_to_current_session_features_folder().string();
@@ -369,17 +381,11 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                 aliceVision::feature::EFeatureConstrastFiltering::GridSort;
         feature_job.params.describer = d_->image_describer;
         feature_job.run(attached_sfm_view);
-    }));
+    });
 
-    // Bounds detection task will need private image
-    cloning_task_group.wait();
-
-    started_bounds_calculation_task();
-    d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, curr_photo_data,
-                                                     params = d_->photo_bounds_pipeline_params]()
+    auto task_bounds_calc = taskflow.emplace([this, curr_photo_data,
+                                             params = d_->photo_bounds_pipeline_params]()
     {
-        auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
-
         auto& image = curr_photo_data->image;
         auto& bounds_pipeline = curr_photo_data->bounds_pipeline;
         bounds_pipeline.params = params;
@@ -402,28 +408,35 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
         if ((d_->options & PRESERVE_INTERMEDIATE_DATA) == 0) {
             bounds_pipeline.clear_intermediate_data();
         }
-    }));
+    });
+
+    // Bounds detection task will need private image
+    task_image_clone.precede(task_bounds_calc);
+
+    d_->executor.run(std::move(taskflow), [this]()
+    {
+        std::lock_guard lock{d_->task_status_mutex};
+        d_->running_taskflows_any--;
+        d_->running_taskflows_per_image--;
+        maybe_on_photo_tasks_finished();
+    });
 }
 
 void SharedAppManager::perform_detection()
 {
     std::lock_guard lock{d_->task_status_mutex};
-    if (d_->serial_detection_task) {
+    if (d_->serial_detection_requested) {
         throw std::invalid_argument("Detection task is already queued");
     }
-
-    d_->serial_detection_task = d_->pipeline_tasks.defer([this]()
-    {
-        serial_detect();
-    });
+    d_->serial_detection_requested = true;
     maybe_on_photo_tasks_finished();
 }
 
 void SharedAppManager::wait_for_tasks()
 {
-    d_->task_arena.execute([&]()
-    {
-        d_->pipeline_tasks.wait();
+    d_->executor.loop_until([&](){
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        return d_->running_taskflows_any == 0;
     });
 }
 
@@ -469,9 +482,9 @@ void SharedAppManager::print_debug_info(std::ostream& stream)
 
 void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 {
-    tbb::task_group print_tasks;
+    tf::Taskflow taskflow;
 
-    d_->task_arena.enqueue(print_tasks.defer([&]()
+    taskflow.emplace([&]()
     {
         int i = 0;
         for (const auto& match : d_->pairwise_final_matches) {
@@ -492,9 +505,9 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                             d_->features_per_view,
                                             d_->sfm_landmarks_inexact);
         }
-    }));
+    });
 
-    d_->task_arena.enqueue(print_tasks.defer([&]()
+    taskflow.emplace([&]()
     {
         for (std::size_t i = 0; i < d_->edge_match_debug_images.size(); ++i) {
             auto& image = d_->edge_match_debug_images[i];
@@ -502,9 +515,9 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
             write_debug_image(debug_folder_path, "edge_intersections_" + std::to_string(i) + ".png",
                               image);
         }
-    }));
+    });
 
-    d_->task_arena.enqueue(print_tasks.defer([&]()
+    taskflow.emplace([&]()
     {
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points.ply",
                    d_->sfm_landmarks_exact, {});
@@ -526,9 +539,9 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_unfolded_hz_mesh.ply",
                    d_->sfm_landmarks_unfolded, d_->mesh_triangles_filtered);
-    }));
+    });
 
-    print_tasks.wait();
+    d_->executor.run_and_wait(taskflow);
 }
 
 void SharedAppManager::print_debug_images_for_photo(const std::string& debug_folder_path,
@@ -567,39 +580,22 @@ void SharedAppManager::print_debug_images_for_photo(const std::string& debug_fol
     write_features_debug_image(debug_folder_path, "sfm_features.png", features_type, image);
 }
 
-void SharedAppManager::started_feature_extraction_task()
-{
-    std::lock_guard lock{d_->task_status_mutex};
-    d_->running_feature_extraction_tasks++;
-}
-
-void SharedAppManager::finished_feature_extraction_task()
-{
-    std::lock_guard lock{d_->task_status_mutex};
-    d_->running_feature_extraction_tasks--;
-    maybe_on_photo_tasks_finished();
-}
-
-void SharedAppManager::started_bounds_calculation_task()
-{
-    std::lock_guard lock{d_->task_status_mutex};
-    d_->running_bounds_calculation_tasks++;
-}
-
-void SharedAppManager::finished_bounds_calculation_task()
-{
-    std::lock_guard lock{d_->task_status_mutex};
-    d_->running_bounds_calculation_tasks--;
-    maybe_on_photo_tasks_finished();
-}
-
 void SharedAppManager::maybe_on_photo_tasks_finished()
 {
-    if (d_->running_bounds_calculation_tasks == 0 &&
-        d_->running_feature_extraction_tasks == 0 &&
-        d_->serial_detection_task)
+    if (d_->running_taskflows_per_image == 0 && d_->serial_detection_requested)
     {
-        d_->task_arena.enqueue(std::move(d_->serial_detection_task));
+        d_->running_taskflows_any++;
+        d_->serial_detection_requested = false;
+
+        tf::Taskflow taskflow;
+        taskflow.emplace([this]()
+        {
+            serial_detect();
+        });
+        d_->executor.run(std::move(taskflow), [this]()
+        {
+            d_->running_taskflows_any--;
+        });
     }
 }
 
