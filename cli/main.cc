@@ -77,122 +77,6 @@ sanescan::OcrBox create_start_area(const sanescan::OcrPoint& point, unsigned siz
     };
 }
 
-void write_debug_image(const std::string& debug_folder_path, const std::string& filename,
-                       const cv::Mat& image)
-{
-    auto path = std::filesystem::path{debug_folder_path} / filename;
-    cv::imwrite(path.c_str(), image);
-}
-
-void write_image_with_mask_overlay(const std::string& debug_folder_path, const std::string& filename,
-                                   const cv::Mat& image, const cv::Mat& mask)
-{
-    auto size_x = mask.size.p[1];
-    auto size_y = mask.size.p[0];
-
-    if (size_x != image.size.p[1] || size_y != image.size.p[0]) {
-        throw std::invalid_argument("Image sizes do not match");
-    }
-
-
-    cv::Mat flood_fill_debug = image.clone();
-    for (unsigned y = 0; y < size_y; ++y) {
-        for (unsigned x = 0; x < size_x; ++x) {
-            if (mask.at<std::uint8_t>(y, x)) {
-                flood_fill_debug.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
-            }
-        }
-    }
-
-    write_debug_image(debug_folder_path, filename, flood_fill_debug);
-}
-
-void write_image_with_edges(const std::string& debug_folder_path, const std::string& filename,
-                            const cv::Mat& image, const std::vector<std::vector<cv::Point>>& edges)
-{
-    auto output = image.clone();
-    auto color = cv::Scalar{0, 0, 255};
-    auto direction_color = cv::Scalar{0, 255, 255};
-
-    auto draw_point = [&](const cv::Point& point)
-    {
-        cv::circle(output, point, 10, color, cv::FILLED);
-    };
-
-    auto draw_direction_point = [&](const cv::Point& p1, const cv::Point& p2)
-    {
-        auto dir_vector = p2 - p1;
-        auto x_mult = dir_vector.x / std::hypot(dir_vector.x, dir_vector.y);
-        auto y_mult = dir_vector.y / std::hypot(dir_vector.x, dir_vector.y);
-        cv::circle(output, p1 + cv::Point(8 * x_mult, 8 * y_mult), 5, direction_color, cv::FILLED);
-    };
-
-    for (auto& edge : edges) {
-        if (edge.empty()) {
-            continue;
-        }
-
-        draw_point(edge[0]);
-        for (std::size_t i = 1; i < edge.size(); ++i) {
-            draw_point(edge[i]);
-            cv::line(output, edge[i - 1], edge[i], color, 5);
-            draw_direction_point(edge[i - 1], edge[i]);
-        }
-    }
-
-    write_debug_image(debug_folder_path, filename, output);
-}
-
-void write_image_with_edges_precise(const std::string& debug_folder_path,
-                                    const std::string& filename,
-                                    const cv::Mat& image,
-                                    const std::vector<std::vector<cv::Point>>& edges)
-{
-    auto output = image.clone();
-    auto color = cv::Scalar{0, 0, 255};
-
-    for (auto& edge : edges) {
-        if (edge.size() < 2) {
-            continue;
-        }
-
-        for (std::size_t i = 1; i < edge.size(); ++i) {
-            cv::circle(output, edge[i - 1], 2, cv::Scalar{0, 255, 255}, cv::FILLED);
-            cv::line(output, edge[i - 1], edge[i], color, 1);
-        }
-    }
-
-    write_debug_image(debug_folder_path, filename, output);
-}
-
-void write_debug_data(const std::string& debug_folder_path, const cv::Mat& image,
-                      const sanescan::BoundsDetectionPipeline& bp)
-{
-
-    write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
-                                  bp.small_for_fill, bp.target_object_unfilled_mask);
-    write_image_with_mask_overlay(debug_folder_path, "target_object.png",
-                                  bp.small_for_fill, bp.target_object_mask);
-
-    write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
-                           image, bp.edges);
-    cv::Mat colored_derivatives_h;
-    cv::Mat colored_derivatives_s;
-    cv::Mat colored_derivatives_v;
-    sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_h, 0);
-    sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_s, 1);
-    sanescan::edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_v, 2);
-    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_h.png",
-                      colored_derivatives_h);
-    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_s.png",
-                      colored_derivatives_s);
-    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
-                      colored_derivatives_v);
-
-    write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
-                                   image, bp.precise_edges);
-}
-
 int main(int argc, char* argv[])
 {
     namespace po = boost::program_options;
@@ -365,9 +249,7 @@ input_path and output_path options can be passed either as positional or named a
                         }
                         std::filesystem::create_directories(image_folder_path);
 
-                        write_debug_data(image_folder_path,
-                                         app_manager.get_photo(i),
-                                         app_manager.get_bounds_detection_pipeline(i));
+                        app_manager.print_debug_images_for_photo(image_folder_path, i);
                     });
                 }
                 debug_write_tasks.wait();

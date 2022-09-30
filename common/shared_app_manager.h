@@ -46,9 +46,6 @@ public:
 
     void submit_photo(const cv::Mat& rgb_image);
 
-    const cv::Mat& get_photo(std::size_t index) const;
-    const BoundsDetectionPipeline& get_bounds_detection_pipeline(std::size_t index) const;
-
     void perform_detection();
     void wait_for_tasks();
 
@@ -56,6 +53,8 @@ public:
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
 
     void print_debug_info(std::ostream& stream);
+    void print_debug_images_for_photo(const std::string& debug_folder_path,
+                                      std::size_t index) const;
 
 private:
     struct Data;

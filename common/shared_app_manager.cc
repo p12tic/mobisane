@@ -27,6 +27,7 @@
 #include "edge_utils.h"
 #include "feature_extraction_job.h"
 #include "finally.h"
+#include "image_debug_utils.h"
 #include "image_utils.h"
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
@@ -325,17 +326,6 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     }));
 }
 
-const cv::Mat& SharedAppManager::get_photo(std::size_t index) const
-{
-    return d_->submitted_data.at(index)->image;
-}
-
-const BoundsDetectionPipeline&
-    SharedAppManager::get_bounds_detection_pipeline(std::size_t index) const
-{
-    return d_->submitted_data.at(index)->bounds_pipeline;
-}
-
 void SharedAppManager::perform_detection()
 {
     std::lock_guard lock{d_->task_status_mutex};
@@ -396,6 +386,38 @@ void SharedAppManager::print_debug_info(std::ostream& stream)
     print_matches(d_->pairwise_putative_matches, "putative matches");
     print_matches(d_->pairwise_geometric_matches, "geometric matches");
     print_matches(d_->pairwise_final_matches, "geometric matches after grid filtering");
+}
+
+void SharedAppManager::print_debug_images_for_photo(const std::string& debug_folder_path,
+                                                    std::size_t index) const
+{
+    const auto& data = d_->submitted_data.at(index);
+    const auto& image = data->image;
+    const auto& bp = data->bounds_pipeline;
+
+
+    write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
+                                  bp.small_for_fill, bp.target_object_unfilled_mask);
+    write_image_with_mask_overlay(debug_folder_path, "target_object.png",
+                                  bp.small_for_fill, bp.target_object_mask);
+
+    write_image_with_edges(debug_folder_path, "target_object_approx_edges.png",
+                           image, bp.edges);
+    cv::Mat colored_derivatives_h;
+    cv::Mat colored_derivatives_s;
+    cv::Mat colored_derivatives_v;
+    edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_h, 0);
+    edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_s, 1);
+    edge_directional_deriv_to_color(bp.hsv_derivatives, colored_derivatives_v, 2);
+    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_h.png",
+                      colored_derivatives_h);
+    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_s.png",
+                      colored_derivatives_s);
+    write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
+                      colored_derivatives_v);
+
+    write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
+                                   image, bp.precise_edges);
 }
 
 void SharedAppManager::started_feature_extraction_task()
