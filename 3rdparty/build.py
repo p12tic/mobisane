@@ -467,6 +467,19 @@ def build_osi(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_clp(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        srcdir,
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -490,6 +503,7 @@ known_dependencies = [
     ('geogram', build_geogram),
     ('coinutils', build_coinutils),
     ('osi', build_osi),
+    ('clp', build_clp),
 ]
 
 
