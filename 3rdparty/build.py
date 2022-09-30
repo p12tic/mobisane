@@ -690,21 +690,18 @@ def build_tesseract(srcdir, builddir, settings):
 def build_geogram(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
 
-    if settings.target_platform == TargetPlatform.LINUX:
-        platform = 'Linux64-gcc-dynamic'
-    elif settings.target_platform == TargetPlatform.ANDROID:
-        if settings.target_arch == TargetArch.ARM64:
-            platform = 'Android-aarch64-clang-dynamic'
-        else:
-            raise Exception("Unsupported platform")
+    known_platforms = {
+        (TargetPlatform.LINUX, TargetArch.X86_64, LibType.SHARED): 'Linux64-gcc-dynamic',
+        (TargetPlatform.LINUX, TargetArch.X86_64, LibType.STATIC): 'Linux64-gcc',
+        (TargetPlatform.ANDROID, TargetArch.ARM64, LibType.SHARED): 'Android-aarch64-clang-dynamic',
+        (TargetPlatform.ANDROID, TargetArch.ARM64, LibType.STATIC): 'Android-aarch64-clang',
+        (TargetPlatform.APPLE, TargetArch.X86_64, LibType.SHARED): 'Darwin-clang-dynamic',
+        (TargetPlatform.APPLE, TargetArch.X86_64, LibType.STATIC): 'Darwin-clang',
+        (TargetPlatform.APPLE, TargetArch.ARM64, LibType.SHARED): 'Darwin-aarch64-clang-dynamic',
+        (TargetPlatform.APPLE, TargetArch.ARM64, LibType.STATIC): 'Darwin-aarch64-clang',
+    }
 
-    elif settings.target_platform == TargetPlatform.APPLE:
-        if settings.target_arch == TargetArch.ARM64:
-            platform = 'Darwin-aarch64-clang-dynamic'
-        else:
-            platform = 'Darwin-clang-dynamic'
-    else:
-        raise Exception("Unsupported platform")
+    platform = known_platforms[(settings.target_platform, settings.target_arch, settings.libtype)]
 
     bsh([
         'cmake',
