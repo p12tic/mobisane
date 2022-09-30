@@ -16,6 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "camera.h"
+#include "app_manager.h"
+
 #include <android/asset_manager_jni.h>
 #include <android/native_window_jni.h>
 #include <android/native_window.h>
@@ -27,10 +30,9 @@
 #include <string>
 #include <vector>
 
-#include "camera.h"
-
 namespace {
 std::unique_ptr<sanescan::Camera> g_camera;
+std::unique_ptr<sanescan::AppManager> g_app_manager;
 } // namespace
 
 extern "C" {
@@ -38,6 +40,7 @@ extern "C" {
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
     g_camera = std::make_unique<sanescan::Camera>();
+    g_app_manager = std::make_unique<sanescan::AppManager>(*g_camera);
     return JNI_VERSION_1_4;
 }
 

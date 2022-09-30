@@ -37,6 +37,7 @@ set(CMAKE_PREFIX_PATH ${DEPENDENCIES_PREFIX_PATH})
 find_package(Mobisane REQUIRED)
 
 set(SOURCES
+    app_manager.cc
     mobisane.cpp
     camera.cpp
 )
