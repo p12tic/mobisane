@@ -240,7 +240,6 @@ def create_meson_cross_file_for_settings(path, settings):
             "pkgconfig = '/usr/bin/pkg-config'",
             "",
             "[properties]",
-            f"sys_root = '{settings.prefix}'",
             f"pkg_config_path = '{settings.prefix}/share/pkgconfig'",
             f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
         ]
@@ -276,7 +275,6 @@ def create_meson_cross_file_for_settings(path, settings):
             "pkgconfig = '/opt/local/bin/pkg-config'",
             "",
             "[properties]",
-            f"sys_root = '{settings.prefix}'",
             f"pkg_config_path = '{settings.prefix}/share/pkgconfig'",
             f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
             "",
