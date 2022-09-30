@@ -23,28 +23,13 @@
 #include <opencv2/core/mat.hpp>
 
 namespace sanescan {
-namespace {
-
-bool calculate_reverse_intensities(const cv::Point& pa, const cv::Point& pb)
-{
-    // We always want the intensities to be evaluated in the direction from inside to outside the
-    // object.
-    auto segment_vec = pb - pa;
-    auto is_segment_horizontal = std::abs(segment_vec.x) > std::abs(segment_vec.y);
-    if (is_segment_horizontal) {
-        return (segment_vec.x < 0);
-    }
-    return segment_vec.y > 0;
-}
-
-} // namespace
 
 EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
                                              unsigned edge_precise_search_radius,
                                              unsigned edge_min_length,
                                              float max_distance_between_zero_cross_detections,
                                              float max_secondary_peak_multiplier,
-                                             unsigned edge_following_min_positions,
+                                             unsigned edge_following_min_similar_count,
                                              float edge_following_max_allowed_other_peak_multiplier,
                                              unsigned edge_following_max_position_diff) :
     derivatives_{derivatives},
@@ -53,7 +38,7 @@ EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
     edge_min_length_{edge_min_length},
     max_distance_between_zero_cross_detections_{max_distance_between_zero_cross_detections},
     max_secondary_peak_multiplier_{max_secondary_peak_multiplier},
-    edge_following_min_positions_{edge_following_min_positions},
+    edge_following_min_similar_count_{edge_following_min_similar_count},
     edge_following_max_allowed_other_peak_multiplier_{
         edge_following_max_allowed_other_peak_multiplier},
     edge_following_max_position_diff_{edge_following_max_position_diff},
@@ -61,7 +46,7 @@ EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
                         max_secondary_peak_multiplier,
                         max_distance_between_zero_cross_detections,
                         static_cast<float>(edge_min_length),
-                        edge_following_min_positions,
+                        edge_following_min_similar_count,
                         edge_following_max_allowed_other_peak_multiplier,
                         edge_following_max_position_diff}
 {
@@ -115,9 +100,12 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
 
         Note that the line is perpendicular to the segment, but we also compute the
         line equation on a different axis, so the slope factor is the same.
+
+
+        The evaluation line is processed in vertical or horizontal steps, thus there is no need
+        to know its length across the diagonal.
     */
-    auto eval_line_half_length = edge_precise_search_radius_ * segment_length /
-            (is_eval_line_vertical ? std::abs(segment_vec.x) : std::abs(segment_vec.y));
+    auto eval_line_half_length = edge_precise_search_radius_;
 
     auto eval_line_length = eval_line_half_length * 2;
 
@@ -134,13 +122,16 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
 
     compute_offsets_for_edge_slope(eval_line_half_length, slope, offset_direction, offsets);
 
-    segment_calculator_.start_segment(segment_vec.x, segment_vec.y,
-                                      calculate_reverse_intensities(pa, pb),
-                                      &offsets);
+    segment_calculator_.start_segment(pa, pb, &offsets);
     if (is_eval_line_vertical) {
         int prev_cy = UNSET_POS;
         for (int cx = min_area_x; cx < max_area_x; ++cx) {
             int new_cy = pa.y + (cx - pa.x) * slope;
+            if (cx == pb.x) {
+                // Make sure that (pb.x, pb.y) point is processed (this may not otherwise happen
+                // due to rounding). PreciseSegmentCalculator relies on this.
+                new_cy = pb.y;
+            }
             if (new_cy < min_area_y || new_cy >= max_area_y) {
                 continue;
             }
@@ -163,6 +154,11 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
         int prev_cx = UNSET_POS;
         for (int cy = min_area_y; cy < max_area_y; ++cy) {
             int new_cx = pa.x + (cy - pa.y) * slope;
+            if (cy == pb.y) {
+                // Make sure that (pb.x, pb.y) point is processed (this may not otherwise happen
+                // due to rounding). PreciseSegmentCalculator relies on this.
+                new_cx = pb.x;
+            }
             if (new_cx < min_area_x || new_cx >= max_area_x) {
                 continue;
             }

@@ -35,40 +35,49 @@ public:
                              float max_allowed_other_peak_multiplier,
                              float max_distance_between_detections,
                              float min_line_length,
-                             unsigned edge_following_min_positions,
+                             unsigned edge_following_min_similar_count,
                              float edge_following_max_allowed_other_peak_multiplier,
                              unsigned edge_following_max_position_diff);
 
-    void start_segment(int dx, int dy, bool reverse_intensities,
+    void start_segment(const cv::Point& pa, const cv::Point& pb,
                        const std::vector<cv::Point>* offsets);
     void submit_line(int cx, int cy, const std::vector<std::int16_t>& intensities);
     void finish();
 
 private:
     cv::Mat output_mask_;
-    bool reverse_intensities_ = false;
     float max_allowed_other_peak_multiplier_ = 0;
     float max_distance_between_detections_ = 0;
     float min_line_length_ = 0;
-    unsigned edge_following_min_positions_ = 0;
+    unsigned edge_following_min_similar_count_ = 0;
     float edge_following_max_allowed_other_peak_multiplier_ = 0;
     unsigned edge_following_max_position_diff_ = 0;
 
+    // Per-segment data.
     const std::vector<cv::Point>* offsets_ = nullptr;
-    float last_dx_ = 0;
-    float last_dy_ = 0;
+    bool reverse_intensities_ = false;
+    cv::Point pa_, pb_;
 
+    // Results
     std::vector<cv::Point> curr_line_;
 
-    // Ideally a number of preceding zero cross directions should be stored and an some kind of
-    // average calculated. However, the precision is only ever important when transitioning into
-    // edge following mode. At that time zero cross detector is still using a conservative mode
-    // thus the value is unlikely to be incorrect.
-    bool zero_cross_pos2neg_ = false;
+    // Perhaps unintuitively it is enough to store just the last zero cross direction. The
+    // precision is only important when transitioning into edge following mode. At that time zero
+    // cross detector is still using a conservative mode thus the value is unlikely to be
+    // incorrect.
+    bool last_zero_cross_pos2neg_ = false; // invalid if last_zero_cross_similar_count_ == 0
 
-    // Results of zero cross detector for the current line are stored here.
-    std::vector<cv::Point> curr_line_positions_;
-    int curr_line_positions_x_ = 0;
+    // It is enough to store just the last position of zero cross and the number of times similar
+    // zero cross was encountered.
+    std::size_t last_zero_cross_pos_ = 0; // invalid if last_zero_cross_similar_count_ == 0
+    std::size_t last_zero_cross_similar_count_ = 0;
+
+    // The following are stored when search passes through pb point, so that it can be loaded
+    // at pa point on the next segment. Data is invalid if
+    // last_segment_zero_cross_similar_count_ == 0
+    bool last_segment_zero_cross_pos2neg_ = false;
+    std::size_t last_segment_zero_cross_pos_ = 0;
+    std::size_t last_segment_zero_cross_similar_count_ = 0;
 
     std::vector<ZeroCrossData> _cached_crosses;
     std::vector<float> cached_pos_x_;

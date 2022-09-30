@@ -33,7 +33,7 @@ public:
                           unsigned edge_min_length,
                           float max_distance_between_zero_cross_detections,
                           float max_secondary_peak_multiplier,
-                          unsigned edge_following_min_positions,
+                          unsigned edge_following_min_similar_count,
                           float edge_following_max_allowed_other_peak_multiplier,
                           unsigned edge_following_max_position_diff);
 
@@ -56,7 +56,7 @@ private:
     unsigned edge_min_length_ = 0;
     float max_distance_between_zero_cross_detections_ = 0;
     float max_secondary_peak_multiplier_ = 0;
-    unsigned edge_following_min_positions_ = 0;
+    unsigned edge_following_min_similar_count_ = 0;
     float edge_following_max_allowed_other_peak_multiplier_ = 0;
     unsigned edge_following_max_position_diff_ = 0;
 

@@ -48,7 +48,7 @@ struct PreviousEdgeData {
     std::size_t expected_pos = 0;
     bool zero_cross_pos2neg = false;
     float max_allowed_other_peak_multiplier = 1.0;
-    unsigned allowed_position_diff = 2;
+    std::size_t allowed_position_diff = 2;
 };
 
 struct EdgeZeroCrossResult {

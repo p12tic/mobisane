@@ -26,34 +26,16 @@ namespace sanescan {
 
 namespace {
 
-std::optional<int> predict_next_edge_position(unsigned edge_following_min_positions,
-                                              const std::vector<cv::Point>& positions,
-                                              std::vector<float>& cached_pos_x,
-                                              std::vector<float>& cached_pos_y,
-                                              int next_position_x)
+bool calculate_reverse_intensities(const cv::Point& pa, const cv::Point& pb)
 {
-    if (positions.size() < edge_following_min_positions) {
-        return {};
+    // We always want the intensities to be evaluated in the direction from inside to outside the
+    // object.
+    auto segment_vec = pb - pa;
+    auto is_segment_horizontal = std::abs(segment_vec.x) > std::abs(segment_vec.y);
+    if (is_segment_horizontal) {
+        return (segment_vec.x < 0);
     }
-
-    cached_pos_x.clear();
-    cached_pos_y.clear();
-
-    for (std::size_t i = positions.size() - edge_following_min_positions;
-         i < positions.size(); ++i)
-    {
-        cached_pos_x.push_back(positions[i].x);
-        cached_pos_y.push_back(positions[i].y);
-    }
-
-    using boost::math::statistics::simple_ordinary_least_squares;
-    // calculating coefficients for f(x) = c0 + c1 * x
-    auto [c0, c1] = simple_ordinary_least_squares(cached_pos_x, cached_pos_y);
-    auto next_position_y = c0 + c1 * next_position_x;
-    if (next_position_y < 0) {
-        return {};
-    }
-    return next_position_y;
+    return segment_vec.y > 0;
 }
 
 } // namespace
@@ -63,14 +45,14 @@ SegmentCalculatorPrecise::SegmentCalculatorPrecise(
         float max_allowed_other_peak_multiplier,
         float max_distance_between_detections,
         float min_line_length,
-        unsigned edge_following_min_positions,
+        unsigned edge_following_min_similar_count,
         float edge_following_max_allowed_other_peak_multiplier,
         unsigned edge_following_max_position_diff) :
     output_mask_{output_mask},
     max_allowed_other_peak_multiplier_{max_allowed_other_peak_multiplier},
     max_distance_between_detections_{max_distance_between_detections},
     min_line_length_{min_line_length},
-    edge_following_min_positions_{edge_following_min_positions},
+    edge_following_min_similar_count_{edge_following_min_similar_count},
     edge_following_max_allowed_other_peak_multiplier_{
         edge_following_max_allowed_other_peak_multiplier},
     edge_following_max_position_diff_{edge_following_max_position_diff}
@@ -87,17 +69,22 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
     auto& crosses = _cached_crosses;
     extract_zero_crosses(intensities, crosses);
 
-    auto new_line_pos_x = curr_line_positions_x_++;
-    auto predicted_zero_pos = predict_next_edge_position(edge_following_min_positions_,
-                                                         curr_line_positions_,
-                                                         cached_pos_x_, cached_pos_y_,
-                                                         new_line_pos_x);
+
+    // Restore zero cross data from the previous segment
+    if (cx == pa_.x && cy == pa_.y &&
+        last_zero_cross_similar_count_ < edge_following_min_similar_count_ &&
+        last_segment_zero_cross_similar_count_ >= edge_following_min_similar_count_)
+    {
+        last_zero_cross_pos2neg_ = last_segment_zero_cross_pos2neg_;
+        last_zero_cross_pos_ = last_segment_zero_cross_pos_;
+        last_zero_cross_similar_count_ = last_segment_zero_cross_similar_count_;
+    }
 
     std::optional<PreviousEdgeData> predicted_edge_data;
-    if (predicted_zero_pos) {
+    if (last_zero_cross_similar_count_ >= edge_following_min_similar_count_) {
         predicted_edge_data = {
-            static_cast<std::size_t>(*predicted_zero_pos),
-            zero_cross_pos2neg_,
+            last_zero_cross_pos_,
+            last_zero_cross_pos2neg_,
             edge_following_max_allowed_other_peak_multiplier_,
             edge_following_max_position_diff_
         };
@@ -107,11 +94,37 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
                                                     max_allowed_other_peak_multiplier_,
                                                     predicted_edge_data);
     if (!zero_cross_opt) {
+        last_zero_cross_similar_count_ = 0;
+        if (cx == pb_.x && cy == pb_.y) {
+            last_segment_zero_cross_similar_count_ = 0;
+        }
         return;
     }
 
-    curr_line_positions_.push_back(cv::Point(new_line_pos_x, zero_cross_opt->position));
-    zero_cross_pos2neg_ = zero_cross_opt->zero_cross_pos2neg;
+    // Evaluate current zero cross similarity. If there's existing data and it's too different,
+    // reset to zero.
+    if (last_zero_cross_similar_count_ > 0) {
+        auto pos_diff = std::abs(static_cast<long>(zero_cross_opt->position) -
+                                 static_cast<long>(last_zero_cross_pos_));
+        if (pos_diff <= edge_following_max_position_diff_) {
+            last_zero_cross_similar_count_++;
+            last_zero_cross_pos2neg_ = zero_cross_opt->zero_cross_pos2neg;
+            last_zero_cross_pos_ = zero_cross_opt->position;
+        } else {
+            last_zero_cross_similar_count_ = 0;
+        }
+    } else {
+        last_zero_cross_similar_count_ = 1;
+        last_zero_cross_pos2neg_ = zero_cross_opt->zero_cross_pos2neg;
+        last_zero_cross_pos_ = zero_cross_opt->position;
+    }
+
+    // Save current zero cross data for the next segment
+    if (cx == pb_.x && cy == pb_.y) {
+        last_segment_zero_cross_pos2neg_ = last_zero_cross_pos2neg_;
+        last_segment_zero_cross_pos_ = last_zero_cross_pos_;
+        last_segment_zero_cross_similar_count_ = last_zero_cross_similar_count_;
+    }
 
     int px = cx + (*offsets_)[zero_cross_opt->position].x;
     int py = cy + (*offsets_)[zero_cross_opt->position].y;
@@ -142,27 +155,14 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
     }
 }
 
-void SegmentCalculatorPrecise::start_segment(int dx, int dy, bool reverse_intensities,
+void SegmentCalculatorPrecise::start_segment(const cv::Point& pa, const cv::Point& pb,
                                              const std::vector<cv::Point>* offsets)
 {
     offsets_ = offsets;
-    reverse_intensities_ = reverse_intensities;
-    auto angle = angle_between_vectors(last_dx_, last_dy_, dx, dy);
-    last_dx_ = dx;
-    last_dy_ = dy;
-
-    // Rotate data in curr_line_positions_. The algorithm is naive, as it is assumed that the
-    // positions will mostly track the main segment direction and the segment direction will not
-    // change much, so the angles are small.
-    if (curr_line_positions_.size() > edge_following_min_positions_) {
-        curr_line_positions_.erase(curr_line_positions_.begin(),
-                                   curr_line_positions_.end() - edge_following_min_positions_);
-    }
-
-    for (auto& pos : curr_line_positions_) {
-        auto x_diff = curr_line_positions_x_ - pos.x; // this difference is always positive
-        pos.y -= x_diff * std::sin(angle);
-    }
+    reverse_intensities_ = calculate_reverse_intensities(pa, pb);
+    pa_ = pa;
+    pb_ = pb;
+    last_zero_cross_similar_count_ = 0;
 }
 
 void SegmentCalculatorPrecise::finish()
@@ -175,6 +175,8 @@ void SegmentCalculatorPrecise::finish()
         mask_draw_polyline(output_mask_, curr_line_, 1);
         curr_line_.clear();
     }
+    last_zero_cross_similar_count_ = 0;
+    last_segment_zero_cross_similar_count_ = 0;
 }
 
 } // namespace sanescan

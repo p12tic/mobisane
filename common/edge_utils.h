@@ -70,7 +70,7 @@ std::vector<std::vector<cv::Point>>
                           unsigned edge_simplify_pos_precise,
                           float max_distance_between_zero_cross_detections,
                           float max_secondary_peak_multiplier,
-                          unsigned edge_following_min_positions,
+                          unsigned edge_following_min_similar_count,
                           float edge_following_max_allowed_other_peak_multiplier,
                           unsigned edge_following_max_position_diff);
 
