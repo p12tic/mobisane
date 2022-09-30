@@ -84,18 +84,28 @@ void ParallelismBackendTaskflow::parallelFor(std::int64_t lowerBound, std::int64
     }
     double itemsPerBlock = static_cast<double>(upperBound - lowerBound) / blockCount;
 
+    std::exception_ptr exception;
+
     tf::Taskflow taskflow;
     taskflow.for_each_index(0, blockCount, 1, [&](int i)
     {
-        auto blockLowerBound = lowerBound + static_cast<std::int64_t>(itemsPerBlock * i);
-        auto blockUpperBound = lowerBound + static_cast<std::int64_t>(itemsPerBlock * (i + 1));
-        if (i == blockCount - 1) {
-            blockUpperBound = upperBound;
+        try {
+            auto blockLowerBound = lowerBound + static_cast<std::int64_t>(itemsPerBlock * i);
+            auto blockUpperBound = lowerBound + static_cast<std::int64_t>(itemsPerBlock * (i + 1));
+            if (i == blockCount - 1) {
+                blockUpperBound = upperBound;
+            }
+            callback(blockLowerBound, blockUpperBound, _executor.this_worker_id());
+        } catch (...) {
+            exception = std::current_exception();
         }
-        callback(blockLowerBound, blockUpperBound, _executor.this_worker_id());
     });
 
     _executor.run_and_wait(taskflow);
+
+    if (exception) {
+        std::rethrow_exception(exception);
+    }
 }
 
 void ParallelismBackendTaskflow::parallelLoop(
@@ -137,12 +147,22 @@ void ParallelismBackendTaskflow::parallelLoop(
         loopManagers.emplace_back(&sharedCounterStorage.sharedCounter);
     }
 
+    std::exception_ptr exception;
+
     tf::Taskflow taskflow;
     taskflow.for_each_index(0, threadCount, 1, [&](int i)
     {
-        callback(loopManagers[i]);
+        try {
+            callback(loopManagers[i]);
+        } catch (...) {
+            exception = std::current_exception();
+        }
     });
     _executor.run_and_wait(taskflow);
+
+    if (exception) {
+        std::rethrow_exception(exception);
+    }
 }
 
 int ParallelismBackendTaskflow::getMaxThreadCount() const
