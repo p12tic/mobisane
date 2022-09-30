@@ -50,6 +50,9 @@ The following tools are required to perform building:
 
 On macOS, the above tools should be installed using macports.
 
+Make sure that there's at least 15GB of free disk space. A clean rebuild takes several hours worth
+of CPU time but this is not needed often.
+
 Android
 -------
 
