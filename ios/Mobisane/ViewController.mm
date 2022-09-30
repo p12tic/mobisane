@@ -23,6 +23,18 @@
 @property (nonatomic, strong) VideoCapture* capture;
 @end
 
+AVCaptureVideoOrientation deviceOrientationToVideo(UIDeviceOrientation orientation)
+{
+    // Note that landscape right and left are swapped
+    switch (orientation) {
+        case UIDeviceOrientationPortrait: return AVCaptureVideoOrientationPortrait;
+        case UIDeviceOrientationPortraitUpsideDown: return AVCaptureVideoOrientationPortraitUpsideDown;
+        case UIDeviceOrientationLandscapeLeft: return AVCaptureVideoOrientationLandscapeRight;
+        case UIDeviceOrientationLandscapeRight: return AVCaptureVideoOrientationLandscapeLeft;
+        default: return AVCaptureVideoOrientationPortrait;
+    }
+}
+
 @implementation ViewController
 
 - (void)viewDidLoad {
@@ -40,6 +52,19 @@
 - (void) viewDidDisappear:(BOOL)animated
 {
     [_capture stop];
+}
+
+- (void) viewWillTransitionToSize:(CGSize)size
+        withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator
+{
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+
+    UIDeviceOrientation deviceOrientation = [UIDevice currentDevice].orientation;
+
+    if (UIDeviceOrientationIsValidInterfaceOrientation(deviceOrientation)) {
+        self.cameraView.previewLayer.connection.videoOrientation =
+            deviceOrientationToVideo(deviceOrientation);
+    }
 }
 
 @end
