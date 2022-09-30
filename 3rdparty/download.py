@@ -47,6 +47,7 @@ known_dependencies = [
     ('libjpeg-turbo', 'https://github.com/libjpeg-turbo/libjpeg-turbo', '2.1.1'),
     ('boost', 'https://github.com/boostorg/boost', 'boost-1.76.0'),
     ('imath', 'https://github.com/AcademySoftwareFoundation/Imath.git', 'v3.1.5'),
+    ('openexr', 'https://github.com/AcademySoftwareFoundation/openexr', 'v3.1.2'),
 ]
 
 
