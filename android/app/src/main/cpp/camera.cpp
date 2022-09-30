@@ -172,8 +172,25 @@ void Camera::start_for_window(ANativeWindow* window)
                                                   &device_));
     CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_create(&output_container_));
 
-    setup_camera_stream(preview_stream_, ANativeWindowRef(window), TEMPLATE_PREVIEW);
+    // setup preview camera stream for reading to two outputs - the preview texture and an
+    // AImageReader for further processing
+    preview_listener_.context = this;
+    preview_listener_.onImageAvailable = on_preview_image_available_cb;
 
+    CHECK_MEDIA_STATUS(AImageReader_new(width, height, AIMAGE_FORMAT_YUV_420_888, 2,
+                                        &preview_reader_));
+    CHECK_MEDIA_STATUS(AImageReader_setImageListener(preview_reader_, &preview_listener_));
+
+    ANativeWindow* preview_reader_win = nullptr;
+    CHECK_MEDIA_STATUS(AImageReader_getWindow(preview_reader_, &preview_reader_win));
+
+    std::vector<ANativeWindowRef> preview_windows;
+    preview_windows.emplace_back(window);
+    preview_windows.emplace_back(preview_reader_win);
+    setup_camera_stream(preview_stream_, std::move(preview_windows), TEMPLATE_PREVIEW);
+
+    // setup capture camera stream for reading to singl output - AImageReader for further
+    // processing
     image_listener_.context = this;
     image_listener_.onImageAvailable = on_image_available_cb;
 
@@ -184,7 +201,10 @@ void Camera::start_for_window(ANativeWindow* window)
     ANativeWindow* reader_win = nullptr;
     CHECK_MEDIA_STATUS(AImageReader_getWindow(capture_reader_, &reader_win));
 
-    setup_camera_stream(capture_stream_, ANativeWindowRef(reader_win), TEMPLATE_STILL_CAPTURE);
+
+    std::vector<ANativeWindowRef> capture_windows;
+    preview_windows.emplace_back(reader_win);
+    setup_camera_stream(capture_stream_, std::move(capture_windows), TEMPLATE_STILL_CAPTURE);
 
     CHECK_CAMERA_STATUS(ACameraDevice_createCaptureSession(device_, output_container_,
                                                            &session_callbacks_, &session_));
@@ -204,6 +224,7 @@ void Camera::stop()
     destroy_camera_stream(preview_stream_);
     destroy_camera_stream(capture_stream_);
     clear_ptr_if_set(capture_reader_, [&](){ AImageReader_delete(capture_reader_); });
+    clear_ptr_if_set(preview_reader_, [&](){ AImageReader_delete(preview_reader_); });
     clear_ptr_if_set(device_, [&](){ ACameraDevice_close(device_); });
     clear_ptr_if_set(output_container_,
                      [&](){ ACaptureSessionOutputContainer_free(output_container_); });
@@ -222,25 +243,43 @@ void Camera::capture_image()
                                                       nullptr));
 }
 
-void Camera::setup_camera_stream(CameraStreamData& stream, ANativeWindowRef&& window,
+void Camera::setup_camera_stream_output(CameraStreamOutputData& output, ACaptureRequest* request,
+                                        ANativeWindowRef&& window)
+{
+    output.window = std::move(window);
+    CHECK_CAMERA_STATUS(ACameraOutputTarget_create(output.window.get(), &output.target));
+    CHECK_CAMERA_STATUS(ACaptureRequest_addTarget(request, output.target));
+    CHECK_CAMERA_STATUS(ACaptureSessionOutput_create(output.window.get(), &output.output));
+    CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_add(output_container_, output.output));
+}
+
+void Camera::destroy_camera_stream_output(CameraStreamOutputData& output)
+{
+    clear_ptr_if_set(output.output, [&](){ ACaptureSessionOutput_free(output.output); });
+    clear_ptr_if_set(output.target, [&](){ ACameraOutputTarget_free(output.target); });
+    output.window.reset();
+}
+
+void Camera::setup_camera_stream(CameraStreamData& stream,
+                                 std::vector<ANativeWindowRef>&& windows,
                                  ACameraDevice_request_template request_template)
 {
-    stream.window = std::move(window);
-
     CHECK_CAMERA_STATUS(ACameraDevice_createCaptureRequest(device_, request_template,
                                                            &stream.request));
-    CHECK_CAMERA_STATUS(ACameraOutputTarget_create(stream.window.get(), &stream.output_target));
-    CHECK_CAMERA_STATUS(ACaptureRequest_addTarget(stream.request, stream.output_target));
-    CHECK_CAMERA_STATUS(ACaptureSessionOutput_create(stream.window.get(), &stream.output));
-    CHECK_CAMERA_STATUS(ACaptureSessionOutputContainer_add(output_container_, stream.output));
+    for (auto& window : windows) {
+        auto& output = stream.outputs.emplace_back();
+        setup_camera_stream_output(output, stream.request, std::move(window));
+    }
+    windows.clear();
 }
 
 void Camera::destroy_camera_stream(CameraStreamData& stream)
 {
-    clear_ptr_if_set(stream.output, [&](){ ACaptureSessionOutput_free(stream.output); });
+    for (auto& output : stream.outputs) {
+        destroy_camera_stream_output(output);
+    }
+    stream.outputs.clear();
     clear_ptr_if_set(stream.request, [&](){ ACaptureRequest_free(stream.request); });
-    clear_ptr_if_set(stream.output_target, [&](){ ACameraOutputTarget_free(stream.output_target); });
-    stream.window.reset();
 }
 
 void Camera::start_preview()
@@ -332,13 +371,54 @@ void Camera::on_image_available(AImageReader* reader)
 {
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available");
     AImage *image;
-    AImageReader_acquireLatestImage(capture_reader_, &image);
+    CHECK_MEDIA_STATUS(AImageReader_acquireLatestImage(capture_reader_, &image));
 
-    std::int32_t width = 0;
-    std::int32_t height = 0;
-    CHECK_MEDIA_STATUS(AImage_getWidth(image, &width));
-    CHECK_MEDIA_STATUS(AImage_getHeight(image, &height));
-    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available %d %d", width, height);
+    AImageCropRect src_rect;
+    CHECK_MEDIA_STATUS(AImage_getCropRect(image, &src_rect));
+
+    std::int32_t y_stride, uv_stride;
+    std::uint8_t* y_ptr = nullptr;
+    std::uint8_t* v_ptr = nullptr;
+    std::uint8_t* u_ptr = nullptr;
+    std::int32_t y_len, u_len, v_len;
+    std::int32_t uv_pixel_stride;
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 0, &y_ptr, &y_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 1, &v_ptr, &v_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 2, &u_ptr, &u_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 0, &y_stride));
+    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 1, &uv_stride));
+    CHECK_MEDIA_STATUS(AImage_getPlanePixelStride(image, 1, &uv_pixel_stride));
+
+    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_image_available %d %d",
+                        src_rect.right, src_rect.bottom);
+
+    AImage_delete(image);
+}
+
+void Camera::on_preview_image_available(AImageReader* reader)
+{
+    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available");
+    AImage *image;
+    CHECK_MEDIA_STATUS(AImageReader_acquireLatestImage(preview_reader_, &image));
+
+    AImageCropRect src_rect;
+    CHECK_MEDIA_STATUS(AImage_getCropRect(image, &src_rect));
+
+    std::int32_t y_stride, uv_stride;
+    std::uint8_t* y_ptr = nullptr;
+    std::uint8_t* v_ptr = nullptr;
+    std::uint8_t* u_ptr = nullptr;
+    std::int32_t y_len, u_len, v_len;
+    std::int32_t uv_pixel_stride;
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 0, &y_ptr, &y_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 1, &v_ptr, &v_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneData(image, 2, &u_ptr, &u_len));
+    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 0, &y_stride));
+    CHECK_MEDIA_STATUS(AImage_getPlaneRowStride(image, 1, &uv_stride));
+    CHECK_MEDIA_STATUS(AImage_getPlanePixelStride(image, 1, &uv_pixel_stride));
+
+    __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available %d %d",
+                        src_rect.right, src_rect.bottom);
 
     AImage_delete(image);
 }
@@ -399,6 +479,11 @@ void Camera::on_capture_completed(void* context, ACameraCaptureSession* session,
 void Camera::on_image_available_cb(void* context, AImageReader* reader)
 {
     reinterpret_cast<Camera*>(context)->on_image_available(reader);
+}
+
+void Camera::on_preview_image_available_cb(void* context, AImageReader* reader)
+{
+    reinterpret_cast<Camera*>(context)->on_preview_image_available(reader);
 }
 
 } // namespace mobisane

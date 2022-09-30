@@ -46,11 +46,15 @@ struct Size {
     int height = 0;
 };
 
-struct CameraStreamData {
+struct CameraStreamOutputData {
     ANativeWindowRef window;
-    ACameraOutputTarget* output_target = nullptr;
-    ACaptureRequest* request = nullptr;
+    ACameraOutputTarget* target = nullptr;
     ACaptureSessionOutput* output = nullptr;
+};
+
+struct CameraStreamData {
+    ACaptureRequest* request = nullptr;
+    std::vector<CameraStreamOutputData> outputs;
 };
 
 class Camera {
@@ -69,13 +73,19 @@ public:
 
     void capture_image();
 private:
-    void setup_camera_stream(CameraStreamData& stream, ANativeWindowRef&& window,
+    void setup_camera_stream_output(CameraStreamOutputData& output, ACaptureRequest* request,
+                                    ANativeWindowRef&& window);
+    void destroy_camera_stream_output(CameraStreamOutputData& output);
+
+    void setup_camera_stream(CameraStreamData& stream,
+                             std::vector<ANativeWindowRef>&& windows,
                              ACameraDevice_request_template request_template);
     void destroy_camera_stream(CameraStreamData& stream);
     void start_preview();
     void stop_preview();
 
     void on_image_available(AImageReader* reader);
+    void on_preview_image_available(AImageReader* reader);
 
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
@@ -100,6 +110,7 @@ private:
                                      ACaptureRequest* request, const ACameraMetadata* result);
 
     static void on_image_available_cb(void* context, AImageReader* reader);
+    static void on_preview_image_available_cb(void* context, AImageReader* reader);
 
     // The following 2 members are valid only between open() and close()
     ACameraManager* manager_ = nullptr;
@@ -111,13 +122,18 @@ private:
     ACaptureSessionOutputContainer* output_container_ = nullptr;
     CameraStreamData preview_stream_;
     CameraStreamData capture_stream_;
+    AImageReader* preview_reader_ = nullptr;
     AImageReader* capture_reader_ = nullptr;
 
     ACameraDevice_StateCallbacks device_callbacks_ = {};
     ACameraCaptureSession_stateCallbacks session_callbacks_ = {};
     ACameraCaptureSession_captureCallbacks session_preview_callbacks_ = {};
     ACameraCaptureSession_captureCallbacks session_capture_callbacks_ = {};
+    AImageReader_ImageListener preview_listener_ = {};
     AImageReader_ImageListener image_listener_ = {};
+
+    std::function<void(const cv::Mat&)> image_captured_cb_;
+    std::function<void(const cv::Mat&)> preview_captured_cb_;
 };
 
 } // namespace mobisane
