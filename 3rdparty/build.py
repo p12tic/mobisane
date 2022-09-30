@@ -384,6 +384,26 @@ def build_fontconfig(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_podofo(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DPODOFO_BUILD_LIB_ONLY=ON',
+        f'-DFREETYPE_INCLUDE_DIR={settings.prefix}/include/freetype2',
+        '-DCMAKE_CXX_STANDARD=17',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_LIBCRYPTO=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_LIBIDN=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_UNISTRING=ON',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -402,6 +422,7 @@ known_dependencies = [
     ('opencv', build_opencv),
     ('freetype', build_freetype),
     ('fontconfig', build_fontconfig),
+    ('podofo', build_podofo),
 ]
 
 
