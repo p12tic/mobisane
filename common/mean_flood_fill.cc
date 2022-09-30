@@ -21,6 +21,7 @@
 #include <sanescanocr/ocr/ocr_point.h>
 #include <boost/container/deque.hpp>
 #include <array>
+#include <bit>
 
 namespace sanescan {
 
@@ -182,31 +183,49 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
 
         for (unsigned y = start_y; y < end_y; ++y) {
             const std::uint8_t* row = image.ptr(y);
-            auto* colored_row = colored.ptr(y);
+            std::uint8_t* colored_row = colored.ptr(y);
 
-            for (unsigned x = start_x; x < end_x; ++x) {
-                if (colored_row[x]) {
-                    continue;
+            row += start_x * 3;
+            colored_row += start_x;
+
+            auto count_x = end_x - start_x;
+            for (unsigned ix8 = 0; ix8 < count_x; ix8 += 8) {
+                std::uint64_t colored8;
+                std::memcpy(&colored8, colored_row + ix8, sizeof(colored8));
+                colored8 *= 255;
+
+                // only works on little endian
+                auto right_ones = std::countr_one(colored8);
+                while (right_ones != 64) {
+                    colored8 |= 0xffull << right_ones;
+                    unsigned ix = ix8 + right_ones / 8;
+
+                    auto right_ones_before = right_ones;
+                    right_ones = std::countr_one(colored8);
+
+                    if (ix >= count_x) {
+                        break;
+                    }
+                    auto h = row[3 * ix];
+                    auto s = row[3 * ix + 1];
+                    auto v = row[3 * ix + 2];
+
+                    if (!is_pixel_colored(base_h, base_s, base_v, h, s, v, limits)) {
+                        continue;
+                    }
+
+                    colored_row[ix] = 1;
+
+                    auto x = start_x + ix;
+                    if (x < border_clearance || x >= size_x - border_clearance ||
+                        y < border_clearance || y >= size_y - border_clearance)
+                    {
+                        continue;
+                    }
+
+                    next_points.push_back({static_cast<std::int32_t>(x),
+                                           static_cast<std::int32_t>(y)});
                 }
-
-                auto h = row[3 * x];
-                auto s = row[3 * x + 1];
-                auto v = row[3 * x + 2];
-
-                if (!is_pixel_colored(base_h, base_s, base_v, h, s, v, limits)) {
-                    continue;
-                }
-
-                colored_row[x] = 1;
-
-                if (x < border_clearance || x >= size_x - border_clearance ||
-                    y < border_clearance || y >= size_y - border_clearance)
-                {
-                    continue;
-                }
-
-                next_points.push_back({static_cast<std::int32_t>(x),
-                                       static_cast<std::int32_t>(y)});
             }
         }
     }
