@@ -24,6 +24,15 @@ set(SOURCES
     segment_calculator_precise.cc
 )
 
+set(PUBLIC_HEADERS
+    edge_calculator_precise.h
+    edge_utils.h
+    flood_fill_utils.h
+    longest_line_recognizer.h
+    mean_flood_fill.h
+    segment_calculator_precise.h
+)
+
 find_package(OpenCV REQUIRED)
 
 add_library(mobisanecommon OBJECT ${SOURCES})
@@ -35,4 +44,9 @@ target_link_libraries(mobisanecommon PUBLIC
 target_include_directories(mobisanecommon PUBLIC
     ${CMAKE_INSTALL_PREFIX}/include
     ${OpenCV_INCLUDE_DIRS}
+)
+
+install(
+    FILES ${PUBLIC_HEADERS}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mobisane
 )

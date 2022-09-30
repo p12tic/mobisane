@@ -26,6 +26,8 @@ project(mobisane VERSION ${MOBISANE_VERSION})
 option(MOBISANE_BUILD_CLI "Enable building of cli tool" ON)
 option(MOBISANE_BUILD_TESTS "Enable building of tests" ON)
 
+include(GNUInstallDirs)
+
 if(MOBISANE_BUILD_CLI)
     add_subdirectory(cli)
 endif()
