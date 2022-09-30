@@ -18,10 +18,19 @@
 
 
 import argparse
+import multiprocessing
 import os
 import shutil
 import subprocess
 import sys
+
+
+import attr
+
+
+@attr.s
+class Settings:
+    parallel = attr.ib(converter=int)
 
 
 def sh(cmd, cwd, env=None):
@@ -48,7 +57,7 @@ def sh_with_cwd(cwd):
     return sh_wrapper
 
 
-def build_zlib(prefix, srcdir, builddir):
+def build_zlib(prefix, srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir])
     bsh(['ninja'])
@@ -63,7 +72,7 @@ def flags_zlib(prefix):
     return [f'-DZLIB_ROOT={prefix}']
 
 
-def build_libpng(prefix, srcdir, builddir):
+def build_libpng(prefix, srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}'] + flags_zlib(prefix) + [srcdir])
     bsh(['ninja'])
@@ -82,6 +91,8 @@ def main():
     parser.add_argument('builddir', type=str, help='Temporary build directory')
     parser.add_argument('--dependencies', default=None, type=str,
                         help='Comma-separated list of dependencies to build')
+    parser.add_argument('--parallel', type=int, default=None,
+                        help='Parallelism to use')
     args = parser.parse_args()
 
     known_dependency_names = [name for name, _ in known_dependencies]
@@ -97,12 +108,16 @@ def main():
 
     src_path_root = os.path.dirname(os.path.abspath(__file__))
 
+    settings = Settings(
+        parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count()
+    )
+
     for name, fn in build_deps:
         builddir = os.path.join(args.builddir, name)
         print(f'Building {name} in {builddir}')
 
         recreate_dir(builddir)
-        fn(args.prefix, os.path.join(src_path_root, name), builddir)
+        fn(args.prefix, os.path.join(src_path_root, name), builddir, settings)
 
 
 if __name__ == '__main__':
