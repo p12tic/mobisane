@@ -221,13 +221,16 @@ def build_mpfr(srcdir, builddir, settings):
     bsh(['make', 'install'])
 
 
-def build_lapack(srcdir, builddir, settings):
+def build_openblas(srcdir, builddir, settings):
     if settings.target_platform == TargetPlatform.APPLE:
         return
 
     bsh = sh_with_cwd(builddir)
     bsh(['cmake',
          '-GNinja',
+         '-DNOFORTRAN=1',
+         '-DUSE_OPENMP=OFF',
+         '-DUSE_THREADS=ON',
          srcdir
          ] + cmake_flags_from_settings(settings)
     )
@@ -653,7 +656,7 @@ known_dependencies = [
     ('libtiff', build_libtiff),
     ('gmp', build_gmp),
     ('mpfr', build_mpfr),
-    ('lapack', build_lapack),
+    ('openblas', build_openblas),
     ('eigen', build_eigen),
     ('ceres', build_ceres),
     ('boost', build_boost),

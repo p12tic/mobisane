@@ -3,7 +3,7 @@ libpng
 eigen
 gmp
 mpfr
-lapack
+openblas
 ceres
 libjpeg-turbo
 boost
