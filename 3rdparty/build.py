@@ -481,6 +481,18 @@ def build_podofo(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_leptonica(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_tesseract(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([
@@ -611,6 +623,7 @@ known_dependencies = [
     ('freetype', build_freetype),
     ('fontconfig', build_fontconfig),
     ('podofo', build_podofo),
+    ('leptonica', build_leptonica),
     ('tesseract', build_tesseract),
     ('geogram', build_geogram),
     ('coinutils', build_coinutils),
