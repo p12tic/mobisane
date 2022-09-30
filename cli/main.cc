@@ -156,6 +156,7 @@ void write_image_with_edges_precise(const std::string& debug_folder_path,
         }
 
         for (std::size_t i = 1; i < edge.size(); ++i) {
+            cv::circle(output, edge[i - 1], 2, cv::Scalar{0, 255, 255}, cv::FILLED);
             cv::line(output, edge[i - 1], edge[i], color, 1);
         }
     }
