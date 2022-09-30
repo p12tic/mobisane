@@ -128,6 +128,17 @@ def flags_zlib(settings):
     return [f'-DZLIB_ROOT={settings.prefix}']
 
 
+def build_bzip2(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        srcdir] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_libpng(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([
@@ -581,6 +592,7 @@ def build_alicevision(srcdir, builddir, settings):
 
 known_dependencies = [
     ('zlib', build_zlib),
+    ('bzip2', build_bzip2),
     ('libpng', build_libpng),
     ('libjpeg-turbo', build_libjpeg),
     ('libtiff', build_libtiff),
