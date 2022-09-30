@@ -19,6 +19,8 @@
 		1C1CD08A28DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */; };
 		1C1CD09728DEB0A100C70EC8 /* CameraView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09628DEB0A100C70EC8 /* CameraView.mm */; };
 		1C1CD09928DEB0E000C70EC8 /* CameraView.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09828DEB0E000C70EC8 /* CameraView.h */; };
+		1C1CD09B28DEB6C400C70EC8 /* VideoCapture.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09A28DEB6C400C70EC8 /* VideoCapture.mm */; };
+		1C1CD09D28DEB6D000C70EC8 /* VideoCapture.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09C28DEB6D000C70EC8 /* VideoCapture.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +60,8 @@
 		1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MobisaneUITestsLaunchTests.mm; sourceTree = "<group>"; };
 		1C1CD09628DEB0A100C70EC8 /* CameraView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = CameraView.mm; sourceTree = "<group>"; };
 		1C1CD09828DEB0E000C70EC8 /* CameraView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CameraView.h; sourceTree = "<group>"; };
+		1C1CD09A28DEB6C400C70EC8 /* VideoCapture.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = VideoCapture.mm; sourceTree = "<group>"; };
+		1C1CD09C28DEB6D000C70EC8 /* VideoCapture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = VideoCapture.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +125,8 @@
 				1C1CD07328DC1F0100C70EC8 /* main.mm */,
 				1C1CD09628DEB0A100C70EC8 /* CameraView.mm */,
 				1C1CD09828DEB0E000C70EC8 /* CameraView.h */,
+				1C1CD09A28DEB6C400C70EC8 /* VideoCapture.mm */,
+				1C1CD09C28DEB6D000C70EC8 /* VideoCapture.h */,
 			);
 			path = Mobisane;
 			sourceTree = "<group>";
@@ -276,6 +282,8 @@
 				1C1CD06328DC1F0100C70EC8 /* AppDelegate.mm in Sources */,
 				1C1CD09728DEB0A100C70EC8 /* CameraView.mm in Sources */,
 				1C1CD07428DC1F0100C70EC8 /* main.mm in Sources */,
+				1C1CD09D28DEB6D000C70EC8 /* VideoCapture.h in Sources */,
+				1C1CD09B28DEB6C400C70EC8 /* VideoCapture.mm in Sources */,
 				1C1CD06628DC1F0100C70EC8 /* SceneDelegate.mm in Sources */,
 				1C1CD09928DEB0E000C70EC8 /* CameraView.h in Sources */,
 			);
@@ -468,6 +476,18 @@
 					"-ObjC",
 					"-framework",
 					UIKit,
+					"-framework",
+					AVFoundation,
+					"-framework",
+					CoreGraphics,
+					"-framework",
+					CoreImage,
+					"-framework",
+					CoreMedia,
+					"-framework",
+					CoreVideo,
+					"-framework",
+					QuartzCore,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = lt.radix.Mobisane;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -502,6 +522,18 @@
 					"-ObjC",
 					"-framework",
 					UIKit,
+					"-framework",
+					AVFoundation,
+					"-framework",
+					CoreGraphics,
+					"-framework",
+					CoreImage,
+					"-framework",
+					CoreMedia,
+					"-framework",
+					CoreVideo,
+					"-framework",
+					QuartzCore,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = lt.radix.Mobisane;
 				PRODUCT_NAME = "$(TARGET_NAME)";

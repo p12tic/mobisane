@@ -16,30 +16,12 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#import "ViewController.h"
-#import "VideoCapture.h"
+#import <UIKit/UIKit.h>
 
-@interface ViewController ()
-@property (nonatomic, strong) VideoCapture* capture;
-@end
+@interface VideoCapture : NSObject
 
-@implementation ViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    // Do any additional setup after loading the view.
-}
-
-- (void) viewDidAppear:(BOOL)animated
-{
-    _capture = [[VideoCapture alloc] init];
-    [_capture setDisplayView:_cameraView];
-    [_capture start];
-}
-
-- (void) viewDidDisappear:(BOOL)animated
-{
-    [_capture stop];
-}
+- (void) start;
+- (void) stop;
+- (void) setDisplayView:(UIView*) view;
 
 @end

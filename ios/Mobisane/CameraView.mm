@@ -17,6 +17,7 @@
 */
 
 #import "CameraView.h"
+#import "VideoCapture.h"
 
 @implementation CameraView
 
