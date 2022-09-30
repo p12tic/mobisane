@@ -440,6 +440,20 @@ def build_geogram(srcdir, builddir, settings):
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
+
+def build_coinutils(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        srcdir,
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -461,6 +475,7 @@ known_dependencies = [
     ('podofo', build_podofo),
     ('tesseract', build_tesseract),
     ('geogram', build_geogram),
+    ('coinutils', build_coinutils),
 ]
 
 
