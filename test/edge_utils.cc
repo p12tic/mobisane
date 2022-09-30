@@ -17,6 +17,7 @@
 */
 
 #include "common/edge_utils.h"
+#include "common/edge_utils_internal.h"
 #include <sanescanocr/util/math.h>
 #include <gtest/gtest.h>
 
@@ -204,6 +205,215 @@ TEST(SplitContourToStraightEdges, gradual_direction_change)
         {{25, 28}, {0, 0}},
     };
     ASSERT_EQ(edges, expected);
+}
+
+TEST(ComputeOffsetsForEdgeSlope, vertical_slope_positive)
+{
+    std::vector<cv::Point> offsets;
+    compute_offsets_for_edge_slope(5, 0.45, OffsetDirection::VERTICAL, offsets);
+    std::vector<cv::Point> expected_offsets = {
+        {-2, -5}, {-1, -4}, {-1, -3}, {0, -2}, {0, -1},
+        {0, 0}, {0, 1}, {0, 2}, {1, 3}, {1, 4}
+    };
+    ASSERT_EQ(offsets, expected_offsets);
+}
+
+TEST(ComputeOffsetsForEdgeSlope, vertical_slope_negative)
+{
+    std::vector<cv::Point> offsets;
+    compute_offsets_for_edge_slope(5, -0.45, OffsetDirection::VERTICAL, offsets);
+    std::vector<cv::Point> expected_offsets = {
+        {2, -5}, {1, -4}, {1, -3}, {0, -2}, {0, -1},
+        {0, 0}, {0, 1}, {0, 2}, {-1, 3}, {-1, 4}
+    };
+    ASSERT_EQ(offsets, expected_offsets);
+}
+
+TEST(ComputeOffsetsForEdgeSlope, vertical_slope_zero)
+{
+    std::vector<cv::Point> offsets;
+    compute_offsets_for_edge_slope(5, 0, OffsetDirection::VERTICAL, offsets);
+    std::vector<cv::Point> expected_offsets = {
+        {0, -5}, {0, -4}, {0, -3}, {0, -2}, {0, -1},
+        {0, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}
+    };
+    ASSERT_EQ(offsets, expected_offsets);
+}
+
+TEST(ComputeOffsetsForEdgeSlope, horizontal_slope_positive)
+{
+    std::vector<cv::Point> offsets;
+    compute_offsets_for_edge_slope(5, 0.45, OffsetDirection::HORIZONTAL, offsets);
+    std::vector<cv::Point> expected_offsets = {
+        {-5, -2}, {-4, -1}, {-3, -1}, {-2, 0}, {-1, 0},
+        {0, 0}, {1, 0}, {2, 0}, {3, 1}, {4, 1}
+    };
+    ASSERT_EQ(offsets, expected_offsets);
+}
+
+TEST(ComputeOffsetsForEdgeSlope, horizontal_slope_negative)
+{
+    std::vector<cv::Point> offsets;
+    compute_offsets_for_edge_slope(5, -0.45, OffsetDirection::HORIZONTAL, offsets);
+    std::vector<cv::Point> expected_offsets = {
+        {-5, 2}, {-4, 1}, {-3, 1}, {-2, 0}, {-1, 0},
+        {0, 0}, {1, 0}, {2, 0}, {3, -1}, {4, -1}
+    };
+    ASSERT_EQ(offsets, expected_offsets);
+}
+
+TEST(ComputeOffsetsForEdgeSlope, horizontal_slope_zero)
+{
+    std::vector<cv::Point> offsets;
+    compute_offsets_for_edge_slope(5, 0, OffsetDirection::HORIZONTAL, offsets);
+    std::vector<cv::Point> expected_offsets = {
+        {-5, 0}, {-4, 0}, {-3, 0}, {-2, 0}, {-1, 0},
+        {0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0}
+    };
+    ASSERT_EQ(offsets, expected_offsets);
+}
+
+TEST(ExtractZeroCrosses, no_data)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({}, result);
+    ASSERT_TRUE(result.empty());
+}
+
+TEST(ExtractZeroCrosses, only_zeroes)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({0, 0, 0, 0}, result);
+    std::vector<ZeroCrossData> expected = {{0, 4}};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(ExtractZeroCrosses, only_negative_values)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({-5, -3, -8, -2}, result);
+    std::vector<ZeroCrossData> expected = {{-18, 4}};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(ExtractZeroCrosses, only_negative_and_zero_values)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({-5, 0, -8, -2}, result);
+    std::vector<ZeroCrossData> expected = {{-5, 1}, {0, 2}, {-10, 4}};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(ExtractZeroCrosses, only_positive_values)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({5, 3, 8, 2}, result);
+    std::vector<ZeroCrossData> expected = {{18, 4}};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(ExtractZeroCrosses, only_positive_and_zero_values)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({5, 0, 8, 2}, result);
+    std::vector<ZeroCrossData> expected = {{15, 4}};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(ExtractZeroCrosses, positive_and_negative_values)
+{
+    std::vector<ZeroCrossData> result;
+    extract_zero_crosses({2, 5, 4, -8, -4, 2}, result);
+    std::vector<ZeroCrossData> expected = {{11, 3}, {-12, 5}, {2, 6}};
+    ASSERT_EQ(result, expected);
+}
+
+TEST(FindEdgeInZeroCrosses, too_few_crosses)
+{
+    auto res = find_edge_in_zero_crosses({}, false, 0.5);
+    ASSERT_FALSE(res.has_value());
+    res = find_edge_in_zero_crosses({{1, 2}}, false, 0.5);
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(FindEdgeInZeroCrosses, single_cross_pos2neg)
+{
+    auto res = find_edge_in_zero_crosses({{5, 3}, {-4, 6}}, false, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 3);
+}
+
+TEST(FindEdgeInZeroCrosses, single_cross_neg2pos)
+{
+    auto res = find_edge_in_zero_crosses({{-5, 3}, {4, 6}}, false, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 3);
+}
+
+TEST(FindEdgeInZeroCrosses, single_cross_pos2neg_backwards)
+{
+    auto res = find_edge_in_zero_crosses({{5, 3}, {-4, 6}}, true, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 3);
+}
+
+TEST(FindEdgeInZeroCrosses, single_cross_neg2pos_backwards)
+{
+    auto res = find_edge_in_zero_crosses({{-5, 3}, {4, 6}}, true, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 3);
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg)
+{
+    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {2, 12}}, false, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 6);
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos)
+{
+    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-2, 12}}, false, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 6);
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg_backwards)
+{
+    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {2, 12}}, true, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 6);
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_backwards)
+{
+    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-2, 12}}, true, 0.5);
+    ASSERT_TRUE(res.has_value());
+    ASSERT_EQ(*res, 6);
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg_too_large_secondary_peak)
+{
+    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {4, 12}}, false, 0.5);
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_too_large_secondary_peak)
+{
+    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-4, 12}}, false, 0.5);
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg_backwards_too_large_secondary_peak)
+{
+    auto res = find_edge_in_zero_crosses({{-4, 3}, {5, 6}, {-6, 9}, {2, 12}}, true, 0.5);
+    ASSERT_FALSE(res.has_value());
+}
+
+TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_backwards_too_large_secondary_peak)
+{
+    auto res = find_edge_in_zero_crosses({{4, 3}, {-5, 6}, {6, 9}, {-2, 12}}, true, 0.5);
+    ASSERT_FALSE(res.has_value());
 }
 
 } // namespace sanescan

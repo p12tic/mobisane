@@ -1,0 +1,56 @@
+/*  SPDX-License-Identifier: GPL-3.0-or-later
+
+    Copyright (C) 2022  Povilas Kanapickas <povilas@radix.lt>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#pragma once
+
+#include "edge_utils_internal.h"
+#include <opencv2/core/types.hpp>
+#include <vector>
+
+namespace sanescan {
+
+class EdgeCalculatorPrecise
+{
+public:
+    EdgeCalculatorPrecise(const cv::Mat& derivatives, unsigned edge_precise_search_radius,
+                          unsigned edge_min_length,
+                          float max_distance_between_zero_cross_detections,
+                          float max_secondary_peak_multiplier);
+
+    void compute_for_segment(const cv::Point& pa, const cv::Point& pb);
+    std::vector<std::vector<cv::Point>> move_result();
+
+private:
+    static constexpr int UNSET_POS = -1;
+
+    void retrieve_line_intensities(int cx, int cy, const std::vector<cv::Point>& offsets,
+                                   int min_area_x, int min_area_y, int max_area_x, int max_area_y,
+                                   std::vector<std::int16_t>& intensities);
+
+    std::vector<std::vector<cv::Point>> result_;
+    const cv::Mat& derivatives_;
+    unsigned edge_precise_search_radius_ = 0;
+    unsigned edge_min_length_ = 0;
+    float max_distance_between_zero_cross_detections_ = 0;
+    float max_secondary_peak_multiplier_ = 0;
+
+    std::vector<cv::Point> cached_offsets_;
+    std::vector<std::int16_t> cached_intensities_;
+};
+
+} // namespace sanescan

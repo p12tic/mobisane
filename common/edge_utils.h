@@ -61,6 +61,16 @@ void compute_edge_directional_2nd_deriv(const cv::Mat& src,
                                         const std::vector<std::vector<cv::Point>>& edges,
                                         unsigned edge_precise_search_radius);
 
+/// Computes precise edges from merged derivatives. Invalid edge segments are removed.
+std::vector<std::vector<cv::Point>>
+    compute_precise_edges(const cv::Mat& derivatives,
+                          const std::vector<std::vector<cv::Point>>& edges,
+                          unsigned edge_precise_search_radius,
+                          unsigned edge_precise_min_length,
+                          unsigned edge_simplify_pos_precise,
+                          float max_distance_between_zero_cross_detections,
+                          float max_secondary_peak_multiplier);
+
 /// Debugging function for converting signed derivatives image to green-red colored image.
 void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel);
 

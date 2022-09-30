@@ -142,6 +142,27 @@ void write_image_with_edges(const std::string& debug_folder_path, const std::str
     write_debug_image(debug_folder_path, filename, output);
 }
 
+void write_image_with_edges_precise(const std::string& debug_folder_path,
+                                    const std::string& filename,
+                                    const cv::Mat& image,
+                                    const std::vector<std::vector<cv::Point>>& edges)
+{
+    auto output = image.clone();
+    auto color = cv::Scalar{0, 0, 255};
+
+    for (auto& edge : edges) {
+        if (edge.size() < 2) {
+            continue;
+        }
+
+        for (std::size_t i = 1; i < edge.size(); ++i) {
+            cv::line(output, edge[i - 1], edge[i], color, 1);
+        }
+    }
+
+    write_debug_image(debug_folder_path, filename, output);
+}
+
 int main(int argc, char* argv[])
 {
     namespace po = boost::program_options;
@@ -407,6 +428,15 @@ input_path and output_path options can be passed either as positional or named a
                               colored_derivatives_s);
             write_debug_image(debug_folder_path, "target_object_edge_2nd_deriv_v.png",
                               colored_derivatives_v);
+        }
+
+        auto precise_edges = sanescan::compute_precise_edges(hsv_derivatives, edges,
+                                                             edge_precise_search_radius,
+                                                             20, 0, 2.5f, 0.5);
+
+        if (!debug_folder_path.empty()) {
+            write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
+                                           image, precise_edges);
         }
 
         cv::imwrite(output_path, image);

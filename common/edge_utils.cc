@@ -17,6 +17,8 @@
 */
 
 #include "edge_utils.h"
+#include "edge_utils_internal.h"
+#include "edge_calculator_precise.h"
 #include <sanescanocr/util/math.h>
 #include <opencv2/imgproc.hpp>
 
@@ -274,6 +276,144 @@ void compute_edge_directional_2nd_deriv(const cv::Mat& src,
             }
         }
     }
+}
+
+void compute_offsets_for_edge_slope(int half_length, float slope, OffsetDirection direction,
+                                    std::vector<cv::Point>& offsets)
+{
+    offsets.clear();
+    for (int d = -half_length; d < half_length; ++d) {
+        if (direction == OffsetDirection::VERTICAL) {
+            offsets.emplace_back(slope * d, d);
+        } else {
+            offsets.emplace_back(d, slope * d);
+        }
+    }
+}
+
+void extract_zero_crosses(const std::vector<std::int16_t>& values,
+                          std::vector<ZeroCrossData>& zero_crosses)
+{
+    zero_crosses.clear();
+    std::size_t size = values.size();
+
+    if (size == 0) {
+        return;
+    }
+
+    bool is_positive = values[0] >= 0;
+    std::int32_t cum_peak_value = values[0];
+
+    for (std::size_t i = 1; i < size; ++i) {
+        bool new_is_positive = values[i] >= 0;
+        if (is_positive == new_is_positive) {
+            // no zero cross
+            cum_peak_value += values[i];
+        } else {
+            // zero cross happened
+            zero_crosses.push_back({cum_peak_value, i});
+            is_positive = new_is_positive;
+            cum_peak_value = values[i];
+        }
+    }
+    zero_crosses.push_back({cum_peak_value, size});
+}
+
+std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& crosses,
+                                             bool reverse_intensities,
+                                             float max_allowed_other_peak_multiplier)
+{
+    if (crosses.size() < 2) {
+        return {};
+    }
+
+    // the following code is effectively std::minmax_element, except that 2nd place for both min
+    // and max is computed.
+    std::int16_t min_value = 0;
+    std::int16_t min_value2 = 0;
+    std::size_t min_value_i = 0;
+    std::int16_t max_value = 0;
+    std::int16_t max_value2 = 0;
+    std::size_t max_value_i = 0;
+
+    for (std::size_t i = 0; i < crosses.size(); ++i) {
+        auto value = crosses[i].cum_peak_value;
+
+        if (value < min_value) {
+            min_value2 = min_value;
+            min_value = value;
+            min_value_i = i;
+        } else if (value < min_value2) {
+            min_value2 = value;
+        } else if (value > max_value) {
+            max_value2 = max_value;
+            max_value = value;
+            max_value_i = i;
+        } else if (value > max_value2) {
+            max_value2 = value;
+        }
+    }
+
+    bool more_than_one_peak_by_max_value =
+            std::abs(max_value) * max_allowed_other_peak_multiplier < std::abs(max_value2);
+    bool more_than_one_peak_by_min_value =
+            std::abs(min_value) * max_allowed_other_peak_multiplier < std::abs(min_value2);
+
+
+    if (reverse_intensities) {
+        // We're going backwards, take whichever min or max has the highest index. Note that
+        // the index can't be zero.
+        if (max_value_i > min_value_i) {
+            if (more_than_one_peak_by_max_value) {
+                return {};
+            }
+            return crosses[max_value_i - 1].position;
+        }
+        if (more_than_one_peak_by_min_value) {
+            return {};
+        }
+        return crosses[min_value_i - 1].position;
+    }
+
+    // We're going forwards, take whichever min or max has the lowest index
+    if (max_value_i < min_value_i) {
+        if (more_than_one_peak_by_max_value) {
+            return {};
+        }
+        return crosses[max_value_i].position;
+    }
+
+    if (more_than_one_peak_by_min_value) {
+        return {};
+    }
+    return crosses[min_value_i].position;
+}
+
+std::vector<std::vector<cv::Point>>
+    compute_precise_edges(const cv::Mat& derivatives,
+                          const std::vector<std::vector<cv::Point>>& edges,
+                          unsigned edge_precise_search_radius,
+                          unsigned edge_precise_min_length,
+                          unsigned edge_simplify_pos_precise,
+                          float max_distance_between_zero_cross_detections,
+                          float max_secondary_peak_multiplier)
+{
+    std::vector<std::vector<cv::Point>> result;
+    EdgeCalculatorPrecise calculator{derivatives, edge_precise_search_radius,
+                                     edge_precise_min_length,
+                                     max_distance_between_zero_cross_detections,
+                                     max_secondary_peak_multiplier};
+
+    for (const auto& edge : edges) {
+        for (std::size_t segment_i = 0; segment_i < edge.size() - 1; ++segment_i) {
+            calculator.compute_for_segment(edge[segment_i], edge[segment_i + 1]);
+        }
+    }
+
+    // FIXME: merge nearby segments
+    // FIXME: simplify edge positions
+
+    return calculator.move_result();
 }
 
 void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel)

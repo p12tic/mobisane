@@ -16,9 +16,11 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set(SOURCES
+    edge_calculator_precise.cc
     mean_flood_fill.cc
     flood_fill_utils.cc
     edge_utils.cc
+    segment_calculator_precise.cc
 )
 
 find_package(OpenCV REQUIRED)
