@@ -134,7 +134,15 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     d_->task_arena.execute([&]()
     {
         auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
-        curr_photo_data->image = rgb_image.clone();
+
+        tbb::task_group cloning_task_group;
+        cloning_task_group.run([&]()
+        {
+            // The image is copied twice: once to a file on vfs and second time for further
+            // processing here. It may be possible to optimize this copy out. The cost is
+            // relatively small compared to the rest of image processing.
+            curr_photo_data->image = rgb_image.clone();
+        });
 
         auto image_id = d_->next_image_id++;
         auto session_path = d_->get_path_to_current_session();
@@ -155,6 +163,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                                                      "");
         sfm_view.setFrameId(image_id);
 
+        cloning_task_group.wait();
 
         aliceVision::sfmDataIO::BuildViewIntrinsicsReport intrinsics_report;
 

@@ -20,6 +20,7 @@
 
 #include "bounds_detection_pipeline.h"
 #include <tbb/task_arena.h>
+#include <tbb/task_group.h>
 #include <opencv2/core/mat.hpp>
 #include <memory>
 
