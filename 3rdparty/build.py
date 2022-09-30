@@ -298,6 +298,21 @@ def build_openimageio(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_tbb(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DTBB_TEST=OFF',
+        '-DTBBMALLOC_BUILD=OFF',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -312,6 +327,7 @@ known_dependencies = [
     ('imath', build_imath),
     ('openexr', build_openexr),
     ('openimageio', build_openimageio),
+    ('tbb', build_tbb),
 ]
 
 
