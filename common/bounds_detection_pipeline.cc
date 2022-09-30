@@ -129,7 +129,7 @@ void BoundsDetectionPipeline::run(const cv::Mat& input_image)
 
     precise_edges = compute_precise_edges(hsv_derivatives, edges,
                                           params.edge_precise_search_radius(),
-                                          20, 2, 2.5f, 0.5);
+                                          20, 2, 2.5f, 0.7, 12, 1.2, 2);
 }
 
 } // namespace sanescan

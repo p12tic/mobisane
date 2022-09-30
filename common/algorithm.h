@@ -30,4 +30,24 @@ std::size_t max_element_i(It begin, It end)
     return std::distance(begin, std::max_element(begin, end));
 }
 
+template<class Value, class It, class F>
+std::pair<std::size_t, Value> min_element_i_and_value_by(It begin, It end, F&& callable)
+{
+    if (begin == end) {
+        throw std::invalid_argument("At least one element required");
+    }
+    Value min_value = callable(*begin++);
+    std::size_t min_value_i = 0;
+
+    for (std::size_t i = 1; begin != end; begin++, i++) {
+        Value value = callable(*begin);
+        if (value < min_value) {
+            min_value = value;
+            min_value_i = i;
+        }
+    }
+    return {min_value_i, min_value};
+}
+
+
 } // namespace sanescan

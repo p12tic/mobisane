@@ -44,8 +44,25 @@ struct ZeroCrossData
 void extract_zero_crosses(const std::vector<std::int16_t>& values,
                           std::vector<ZeroCrossData>& zero_crosses);
 
-std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& crosses,
-                                             bool reverse_intensities,
-                                             float max_allowed_other_peak_multiplier);
+struct PreviousEdgeData {
+    std::size_t expected_pos = 0;
+    bool zero_cross_pos2neg = false;
+    float max_allowed_other_peak_multiplier = 1.0;
+    unsigned allowed_position_diff = 2;
+};
+
+struct EdgeZeroCrossResult {
+    std::size_t position = 0;
+
+    // This is in terms of the crosses data in the input array. Actual search direction specified
+    // by reverse_intensities is disregarded.
+    bool zero_cross_pos2neg = false;
+};
+
+std::optional<EdgeZeroCrossResult>
+    find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& crosses,
+                              bool reverse_intensities,
+                              float max_allowed_other_peak_multiplier,
+                              const std::optional<PreviousEdgeData>& prev_edge_opt);
 
 } // namespace sanescan

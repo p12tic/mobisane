@@ -330,101 +330,109 @@ TEST(ExtractZeroCrosses, positive_and_negative_values)
 
 TEST(FindEdgeInZeroCrosses, too_few_crosses)
 {
-    auto res = find_edge_in_zero_crosses({}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({}, false, 0.5, {});
     ASSERT_FALSE(res.has_value());
-    res = find_edge_in_zero_crosses({{1, 2}}, false, 0.5);
+    res = find_edge_in_zero_crosses({{1, 2}}, false, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 
 TEST(FindEdgeInZeroCrosses, single_cross_pos2neg)
 {
-    auto res = find_edge_in_zero_crosses({{5, 3}, {-4, 6}}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({{5, 3}, {-4, 6}}, false, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 3);
+    ASSERT_EQ(res->position, 3);
+    ASSERT_EQ(res->zero_cross_pos2neg, true);
 }
 
 TEST(FindEdgeInZeroCrosses, single_cross_neg2pos)
 {
-    auto res = find_edge_in_zero_crosses({{-5, 3}, {4, 6}}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({{-5, 3}, {4, 6}}, false, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 3);
+    ASSERT_EQ(res->position, 3);
+    ASSERT_EQ(res->zero_cross_pos2neg, false);
 }
 
 TEST(FindEdgeInZeroCrosses, single_cross_pos2neg_backwards)
 {
-    auto res = find_edge_in_zero_crosses({{5, 3}, {-4, 6}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{5, 3}, {-4, 6}}, true, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 3);
+    ASSERT_EQ(res->position, 3);
+    ASSERT_EQ(res->zero_cross_pos2neg, true);
 }
 
 TEST(FindEdgeInZeroCrosses, single_cross_neg2pos_backwards)
 {
-    auto res = find_edge_in_zero_crosses({{-5, 3}, {4, 6}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{-5, 3}, {4, 6}}, true, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 3);
+    ASSERT_EQ(res->position, 3);
+    ASSERT_EQ(res->zero_cross_pos2neg, false);
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg)
 {
-    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {2, 12}}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {2, 12}}, false, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 6);
+    ASSERT_EQ(res->position, 6);
+    ASSERT_EQ(res->zero_cross_pos2neg, true);
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos)
 {
-    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-2, 12}}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-2, 12}}, false, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 6);
+    ASSERT_EQ(res->position, 6);
+    ASSERT_EQ(res->zero_cross_pos2neg, false);
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg_backwards)
 {
-    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {2, 12}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {2, 12}}, true, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 6);
+    ASSERT_EQ(res->position, 6);
+    ASSERT_EQ(res->zero_cross_pos2neg, true);
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_backwards)
 {
-    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-2, 12}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-2, 12}}, true, 0.5, {});
     ASSERT_TRUE(res.has_value());
-    ASSERT_EQ(*res, 6);
+    ASSERT_EQ(res->position, 6);
+    ASSERT_EQ(res->zero_cross_pos2neg, false);
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg_too_large_secondary_peak)
 {
-    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {4, 12}}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({{-2, 3}, {5, 6}, {-6, 9}, {4, 12}}, false, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_too_large_secondary_peak)
 {
-    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-4, 12}}, false, 0.5);
+    auto res = find_edge_in_zero_crosses({{2, 3}, {-5, 6}, {6, 9}, {-4, 12}}, false, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_pos2neg_backwards_too_large_secondary_peak)
 {
-    auto res = find_edge_in_zero_crosses({{-4, 3}, {5, 6}, {-6, 9}, {2, 12}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{-4, 3}, {5, 6}, {-6, 9}, {2, 12}}, true, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 
 TEST(FindEdgeInZeroCrosses, many_crosses_neg2pos_backwards_too_large_secondary_peak)
 {
-    auto res = find_edge_in_zero_crosses({{4, 3}, {-5, 6}, {6, 9}, {-2, 12}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{4, 3}, {-5, 6}, {6, 9}, {-2, 12}}, true, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 
 TEST(FindEdgeInZeroCrosses, no_crosses_almost_cross_positive_backwards)
 {
-    auto res = find_edge_in_zero_crosses({{10, 3}, {0, 6}, {5, 9}, {0, 12}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{10, 3}, {0, 6}, {5, 9}, {0, 12}}, true, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 
 TEST(FindEdgeInZeroCrosses, no_crosses_almost_cross_negative_backwards)
 {
-    auto res = find_edge_in_zero_crosses({{-10, 3}, {0, 6}, {-5, 9}, {0, 12}}, true, 0.5);
+    auto res = find_edge_in_zero_crosses({{-10, 3}, {0, 6}, {-5, 9}, {0, 12}}, true, 0.5, {});
     ASSERT_FALSE(res.has_value());
 }
 

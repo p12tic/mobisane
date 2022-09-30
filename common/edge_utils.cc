@@ -18,6 +18,7 @@
 
 #include "edge_utils.h"
 #include "edge_utils_internal.h"
+#include "algorithm.h"
 #include "edge_calculator_precise.h"
 #include "longest_line_recognizer.h"
 #include <sanescanocr/util/math.h>
@@ -320,12 +321,66 @@ void extract_zero_crosses(const std::vector<std::int16_t>& values,
     zero_crosses.push_back({cum_peak_value, size});
 }
 
-std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& crosses,
-                                             bool reverse_intensities,
-                                             float max_allowed_other_peak_multiplier)
+namespace {
+
+std::optional<EdgeZeroCrossResult>
+    find_edge_in_zero_crosses_prev_edge(const std::vector<ZeroCrossData>& crosses,
+                                        const PreviousEdgeData& prev_edge)
+{
+    auto [min_zero_cross_i, min_zero_cross_distance] =
+            min_element_i_and_value_by<int>(crosses.begin(), crosses.end(),
+                                            [&](const auto& c)
+    {
+        return std::abs<int>(c.position - prev_edge.expected_pos);
+    });
+
+    if (min_zero_cross_distance > prev_edge.allowed_position_diff) {
+        return {};
+    }
+
+    const auto& cross = crosses[min_zero_cross_i];
+    if ((cross.cum_peak_value > 0) != prev_edge.zero_cross_pos2neg) {
+        return {};
+    }
+
+    auto max_peak_value_abs = std::abs(cross.cum_peak_value) *
+            prev_edge.max_allowed_other_peak_multiplier;
+
+    for (std::size_t i = 0; i < crosses.size(); ++i) {
+        if (i == min_zero_cross_i) {
+            continue;
+        }
+        auto curr_cum_peak_value_abs = std::abs(crosses[i].cum_peak_value);
+        if (curr_cum_peak_value_abs > max_peak_value_abs) {
+            return {};
+        }
+    }
+
+    return {{cross.position, cross.cum_peak_value > 0}};
+}
+
+
+} // namespace
+
+std::optional<EdgeZeroCrossResult>
+    find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& crosses,
+                              bool reverse_intensities,
+                              float max_allowed_other_peak_multiplier,
+                              const std::optional<PreviousEdgeData>& prev_edge_opt)
 {
     if (crosses.size() < 2) {
         return {};
+    }
+
+    if (prev_edge_opt) {
+        // If previous edge data is supplied then a different algorithm is used. It is attempted
+        // to find a zero cross at the expected position. If such zero cross is found and there
+        // are no significantly worse zero crosses, then this zero cross is returned. If not,
+        // regular search commences.
+        auto prev_edge_cross = find_edge_in_zero_crosses_prev_edge(crosses, *prev_edge_opt);
+        if (prev_edge_cross) {
+            return prev_edge_cross;
+        }
     }
 
     // the following code is effectively std::minmax_element, except that 2nd place for both min
@@ -377,12 +432,12 @@ std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& c
             if (more_than_one_peak_by_max_value) {
                 return {};
             }
-            return crosses[max_value_i - 1].position;
+            return {{crosses[max_value_i - 1].position, false}};
         }
         if (more_than_one_peak_by_min_value) {
             return {};
         }
-        return crosses[min_value_i - 1].position;
+        return {{crosses[min_value_i - 1].position, true}};
     }
 
     // We're going forwards, take whichever min or max has the lowest index
@@ -390,13 +445,13 @@ std::optional<int> find_edge_in_zero_crosses(const std::vector<ZeroCrossData>& c
         if (more_than_one_peak_by_max_value) {
             return {};
         }
-        return crosses[max_value_i].position;
+        return {{crosses[max_value_i].position, true}};
     }
 
     if (more_than_one_peak_by_min_value) {
         return {};
     }
-    return crosses[min_value_i].position;
+    return {{crosses[min_value_i].position, false}};
 }
 
 std::vector<std::vector<cv::Point>>
@@ -406,13 +461,19 @@ std::vector<std::vector<cv::Point>>
                           unsigned edge_precise_min_length,
                           unsigned edge_simplify_pos_precise,
                           float max_distance_between_zero_cross_detections,
-                          float max_secondary_peak_multiplier)
+                          float max_secondary_peak_multiplier,
+                          unsigned edge_following_min_positions,
+                          float edge_following_max_allowed_other_peak_multiplier,
+                          unsigned edge_following_max_position_diff)
 {
     std::vector<std::vector<cv::Point>> result;
     EdgeCalculatorPrecise calculator{derivatives, edge_precise_search_radius,
                                      edge_precise_min_length,
                                      max_distance_between_zero_cross_detections,
-                                     max_secondary_peak_multiplier};
+                                     max_secondary_peak_multiplier,
+                                    edge_following_min_positions,
+                                    edge_following_max_allowed_other_peak_multiplier,
+                                    edge_following_max_position_diff};
 
     for (const auto& edge : edges) {
         for (std::size_t segment_i = 0; segment_i < edge.size() - 1; ++segment_i) {

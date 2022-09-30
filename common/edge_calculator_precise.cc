@@ -44,12 +44,19 @@ EdgeCalculatorPrecise::EdgeCalculatorPrecise(const cv::Mat& derivatives,
                                              unsigned edge_precise_search_radius,
                                              unsigned edge_min_length,
                                              float max_distance_between_zero_cross_detections,
-                                             float max_secondary_peak_multiplier) :
+                                             float max_secondary_peak_multiplier,
+                                             unsigned edge_following_min_positions,
+                                             float edge_following_max_allowed_other_peak_multiplier,
+                                             unsigned edge_following_max_position_diff) :
     derivatives_{derivatives},
     edge_precise_search_radius_{edge_precise_search_radius},
     edge_min_length_{edge_min_length},
     max_distance_between_zero_cross_detections_{max_distance_between_zero_cross_detections},
-    max_secondary_peak_multiplier_{max_secondary_peak_multiplier}
+    max_secondary_peak_multiplier_{max_secondary_peak_multiplier},
+    edge_following_min_positions_{edge_following_min_positions},
+    edge_following_max_allowed_other_peak_multiplier_{
+        edge_following_max_allowed_other_peak_multiplier},
+    edge_following_max_position_diff_{edge_following_max_position_diff}
 {
     if (derivatives_.type() != CV_16SC3) {
         throw std::invalid_argument("Only CV_16SC3 derivative data is supported");
@@ -126,6 +133,9 @@ void EdgeCalculatorPrecise::compute_for_segment(const cv::Point& pa, const cv::P
                                                 max_secondary_peak_multiplier_,
                                                 max_distance_between_zero_cross_detections_,
                                                 static_cast<float>(edge_min_length_),
+                                                edge_following_min_positions_,
+                                                edge_following_max_allowed_other_peak_multiplier_,
+                                                edge_following_max_position_diff_,
                                                 offsets};
 
     if (is_eval_line_vertical) {

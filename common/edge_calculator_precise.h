@@ -31,7 +31,10 @@ public:
     EdgeCalculatorPrecise(const cv::Mat& derivatives, unsigned edge_precise_search_radius,
                           unsigned edge_min_length,
                           float max_distance_between_zero_cross_detections,
-                          float max_secondary_peak_multiplier);
+                          float max_secondary_peak_multiplier,
+                          unsigned edge_following_min_positions,
+                          float edge_following_max_allowed_other_peak_multiplier,
+                          unsigned edge_following_max_position_diff);
 
     void compute_for_segment(const cv::Point& pa, const cv::Point& pb);
     std::vector<std::vector<cv::Point>> get_lines();
@@ -50,6 +53,9 @@ private:
     unsigned edge_min_length_ = 0;
     float max_distance_between_zero_cross_detections_ = 0;
     float max_secondary_peak_multiplier_ = 0;
+    unsigned edge_following_min_positions_ = 0;
+    float edge_following_max_allowed_other_peak_multiplier_ = 0;
+    unsigned edge_following_max_position_diff_ = 0;
 
     std::vector<cv::Point> cached_offsets_;
     std::vector<std::int16_t> cached_intensities_;

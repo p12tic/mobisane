@@ -19,20 +19,63 @@
 #include "segment_calculator_precise.h"
 #include "edge_utils.h"
 #include <sanescanocr/util/math.h>
+#include <boost/math/statistics/linear_regression.hpp>
 
 namespace sanescan {
 
-SegmentCalculatorPrecise::SegmentCalculatorPrecise(const cv::Mat& output_mask,
-                                                   bool reverse_intensities,
-                                                   float max_allowed_other_peak_multiplier,
-                                                   float max_distance_between_detections,
-                                                   float min_line_length,
-                                                   const std::vector<cv::Point>& offsets) :
+namespace {
+
+std::optional<int> predict_next_edge_position(unsigned edge_following_min_positions,
+                                              const std::vector<cv::Point>& positions,
+                                              std::vector<float>& cached_pos_x,
+                                              std::vector<float>& cached_pos_y,
+                                              int next_position_x)
+{
+    if (positions.size() < edge_following_min_positions) {
+        return {};
+    }
+
+    cached_pos_x.clear();
+    cached_pos_y.clear();
+
+    for (std::size_t i = positions.size() - edge_following_min_positions;
+         i < positions.size(); ++i)
+    {
+        cached_pos_x.push_back(positions[i].x);
+        cached_pos_y.push_back(positions[i].y);
+    }
+
+    using boost::math::statistics::simple_ordinary_least_squares;
+    // calculating coefficients for f(x) = c0 + c1 * x
+    auto [c0, c1] = simple_ordinary_least_squares(cached_pos_x, cached_pos_y);
+    auto next_position_y = c0 + c1 * next_position_x;
+    if (next_position_y < 0) {
+        return {};
+    }
+    return next_position_y;
+}
+
+} // namespace
+
+SegmentCalculatorPrecise::SegmentCalculatorPrecise(
+        const cv::Mat& output_mask,
+        bool reverse_intensities,
+        float max_allowed_other_peak_multiplier,
+        float max_distance_between_detections,
+        float min_line_length,
+        unsigned edge_following_min_positions,
+        float edge_following_max_allowed_other_peak_multiplier,
+        unsigned edge_following_max_position_diff,
+        const std::vector<cv::Point>& offsets) :
     output_mask_{output_mask},
     reverse_intensities_{reverse_intensities},
     max_allowed_other_peak_multiplier_{max_allowed_other_peak_multiplier},
     max_distance_between_detections_{max_distance_between_detections},
     min_line_length_{min_line_length},
+    edge_following_min_positions_{edge_following_min_positions},
+    edge_following_max_allowed_other_peak_multiplier_{
+        edge_following_max_allowed_other_peak_multiplier},
+    edge_following_max_position_diff_{edge_following_max_position_diff},
     offsets_{offsets}
 {
 }
@@ -42,14 +85,35 @@ void SegmentCalculatorPrecise::submit_line(int cx, int cy,
 {
     auto& crosses = _cached_crosses;
     extract_zero_crosses(intensities, crosses);
+
+    auto new_line_pos_x = curr_line_positions_x_++;
+    auto predicted_zero_pos = predict_next_edge_position(edge_following_min_positions_,
+                                                         curr_line_positions_,
+                                                         cached_pos_x_, cached_pos_y_,
+                                                         new_line_pos_x);
+
+    std::optional<PreviousEdgeData> predicted_edge_data;
+    if (predicted_zero_pos) {
+        predicted_edge_data = {
+            static_cast<std::size_t>(*predicted_zero_pos),
+            zero_cross_pos2neg_,
+            edge_following_max_allowed_other_peak_multiplier_,
+            edge_following_max_position_diff_
+        };
+    }
+
     auto zero_cross_opt = find_edge_in_zero_crosses(crosses, reverse_intensities_,
-                                                    max_allowed_other_peak_multiplier_);
+                                                    max_allowed_other_peak_multiplier_,
+                                                    predicted_edge_data);
     if (!zero_cross_opt) {
         return;
     }
 
-    int px = cx + offsets_[*zero_cross_opt].x;
-    int py = cy + offsets_[*zero_cross_opt].y;
+    curr_line_positions_.push_back(cv::Point(new_line_pos_x, zero_cross_opt->position));
+    zero_cross_pos2neg_ = zero_cross_opt->zero_cross_pos2neg;
+
+    int px = cx + offsets_[zero_cross_opt->position].x;
+    int py = cy + offsets_[zero_cross_opt->position].y;
 
     cv::Point new_point{px, py};
 

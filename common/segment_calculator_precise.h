@@ -36,6 +36,9 @@ public:
                              float max_allowed_other_peak_multiplier,
                              float max_distance_between_detections,
                              float min_line_length,
+                             unsigned edge_following_min_positions,
+                             float edge_following_max_allowed_other_peak_multiplier,
+                             unsigned edge_following_max_position_diff,
                              const std::vector<cv::Point>& offsets);
 
     void submit_line(int cx, int cy, const std::vector<std::int16_t>& intensities);
@@ -47,11 +50,25 @@ private:
     float max_allowed_other_peak_multiplier_ = 0;
     float max_distance_between_detections_ = 0;
     float min_line_length_ = 0;
+    unsigned edge_following_min_positions_ = 0;
+    float edge_following_max_allowed_other_peak_multiplier_ = 0;
+    unsigned edge_following_max_position_diff_ = 0;
     const std::vector<cv::Point>& offsets_;
     std::vector<cv::Point> curr_line_;
 
-    std::vector<ZeroCrossData> _cached_crosses;
-};
+    // Ideally a number of preceding zero cross directions should be stored and an some kind of
+    // average calculated. However, the precision is only ever important when transitioning into
+    // edge following mode. At that time zero cross detector is still using a conservative mode
+    // thus the value is unlikely to be incorrect.
+    bool zero_cross_pos2neg_ = false;
 
+    // Results of zero cross detector for the current line are stored here.
+    std::vector<cv::Point> curr_line_positions_;
+    int curr_line_positions_x_ = 0;
+
+    std::vector<ZeroCrossData> _cached_crosses;
+    std::vector<float> cached_pos_x_;
+    std::vector<float> cached_pos_y_;
+};
 
 } // namespace sanescan

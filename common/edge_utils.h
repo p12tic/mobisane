@@ -69,7 +69,10 @@ std::vector<std::vector<cv::Point>>
                           unsigned edge_precise_min_length,
                           unsigned edge_simplify_pos_precise,
                           float max_distance_between_zero_cross_detections,
-                          float max_secondary_peak_multiplier);
+                          float max_secondary_peak_multiplier,
+                          unsigned edge_following_min_positions,
+                          float edge_following_max_allowed_other_peak_multiplier,
+                          unsigned edge_following_max_position_diff);
 
 /// Debugging function for converting signed derivatives image to green-red colored image.
 void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel);
