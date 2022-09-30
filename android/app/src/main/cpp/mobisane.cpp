@@ -30,14 +30,14 @@
 #include "camera.h"
 
 namespace {
-std::unique_ptr<mobisane::Camera> g_camera;
+std::unique_ptr<sanescan::Camera> g_camera;
 } // namespace
 
 extern "C" {
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
-    g_camera = std::make_unique<mobisane::Camera>();
+    g_camera = std::make_unique<sanescan::Camera>();
     return JNI_VERSION_1_4;
 }
 

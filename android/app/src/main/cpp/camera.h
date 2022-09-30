@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace mobisane {
+namespace sanescan {
 
 struct CameraStreamConfiguration {
     std::int32_t format = 0;
@@ -148,4 +148,4 @@ private:
     cv::Mat preview_cached_mat_;
 };
 
-} // namespace mobisane
+} // namespace sanescan

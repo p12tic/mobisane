@@ -18,7 +18,7 @@
 
 #include <android/native_window.h>
 
-namespace mobisane {
+namespace sanescan {
 
 class ANativeWindowRef {
 public:
@@ -66,4 +66,4 @@ private:
     ANativeWindow* win_ = nullptr;
 };
 
-} // namespace mobisane
+} // namespace sanescan

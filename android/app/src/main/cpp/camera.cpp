@@ -21,7 +21,7 @@
 #include <android/log.h>
 #include <string>
 
-namespace mobisane {
+namespace sanescan {
 namespace {
 
 template<class T, class F>
@@ -494,4 +494,4 @@ void Camera::on_preview_image_available_cb(void* context, AImageReader* reader)
     reinterpret_cast<Camera*>(context)->on_preview_image_available(reader);
 }
 
-} // namespace mobisane
+} // namespace sanescan
