@@ -50,6 +50,7 @@ known_dependencies = [
     ('openexr', 'https://github.com/AcademySoftwareFoundation/openexr', 'v3.1.2'),
     ('libtiff', 'https://gitlab.com/libtiff/libtiff', 'd66540a28f024adc7833275a164a77c9f8a12b9c'),
     ('openimageio', 'https://github.com/OpenImageIO/oiio', 'd66540a28f024adc7833275a164a77c9f8a12b9c'),
+    ('tbb', 'https://github.com/oneapi-src/oneTBB', '3c91aea522427b3a0cd6022b2d3a142acaa8136d'),
 ]
 
 
