@@ -465,7 +465,8 @@ void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors
     }
 }
 
-void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std::uint8_t value)
+template<class Value>
+void draw_polyline_impl(cv::Mat& mask, const std::vector<cv::Point>& points, Value value)
 {
     for (std::size_t i = 0; i < points.size() - 1; ++i) {
         const auto& p1 = points[i];
@@ -476,7 +477,7 @@ void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std
         int y2 = p2.y;
 
         if (x1 == x2 && y1 == y2) {
-            mask.at<std::uint8_t>(y1, x1) = value;
+            mask.at<Value>(y1, x1) = value;
             continue;
         }
 
@@ -489,7 +490,7 @@ void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std
             float slope = static_cast<float>(y2 - y1) / (x2 - x1);
             for (int x = x1; x <= x2; ++x) {
                 int y = y1 + (x - x1) * slope;
-                mask.at<std::uint8_t>(y, x) = value;
+                mask.at<Value>(y, x) = value;
             }
         } else {
             if (y2 - y1 < 0) {
@@ -500,10 +501,22 @@ void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std
             float slope = static_cast<float>(x2 - x1) / (y2 - y1);
             for (int y = y1; y <= y2; ++y) {
                 int x = x1 + (y - y1) * slope;
-                mask.at<std::uint8_t>(y, x) = value;
+                mask.at<Value>(y, x) = value;
             }
         }
     }
+}
+
+
+void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std::uint8_t value)
+{
+    draw_polyline_impl(mask, points, value);
+}
+
+void draw_polyline_32bit(cv::Mat& mask, const std::vector<cv::Point>& points, cv::Scalar value)
+{
+    cv::Vec4b fill_value = value;
+    draw_polyline_impl(mask, points, fill_value);
 }
 
 void find_1_pixel_lines_in_mask(const cv::Mat& mask, std::vector<std::vector<cv::Point>>& lines)

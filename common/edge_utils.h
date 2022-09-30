@@ -74,8 +74,11 @@ std::vector<std::vector<cv::Point>>
 /// Debugging function for converting signed derivatives image to green-red colored image.
 void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel);
 
-/// Fast way to draw a simple 1-width polyline on a 8-bit mask.
+/// Fast way to draw a simple 1-width polyline on a 8-bit mask
 void mask_draw_polyline(cv::Mat& mask, const std::vector<cv::Point>& points, std::uint8_t value);
+
+/// Fast way to draw a simple 1-width polyline on a 32-bit RGBA image
+void draw_polyline_32bit(cv::Mat& mask, const std::vector<cv::Point>& points, cv::Scalar value);
 
 /** Finds all 1-pixel width lines in a mask. Lines are identified by non-zero pixels. If lines
     split into multiple branches, the longest one is returned. In case of blobs with widths of more
