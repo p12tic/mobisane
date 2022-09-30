@@ -103,6 +103,7 @@ namespace {
 
 struct PhotoData
 {
+    aliceVision::IndexT view_id = 0;
     cv::Mat image;
     BoundsDetectionPipeline bounds_pipeline;
 
@@ -131,6 +132,7 @@ struct SharedAppManager::Data
     // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
     // to allow thread-safe concurrent modification of the array.
     std::vector<std::shared_ptr<PhotoData>> submitted_data;
+    std::map<aliceVision::IndexT, std::shared_ptr<PhotoData>> submitted_data_by_view_id;
 
     aliceVision::sfmData::SfMData sfm_data;
     std::string vfs_root_name = "//mobisane";
@@ -270,6 +272,10 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
     sfm_view.addMetadata("AliceVision:useWhiteBalance", "1");
 
     auto view_id = sfm_view.getViewId();
+
+    curr_photo_data->view_id = view_id;
+    d_->submitted_data_by_view_id.emplace(view_id, curr_photo_data);
+
     d_->sfm_data.getViews().emplace(view_id,
                                     std::make_shared<aliceVision::sfmData::View>(sfm_view));
     d_->sfm_data.getIntrinsics().emplace(sfm_view.getIntrinsicId(), intrinsic);
@@ -395,7 +401,6 @@ void SharedAppManager::print_debug_images_for_photo(const std::string& debug_fol
     const auto& image = data->image;
     const auto& bp = data->bounds_pipeline;
 
-
     write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
                                   bp.small_for_fill, bp.target_object_unfilled_mask);
     write_image_with_mask_overlay(debug_folder_path, "target_object.png",
@@ -418,6 +423,20 @@ void SharedAppManager::print_debug_images_for_photo(const std::string& debug_fol
 
     write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
                                    image, bp.precise_edges);
+
+    aliceVision::feature::FeaturesPerView features_per_view;
+    if (!aliceVision::sfm::loadFeaturesPerView(
+            features_per_view, d_->sfm_data,
+            {d_->get_path_to_current_session_features_folder().string()},
+            get_describer_types()))
+    {
+        throw std::runtime_error("Could not load features");
+    }
+
+    const auto& view = d_->sfm_data.getView(data->view_id);
+
+    const auto& features_type = features_per_view.getData().at(view.getViewId());
+    write_features_debug_image(debug_folder_path, "sfm_features.png", features_type, image);
 }
 
 void SharedAppManager::started_feature_extraction_task()

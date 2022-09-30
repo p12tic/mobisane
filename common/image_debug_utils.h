@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <aliceVision/feature/FeaturesPerView.hpp>
 #include <opencv2/core/mat.hpp>
 
 namespace sanescan {
@@ -37,4 +38,10 @@ void write_image_with_edges_precise(const std::string& debug_folder_path,
                                     const std::string& filename,
                                     const cv::Mat& image,
                                     const std::vector<std::vector<cv::Point>>& edges);
+
+void write_features_debug_image(const std::string& debug_folder_path,
+                                const std::string& filename,
+                                const aliceVision::feature::MapFeaturesPerDesc& features_by_type,
+                                const cv::Mat& base_image);
+
 } // namespace sanescan

@@ -116,4 +116,20 @@ void write_image_with_edges_precise(const std::string& debug_folder_path,
     write_debug_image(debug_folder_path, filename, output);
 }
 
+void write_features_debug_image(const std::string& debug_folder_path,
+                                const std::string& filename,
+                                const aliceVision::feature::MapFeaturesPerDesc& features_by_type,
+                                const cv::Mat& base_image)
+{
+    cv::Mat output = base_image.clone();
+    for (const auto& feature_type : features_by_type) {
+        for (const auto& feature : feature_type.second) {
+            cv::circle(output, cv::Point(feature.x(), feature.y()),
+                       2, cv::Scalar{0, 255, 255}, cv::FILLED);
+        }
+    }
+
+    write_debug_image(debug_folder_path, filename, output);
+}
+
 } // namespace sanescan
