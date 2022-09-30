@@ -19,6 +19,7 @@
 #include "mean_flood_fill.h"
 #include "algorithm.h"
 #include <sanescanocr/ocr/ocr_point.h>
+#include <boost/container/deque.hpp>
 #include <array>
 
 namespace sanescan {
@@ -27,6 +28,8 @@ constexpr std::size_t HISTOGRAM_BUCKET_SIZE = 8;
 constexpr std::size_t HISTOGRAM_BUCKET_COUNT = 256 / HISTOGRAM_BUCKET_SIZE;
 
 using FillHistogram = std::array<std::uint32_t, HISTOGRAM_BUCKET_COUNT>;
+using DequeBlockOption = typename boost::container::deque_options<boost::container::block_size<1024*32>>::type;
+using PointContainer = boost::container::deque<OcrPoint, void, DequeBlockOption>;
 
 struct ResolvedFillLimits {
     std::uint8_t hue_diff = 0;
@@ -84,7 +87,7 @@ bool is_pixel_colored(unsigned base_h, unsigned base_s, unsigned base_v,
     return true;
 }
 
-void fill_initial_points(std::vector<OcrPoint>& next_points,
+void fill_initial_points(PointContainer& next_points,
                          cv::Mat_<std::uint8_t>& colored,
                          const cv::Mat& image,
                          const OcrBox& bounds,
@@ -126,7 +129,7 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
                                  params.max_sat_diff,
                                  params.max_value_diff);
 
-    std::vector<OcrPoint> next_points;
+    PointContainer next_points;
     cv::Mat_<std::uint8_t> colored(size_y, size_x, static_cast<std::uint8_t>(0));
 
     for (const auto& start_area : params.start_areas) {
@@ -138,8 +141,8 @@ cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
     auto border_clearance = params.search_size + params.nofill_border_size;
 
     while (!next_points.empty()) {
-        auto next = next_points.back();
-        next_points.pop_back();
+        auto next = next_points.front();
+        next_points.pop_front();
 
         // bounds are enforced when adding to next points
         auto start_x = next.x - search_size;
