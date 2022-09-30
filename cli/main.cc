@@ -22,6 +22,7 @@
 #include <sanescanocr/ocr/ocr_point.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
+#include <Eigen/Core>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <filesystem>
@@ -316,6 +317,9 @@ input_path and output_path options can be passed either as positional or named a
         std::cerr << "Must specify single output path\n";
         return EXIT_FAILURE;
     }
+
+    std::cout << "Using EIGEN_IDEAL_MAX_ALIGN_BYTES=" << EIGEN_IDEAL_MAX_ALIGN_BYTES << "\n"
+              << "Using EIGEN_MAX_ALIGN_BYTES=" << EIGEN_MAX_ALIGN_BYTES << std::endl;
 
     if (initial_points_str.empty()) {
         std::cerr << "No initial points supplied, assuming center of image\n";
