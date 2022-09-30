@@ -42,10 +42,17 @@ def recreate_dir(path):
     os.makedirs(path)
 
 
+def sh_with_cwd(cwd):
+    def sh_wrapper(cmd, env=None):
+        return sh(cmd, cwd, env=env)
+    return sh_wrapper
+
+
 def build_zlib(prefix, srcdir, builddir):
-    sh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir], cwd=builddir)
-    sh(['ninja'], cwd=builddir)
-    sh(['ninja', 'install'], cwd=builddir)
+    bsh = sh_with_cwd(builddir)
+    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
 
     # Zlib build creates dirty source directory
     shutil.move(os.path.join(srcdir, 'zconf.h.included'),
@@ -57,10 +64,10 @@ def flags_zlib(prefix):
 
 
 def build_libpng(prefix, srcdir, builddir):
-    sh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}'] + flags_zlib(prefix) + [srcdir],
-       cwd=builddir)
-    sh(['ninja'], cwd=builddir)
-    sh(['ninja', 'install'], cwd=builddir)
+    bsh = sh_with_cwd(builddir)
+    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}'] + flags_zlib(prefix) + [srcdir])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
 
 
 known_dependencies = [
