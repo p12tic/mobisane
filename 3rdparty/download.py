@@ -58,6 +58,7 @@ known_dependencies = [
     ('tesseract', 'https://github.com/p12tic/tesseract', 'a8bb507470ec5a784cfc9404f34e650fd3a0bb65'),
     ('geogram', 'https://github.com/BrunoLevy/geogram', 'a78bd551ee5571730ad3dd48c16221aee1e2d4e8'),
     ('coinutils', 'https://github.com/alicevision/CoinUtils', 'b29532e31471d26dddee99095da3340e80e8c60c'),
+    ('osi', 'https://github.com/alicevision/Osi', '52bafbabf8d29bcfd57818f0dd50ee226e01db7f'),
 ]
 
 
