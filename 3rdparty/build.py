@@ -589,6 +589,24 @@ def build_assimp(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_glm(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.target_platform == TargetPlatform.ANDROID:
+        extra_flags += [
+            '-DCMAKE_CXX_FLAGS=-Wno-error=float-equal -Wno-error=implicit-int-float-conversion',
+        ]
+
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        '-DCMAKE_CXX_FLAGS=-Wno-error=float-equal -Wno-error=implicit-int-float-conversion',
+        srcdir] + cmake_flags_from_settings(settings) + extra_flags
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_alicevision(srcdir, builddir, settings):
     extra_flags = []
     if settings.get_platform() == 'apple':
@@ -649,6 +667,7 @@ known_dependencies = [
     ('osi', build_osi),
     ('clp', build_clp),
     ('assimp', build_assimp),
+    ('glm', build_glm),
     ('alicevision', build_alicevision),
 ]
 
