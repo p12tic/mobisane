@@ -41,6 +41,7 @@ class Settings:
     cc = attr.ib()
     cxx = attr.ib()
     target = attr.ib(default=None)
+    has_ccache = attr.ib(default=False)
 
     def get_arch(self):
         return self.target.split('-')[0]
@@ -67,6 +68,14 @@ def recreate_dir(path):
     os.makedirs(path)
 
 
+def can_call_cmd(cmd):
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except Exception:
+        return False
+    return True
+
+
 def sh_with_cwd(cwd):
     def sh_wrapper(cmd, env=None):
         return sh(cmd, cwd, env=env)
@@ -85,11 +94,19 @@ def detect_target(cc):
 def cmake_flags_from_settings(settings):
     is_shared = 'ON' if settings.libtype == LibType.SHARED else 'OFF'
 
-    return [
+    flags = [
         f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
         f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         f'-DBUILD_SHARED_LIBS={is_shared}',
     ]
+
+    if settings.has_ccache:
+        flags += [
+            '-DCMAKE_C_COMPILER_LAUNCHER=ccache',
+            '-DCMAKE_CXX_COMPILER_LAUNCHER=ccache',
+        ]
+
+    return flags
 
 
 def build_zlib(srcdir, builddir, settings):
@@ -609,6 +626,7 @@ def main():
         cc='gcc',
         cxx='g++',
         target=detect_target('gcc'),
+        has_ccache=can_call_cmd(['ccache', '-V']),
     )
 
     for name, fn in build_deps:
