@@ -23,7 +23,7 @@ namespace sanescan {
 
 AppManager::AppManager(Camera& camera) :
     camera_{camera},
-    shared_manager_{task_arena_}
+    shared_manager_{executor_}
 {
     camera_.set_on_image_captured([this](const auto& image) { on_image_captured(image); });
     camera_.set_on_preview_captured([this](const auto& image) { on_preview_captured(image); });

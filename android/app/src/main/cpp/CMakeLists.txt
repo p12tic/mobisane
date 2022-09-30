@@ -36,6 +36,12 @@ set(CMAKE_PREFIX_PATH ${DEPENDENCIES_PREFIX_PATH})
 
 find_package(Mobisane REQUIRED)
 
+# FIXME: the following should be contributed to configuration files of upstream projects
+find_package(Sanescan REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem)
+find_package(AliceVision REQUIRED)
+find_package(OpenEXR REQUIRED)
+
 set(SOURCES
     app_manager.cc
     mobisane.cpp
@@ -52,8 +58,12 @@ target_link_libraries(mobisaneapp
     camera2ndk
     mediandk
     Mobisane::mobisanecommon
-
     # transitive dependencies not picked by CMake
+    aliceVision_numeric
+    libjasper
+    expat
+    freetype
+    fontconfig
     tegra_hal
     tbb
     ittnotify

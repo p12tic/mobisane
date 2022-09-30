@@ -37,7 +37,7 @@ private:
 
     ANativeWindowRef preview_win_;
     Camera& camera_;
-    tbb::task_arena task_arena_;
+    tf::Executor executor_;
     SharedAppManager shared_manager_;
 };
 
