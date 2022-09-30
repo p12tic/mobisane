@@ -85,7 +85,7 @@ void pipeline_polyline_matching_closeness_to_refpoints(const std::vector<PolyLin
 	// Run polyline matching using Euclidean distance from reference points
     auto pmctr_res = polyline_matching_closeness_to_refpoints(plgs, sfmd,mfc->original_img_size);
 
-    std::vector<std::vector<std::set<ulong>>> pmctr_matches = pmctr_res.second;
+    const auto& pmctr_matches = pmctr_res.second;
 
 	pmctr_matches_amount = pmctr_matches.size();
 

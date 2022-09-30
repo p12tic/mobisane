@@ -143,14 +143,6 @@ void PolyLineGraph3D::add_node_coords(const Vec3f &p_coords)
 	nodes_coords.push_back(p_coords);
 }
 
-std::vector<std::vector<ulong>> PolyLineGraph3D::get_connections() const {
-	return connections;
-}
-
-std::vector<Polyline3D> PolyLineGraph3D::get_polylines() const {
-	return polylines;
-}
-
 ulong PolyLineGraph3D::get_next_node_id() {
 	ulong cur = next_node_id;
 	next_node_id++;

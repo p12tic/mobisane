@@ -1193,8 +1193,8 @@ void find_directions_all_views(const SfMDataWrapper &sfmd,
                                     fail_due_to_parallel_epipolar);
 
 	if(direction1_valid) {
-        const std::vector<PolylineGraphPoint2D> matches_data = matches.reprojected_coords;
-        const std::vector<int> &matched_ids = matches.reprojection_ids;
+        const auto& matches_data = matches.reprojected_coords;
+        const auto& matched_ids = matches.reprojection_ids;
 		int amount_of_matches = matched_ids.size();
 
         for (i=1; i < amount_of_matches / 2; i++) {

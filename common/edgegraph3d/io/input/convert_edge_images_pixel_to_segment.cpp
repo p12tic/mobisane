@@ -336,10 +336,10 @@ std::vector<std::vector<ulong>> find_polylines(int start_node_id,
 
 	if(is_ppline(num_adj)) {
 		// Node i is on a polyline
-		res.push_back(find_polyline_from_ppline(start_node_id,adjacencies));
+        res.push_back(find_polyline_from_ppline(start_node_id,adjacencies));
 	} else if(is_extreme(num_adj)) {
 		// Node i is an extreme
-		res.push_back(find_polyline_from_extreme(start_node_id,adjacencies));
+        res.push_back(find_polyline_from_extreme(start_node_id,adjacencies));
 	} else if(is_hub(num_adj)) {
 		// Node i is a hub
 		res = find_polylines_from_hub(start_node_id, adjacencies);
@@ -361,15 +361,17 @@ PolyLineGraph2DHMapImpl convert_EdgeGraph_to_PolyLineGraph(
         const GraphAdjacencySetUndirectedNoType& gs, const std::vector<Vec2f>& nodes_pos)
 {
 	PolyLineGraph2DHMapImpl plg;
-    const std::vector<std::set<ulong>> adjacencies = gs.get_adjacency_sets();
+    const auto& adjacencies = gs.get_adjacency_sets();
 	ulong cur_start,cur_end;
     std::vector<bool> processed;
     for(ulong i= 0;i<nodes_pos.size(); i++)
 		processed.push_back(false);
+
+
     for(ulong i= 0;i<nodes_pos.size(); i++)
 		if(!processed[i]) {
 			// Process node i
-            const std::vector<std::vector<ulong>> polyline_ids_vec = find_polylines(i, adjacencies);
+            auto polyline_ids_vec = find_polylines(i, adjacencies);
 
 			// Add polylines
 			for(const auto polyline_ids : polyline_ids_vec) {

@@ -144,9 +144,9 @@ public:
     std::vector<PolylineSegments> get_segments_grouped_by_polyline_with_polyline_ids() const;
     std::vector<std::vector<Vec4f>> get_segments_grouped_by_component() const;
     Vec2f get_node_coords(ulong node_id) const;
-    std::vector<Vec2f> get_nodes_coords() const;
-    std::vector<std::vector<ulong>> get_connections() const;
-    std::vector<Polyline2D> get_polylines() const;
+    const std::vector<Vec2f>& get_nodes_coords() const { return nodes_coords; }
+    const std::vector<std::vector<ulong>>& get_connections() const { return connections; }
+    const std::vector<Polyline2D>& get_polylines() const { return polylines; }
     ulong get_nodes_amount() const;
     ulong get_polylines_amount() const;
 	void simplify();

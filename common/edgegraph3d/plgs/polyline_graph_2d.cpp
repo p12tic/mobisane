@@ -498,10 +498,6 @@ Vec2f PolyLineGraph2D::get_node_coords(ulong node_id) const {
 	return nodes_coords[node_id];
 }
 
-std::vector<Vec2f> PolyLineGraph2D::get_nodes_coords() const {
-	return nodes_coords;
-}
-
 ulong PolyLineGraph2D::get_nodes_amount() const {
 	return nodes_amount;
 }
@@ -647,16 +643,6 @@ std::vector<ExtremePair> find_closest_pairs_with_max_dist_following_direction(
     //cout << "Found pairs: " << res.size() << "\n";
 
 	return res;
-}
-
-std::vector<std::vector<ulong>> PolyLineGraph2D::get_connections() const
-{
-	return connections;
-}
-
-std::vector<Polyline2D> PolyLineGraph2D::get_polylines() const
-{
-	return polylines;
 }
 
 ulong PolyLineGraph2D::get_next_node_id() {

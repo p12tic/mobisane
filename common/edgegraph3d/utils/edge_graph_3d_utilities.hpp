@@ -68,9 +68,9 @@ std::pair<int,int> get_min_max(const std::vector<T>& vals) {
     return {min_index, max_index};
 }
 
-void convert_glm_mat4_to_cv_Mat34(const Mat4f &glm_mat, cv::Mat &out);
+cv::Matx34f convert_glm_mat4_to_cv_Mat34(const Mat4f &glm_mat);
 
-void convert_glm_mat4_to_cv_Mat(const Mat4f &glm_mat, cv::Mat &out);
+cv::Matx44f convert_glm_mat4_to_cv_Mat(const Mat4f &glm_mat);
 
 cv::Point2f convert_glm_vec2_to_cv_Point2f(const Vec2f &glm_vec);
 cv::Point3f convert_glm_vec3_to_cv_Point3f(const Vec3f &glm_vec);

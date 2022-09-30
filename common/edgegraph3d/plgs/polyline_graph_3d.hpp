@@ -71,8 +71,8 @@ public:
     std::vector<std::vector<Line3D>> get_segments_list_by_polyline() const;
     Vec3f get_node_coords(ulong node_id) const;
     std::vector<Vec3f> get_nodes_coords() const;
-    std::vector<std::vector<ulong>> get_connections() const;
-    std::vector<Polyline3D> get_polylines() const;
+    const std::vector<std::vector<ulong>>& get_connections() const { return connections; }
+    const std::vector<Polyline3D>& get_polylines() const { return polylines; }
     ulong get_nodes_amount() const;
     ulong get_polylines_amount() const;
 	void simplify();

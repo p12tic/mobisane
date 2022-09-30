@@ -148,22 +148,26 @@ std::vector<cv::Vec4f> convert_vec4_Vec4f(const std::vector<Vec4f> &cur_edges) {
 	return edges_Vec4f;
 }
 
-void convert_glm_mat4_to_cv_Mat34(const Mat4f &glm_mat, cv::Mat &out) {
-	out = cv::Mat(3, 4, CV_32F);
+cv::Matx34f convert_glm_mat4_to_cv_Mat34(const Mat4f &glm_mat)
+{
+    cv::Matx34f res;
 	for (int row = 0; row < 3; row++) {
 		for (int col = 0; col < 4; col++) {
-            out.at<float>(row, col) = glm_mat(row, col);
+            res(row, col) = glm_mat(row, col);
 		}
 	}
+    return res;
 }
 
-void convert_glm_mat4_to_cv_Mat(const Mat4f &glm_mat, cv::Mat &out) {
-	out = cv::Mat(4, 4, CV_32F);
+cv::Matx44f convert_glm_mat4_to_cv_Mat(const Mat4f &glm_mat)
+{
+    cv::Matx44f res;
 	for (int row = 0; row < 4; row++) {
 		for (int col = 0; col < 4; col++) {
-            out.at<float>(row, col) = glm_mat(row, col);
+            res(row, col) = glm_mat(row, col);
 		}
 	}
+    return res;
 }
 
 // http://stackoverflow.com/questions/13299409/how-to-get-the-image-pixel-at-real-locations-in-opencv
