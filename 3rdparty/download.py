@@ -54,6 +54,7 @@ known_dependencies = [
     ('opencv', 'https://github.com/opencv/opencv', '46d988e2cb98f55bdcd8713c21a3df6c83087ecc'),
     ('freetype', 'https://github.com/freetype/freetype', 'VER-2-10-4'),
     ('fontconfig', 'https://gitlab.freedesktop.org/fontconfig/fontconfig', '2.14.0'),
+    ('podofo', 'https://github.com/podofo/podofo', '6667ddb434ef4271fab469d6b6e9623d1c12a0bf'),
 ]
 
 
