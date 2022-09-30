@@ -207,4 +207,33 @@ aliceVision::image::ImageSpan<aliceVision::image::RGBColor>
                 mat.size.p[1], mat.size.p[0], mat.step.p[0]);
 }
 
+void overwrite_mat_data_to_another(const cv::Mat& src, cv::Mat& dst)
+{
+    if (src.type() != dst.type()) {
+        throw std::runtime_error("Cannot overwrite matrix with different types " +
+                                 std::to_string(src.type()) + " " + std::to_string(dst.type()));
+    }
+    if (src.size.dims() != 2 || dst.size.dims() != 2) {
+        throw std::runtime_error("Only 2D images are supported");
+    }
+
+    std::size_t copy_rows = std::min(src.rows, dst.rows);
+    std::size_t copy_cols = std::min(src.cols, dst.cols);
+    std::size_t elem_size = src.elemSize();
+    std::size_t row_copy_bytes = copy_cols * elem_size;
+    std::size_t src_step_bytes = src.step.p[0];
+    std::size_t dst_step_bytes = dst.step.p[0];
+    if (src_step_bytes == row_copy_bytes && dst_step_bytes == row_copy_bytes) {
+        // contiguous memory, single memcpy
+        std::memcpy(dst.ptr(), src.ptr(), row_copy_bytes * copy_rows);
+        return;
+    }
+
+    for (std::size_t i = 0; i < copy_rows; ++i) {
+        const auto* src_ptr = src.ptr(i);
+        auto* dst_ptr = dst.ptr(i);
+        std::memcpy(dst_ptr, src_ptr, row_copy_bytes);
+    }
+}
+
 } // namespace sanescan

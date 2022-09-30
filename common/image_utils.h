@@ -47,4 +47,9 @@ void convert_yuv420_any_to_cv_mat_bgr(const std::uint8_t* y_ptr,
 aliceVision::image::ImageSpan<aliceVision::image::RGBColor>
     cv_mat_to_image_span(const cv::Mat_<cv::Vec3b>& mat);
 
+/** Just like Mat::copyTo() except that destination is not reallocated, but existing memory is
+    overwritten instead.
+*/
+void overwrite_mat_data_to_another(const cv::Mat& src, cv::Mat& dst);
+
 } // namespace sanescan
