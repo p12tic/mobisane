@@ -404,6 +404,22 @@ def build_podofo(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_tesseract(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-DBUILD_TRAINING_TOOLS=OFF',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_LibArchive=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
@@ -423,6 +439,7 @@ known_dependencies = [
     ('freetype', build_freetype),
     ('fontconfig', build_fontconfig),
     ('podofo', build_podofo),
+    ('tesseract', build_tesseract),
 ]
 
 
