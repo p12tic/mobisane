@@ -21,7 +21,7 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <SurfaceView
+    <TextureView
         android:id="@+id/cameraView"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent" />

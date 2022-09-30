@@ -62,14 +62,49 @@ JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_close(JNIEnv* e
     return JNI_TRUE;
 }
 
-JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_setSurface(JNIEnv* env, jobject obj, jobject surface)
+JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_isOpen(JNIEnv* env, jobject obj)
 {
-    ANativeWindow* win = ANativeWindow_fromSurface(env, surface);
-    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "setSurface %p", win);
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "isOpen");
 
-    g_camera->set_window(win);
+    return g_camera->is_open();
+}
+
+JNIEXPORT jobject JNICALL Java_com_p12tic_mobisane_NativeCamera_getBestCameraSurfaceSize(
+        JNIEnv* env, jobject obj, jint width, jint height)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "getBestSurfaceSize");
+
+    auto size = g_camera->get_best_camera_surface_size(width, height);
+
+    jclass sizeClass = env->FindClass("android/util/Size");
+    return env->NewObject(sizeClass, env->GetMethodID(sizeClass, "<init>", "(II)V"),
+                          size.width, size.height);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_startForSurface(
+        JNIEnv* env, jobject obj, jobject surface)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "startForSurface");
+
+    ANativeWindow* win = ANativeWindow_fromSurface(env, surface);
+    g_camera->start_for_window(win);
+    return JNI_TRUE;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_stop(JNIEnv* env, jobject obj)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "stop");
+
+    g_camera->stop();
 
     return JNI_TRUE;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeCamera_isStarted(JNIEnv* env, jobject obj)
+{
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "isStarted");
+
+    return g_camera->is_started();
 }
 
 }

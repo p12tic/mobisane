@@ -18,12 +18,18 @@
 
 package com.p12tic.mobisane;
 
+import android.util.Size;
 import android.view.Surface;
 
 public class NativeCamera {
     public native boolean open();
     public native boolean close();
-    public native boolean setSurface(Surface surface);
+    public native boolean isOpen();
+    public native Size getBestCameraSurfaceSize(int width, int height);
+
+    public native boolean startForSurface(Surface surface);
+    public native boolean stop();
+    public native boolean isStarted();
 
     static {
         System.loadLibrary("mobisane");

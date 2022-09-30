@@ -20,13 +20,16 @@ package com.p12tic.mobisane;
 
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.graphics.PixelFormat;
+import android.graphics.Matrix;
+import android.graphics.SurfaceTexture;
 import android.os.Bundle;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
+import android.util.Size;
+import android.view.Gravity;
+import android.view.Surface;
 
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,10 +38,12 @@ import com.p12tic.mobisane.databinding.ActivityMainBinding;
 
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.TextureView;
 import android.view.WindowManager;
+import android.widget.LinearLayout;
 
 public class MainActivity extends AppCompatActivity
-        implements SurfaceHolder.Callback,
+        implements TextureView.SurfaceTextureListener,
         ActivityCompat.OnRequestPermissionsResultCallback {
     static final int PERMISSION_REQUEST_CAMERA = 10;
 
@@ -46,7 +51,8 @@ public class MainActivity extends AppCompatActivity
 
     private ActivityMainBinding binding;
 
-    private SurfaceView cameraView;
+    private TextureView cameraView;
+    private Surface surface = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,9 +65,8 @@ public class MainActivity extends AppCompatActivity
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        cameraView = (SurfaceView) findViewById(R.id.cameraView);
-        cameraView.getHolder().addCallback(this);
-        cameraView.getHolder().setFormat(PixelFormat.RGBA_8888);
+        cameraView = (TextureView) findViewById(R.id.cameraView);
+        cameraView.setSurfaceTextureListener(this);
     }
 
     @Override
@@ -86,21 +91,95 @@ public class MainActivity extends AppCompatActivity
         return super.onOptionsItemSelected(item);
     }
 
-
     @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
-    {
-        nativeCamera.setSurface(holder.getSurface());
+    public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
+                                          int width, int height) {
+        if (!nativeCamera.isOpen()) {
+            return;
+        }
+
+        Size cameraSize = nativeCamera.getBestCameraSurfaceSize(width, height);
+        resizeTextureView(width, height, cameraSize.getWidth(), cameraSize.getHeight());
+        surfaceTexture.setDefaultBufferSize(cameraSize.getWidth(), cameraSize.getHeight());
+        surface = new Surface(surfaceTexture);
+        nativeCamera.startForSurface(surface);
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder holder)
-    {
+    public void onSurfaceTextureUpdated(SurfaceTexture surface) {
     }
 
     @Override
-    public void surfaceDestroyed(SurfaceHolder holder)
-    {
+    public void onSurfaceTextureSizeChanged(SurfaceTexture surface, int width, int height) {
+    }
+
+    @Override
+    public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
+        nativeCamera.stop();
+        surface = null;
+        return true;
+    }
+
+    private void resizeTextureView(int textureWidth, int textureHeight,
+                                   int cameraWidth, int cameraHeight) {
+        double textureAspect = (double)textureWidth / textureHeight;
+        double cameraAspect = (double)cameraWidth / cameraHeight;
+
+        int newWidth = 0;
+        int newHeight = 0;
+        if (textureAspect >= cameraAspect) {
+            newWidth = (int)(textureHeight * cameraAspect);
+            newHeight = textureHeight;
+        } else {
+            newWidth = textureWidth;
+            newHeight = (int)(textureWidth / cameraAspect);
+        }
+
+        cameraView.setLayoutParams(new LinearLayout.LayoutParams(newWidth, newHeight, Gravity.CENTER));
+        Matrix transformMatrix = getTransformMatrix(
+                getWindowManager().getDefaultDisplay().getRotation(), newWidth, newHeight);
+        cameraView.setTransform(transformMatrix);
+    }
+
+    static Matrix getMatrixForPolyToPoly(float[] src, float[] dst) {
+        Matrix matrix = new Matrix();
+        matrix.setPolyToPoly(src, 0, dst, 0, 4);
+        return matrix;
+    }
+
+    static Matrix getTransformMatrix(int rotation, int width, int height) {
+        float[] defaultMatrixPoly = new float[]{
+            0.f, 0.f,
+            width, 0.f,
+            0.f, height,
+            width, height,
+        };
+
+        switch (rotation) {
+            case 0: return new Matrix();
+            case 1: // 90 degrees clockwise
+                return getMatrixForPolyToPoly(defaultMatrixPoly, new float[]{
+                    0.f, height,
+                    0.f, 0.f,
+                    width, height,
+                    width, 0.f,
+                });
+            case 2: // 180 degrees clockwise
+                return getMatrixForPolyToPoly(defaultMatrixPoly, new float[]{
+                    width, height,
+                    0.f, height,
+                    width, 0.f,
+                    0.f, 0.f,
+                });
+            case 3: // 270 degrees clockwise
+                return getMatrixForPolyToPoly(defaultMatrixPoly, new float[]{
+                    width, 0.f,
+                    width, height,
+                    0.f, 0.f,
+                    0.f, height,
+                });
+            default: return new Matrix();
+        }
     }
 
     @Override
@@ -116,7 +195,7 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        nativeCamera.open();
+        setupCamera();
     }
 
     @Override
@@ -129,16 +208,23 @@ public class MainActivity extends AppCompatActivity
         }
 
         if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            nativeCamera.open();
+            setupCamera();
         }
     }
 
     @Override
-    public void onPause()
-    {
+    public void onPause() {
         super.onPause();
 
         nativeCamera.close();
+    }
+
+    private void setupCamera() {
+        nativeCamera.open();
+        if (cameraView.isAvailable()) {
+            onSurfaceTextureAvailable(cameraView.getSurfaceTexture(),
+                    cameraView.getWidth(), cameraView.getHeight());
+        }
     }
 
     static {

@@ -27,10 +27,23 @@
 
 namespace mobisane {
 
+struct CameraStreamConfiguration {
+    std::int32_t format = 0;
+    std::int32_t width = 0;
+    std::int32_t height = 0;
+};
+
 struct CameraInfo {
     std::string id;
     std::optional<std::uint8_t> lens_facing = 0;
     std::optional<std::int32_t> orientation = 0;
+
+    std::vector<CameraStreamConfiguration> configs;
+};
+
+struct Size {
+    int width = 0;
+    int height = 0;
 };
 
 class Camera {
@@ -39,14 +52,17 @@ public:
 
     void open();
     void close();
-    void set_window(ANativeWindow* window);
+    bool is_open() const;
+
+    Size get_best_camera_surface_size(int width, int height);
+
+    void start_for_window(ANativeWindow* window);
+    bool is_started() const;
+    void stop();
 
 private:
     std::vector<CameraInfo> enumerate_cameras();
     static std::optional<CameraInfo> select_camera(const std::vector<CameraInfo>& cameras);
-
-    void on_image_available(AImageReader* reader);
-    void convert_image_to_buffer(ANativeWindow_Buffer& win_buffer, AImage* image);
 
     static void on_session_active(void* context, ACameraCaptureSession* session);
     static void on_session_closed(void* context, ACameraCaptureSession* session);
@@ -67,24 +83,23 @@ private:
     static void on_capture_completed(void* context, ACameraCaptureSession* session,
                                      ACaptureRequest* request, const ACameraMetadata* result);
 
-    static void on_image_available_cb(void* context, AImageReader* reader);
-
     ANativeWindowRef win_;
-    ANativeWindowRef reader_win_;
 
-    ACameraManager* manager_;
-    ACameraDevice* device_;
-    AImageReader* reader_;
-    ACameraOutputTarget* reader_target_;
-    ACaptureRequest* request_;
-    ACaptureSessionOutputContainer* output_container_;
-    ACaptureSessionOutput* output_;
-    ACameraCaptureSession* session_;
+    // The following 2 members are valid only between open() and close()
+    ACameraManager* manager_ = nullptr;
+    CameraInfo camera_;
+
+    // The following 7 members are not null only between start_for_window() and stop()
+    ACameraDevice* device_ = nullptr;
+    ACameraOutputTarget* reader_target_ = nullptr;
+    ACaptureRequest* request_ = nullptr;
+    ACaptureSessionOutputContainer* output_container_ = nullptr;
+    ACaptureSessionOutput* output_ = nullptr;
+    ACameraCaptureSession* session_ = nullptr;
 
     ACameraDevice_StateCallbacks device_callbacks_;
     ACameraCaptureSession_stateCallbacks session_callbacks_;
     ACameraCaptureSession_captureCallbacks session_capture_callbacks_;
-    AImageReader_ImageListener image_listener_;
 };
 
 } // namespace mobisane
