@@ -41,6 +41,7 @@ known_dependencies = [
     ('libpng', 'https://github.com/glennrp/libpng', 'v1.6.35'),
     ('eigen', 'https://gitlab.com/libeigen/eigen', '3.4.0'),
     ('gmp', 'https://github.com/alisw/GMP', 'v6.2.1'),
+    ('mpfr', 'https://gitlab.inria.fr/mpfr/mpfr.git', '4.1.0'),
 ]
 
 
