@@ -92,6 +92,19 @@ def build_libpng(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_libjpeg(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        ] + flags_zlib(settings) + [srcdir]
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_gmp(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([os.path.join(srcdir, 'configure'), f'--prefix={settings.prefix}', '--enable-cxx'])
@@ -161,6 +174,7 @@ def build_ceres(srcdir, builddir, settings):
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
+    ('libjpeg-turbo', build_libjpeg),
     ('gmp', build_gmp),
     ('mpfr', build_mpfr),
     ('lapack', build_lapack),
