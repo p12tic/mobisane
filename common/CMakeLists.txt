@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set(SOURCES
+    bounds_detection_params.cc
     bounds_detection_pipeline.cc
     edge_calculator_precise.cc
     longest_line_recognizer.cc

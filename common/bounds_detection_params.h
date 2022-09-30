@@ -39,40 +39,9 @@ struct BoundsDetectionParams {
     unsigned downscaled_edge_simplify_pos_approx = 2;
     unsigned downscaled_edge_precise_search_radius = 4;
 
-    BoundsDetectionParams() {
-        initial_point_area_radius = 100;
-        initial_point_image_shrink = 1;
+    BoundsDetectionParams();
 
-        downscale_target_size = 1000;
-        downscaled_flood_fill_search_size = 7;
-        downscaled_flood_fill_nofill_border_size = 1;
-
-        flood_params.max_initial_value_diff = 0.125;
-        flood_params.max_initial_sat_diff = 0.25;
-        flood_params.max_initial_hue_diff = 0.125;
-        flood_params.max_value_diff = 0.06;
-        flood_params.max_sat_diff = 0.125;
-        flood_params.max_hue_diff = 0.06;
-
-        edge_min_length = 20;
-        edge_max_angle_diff_deg = 30;
-        edge_segment_min_length = 4;
-    }
-
-    void setup_for_pixels(unsigned pixels)
-    {
-        initial_point_image_shrink = pixels / downscale_target_size;
-        // FIXME: final C++20 uses bit_floor
-#if defined(__clang__) && !defined(__APPLE__)
-        initial_point_image_shrink = std::max(std::floor2(initial_point_image_shrink), 1u);
-#else
-        initial_point_image_shrink = std::max(std::bit_floor(initial_point_image_shrink), 1u);
-#endif
-
-        flood_params.search_size = initial_point_image_shrink * downscaled_flood_fill_search_size;
-        flood_params.nofill_border_size =
-                initial_point_image_shrink * downscaled_flood_fill_nofill_border_size;
-    }
+    void setup_for_pixels(unsigned pixels);
 
     unsigned edge_simplify_pos_approx()
     {
