@@ -42,6 +42,7 @@ known_dependencies = [
     ('eigen', 'https://gitlab.com/libeigen/eigen', '3.4.0'),
     ('gmp', 'https://github.com/alisw/GMP', 'v6.2.1'),
     ('mpfr', 'https://gitlab.inria.fr/mpfr/mpfr.git', '4.1.0'),
+    ('lapack', 'https://github.com/Reference-LAPACK/lapack', 'v3.10.0'),
 ]
 
 

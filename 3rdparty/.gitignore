@@ -3,3 +3,4 @@ libpng
 eigen
 gmp
 mpfr
+lapack
