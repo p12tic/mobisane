@@ -29,6 +29,11 @@ AppManager::AppManager(Camera& camera) :
     camera_.set_on_preview_captured([this](const auto& image) { on_preview_captured(image); });
 }
 
+void AppManager::resources_ready(const std::string& root_resource_path)
+{
+    shared_manager_.init(root_resource_path);
+}
+
 void AppManager::set_preview_surface(ANativeWindow* win)
 {
     preview_win_ = ANativeWindowRef(win);
@@ -36,6 +41,7 @@ void AppManager::set_preview_surface(ANativeWindow* win)
 
 void AppManager::on_image_captured(const cv::Mat& image)
 {
+    shared_manager_.submit_photo(image);
 }
 
 void AppManager::on_preview_captured(const cv::Mat& image)

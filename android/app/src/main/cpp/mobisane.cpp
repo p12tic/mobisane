@@ -138,4 +138,17 @@ JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_setPreviewSurfa
     }
 }
 
+JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_notifyResourcesReady(
+        JNIEnv* env, jobject obj, jstring root_path)
+{
+    jboolean is_copy;
+    auto path_str = env->GetStringUTFChars(root_path, &is_copy);
+
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "notifyResourcesReady %s", path_str);
+
+    g_app_manager->resources_ready(path_str);
+
+    env->ReleaseStringUTFChars(root_path, path_str);
 }
+
+} // extern "C"

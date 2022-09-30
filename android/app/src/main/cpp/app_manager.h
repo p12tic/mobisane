@@ -29,6 +29,8 @@ class AppManager {
 public:
     AppManager(Camera& camera);
 
+    void resources_ready(const std::string& root_resource_path);
+
     void set_preview_surface(ANativeWindow* win);
 
 private:

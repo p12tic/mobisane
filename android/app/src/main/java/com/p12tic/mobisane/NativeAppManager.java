@@ -22,6 +22,7 @@ import android.view.Surface;
 
 public class NativeAppManager {
     public native void setPreviewSurface(Surface surface);
+    public native void notifyResourcesReady(String rootPath);
 
     static {
         System.loadLibrary("mobisaneapp");

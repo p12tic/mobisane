@@ -42,18 +42,23 @@ import android.view.MenuItem;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity
         implements ActivityCompat.OnRequestPermissionsResultCallback {
     static final int PERMISSION_REQUEST_CAMERA = 10;
+
 
     private NativeCamera nativeCamera = new NativeCamera();
     private NativeAppManager nativeAppManager = new NativeAppManager();
 
     private ActivityMainBinding binding;
 
+    private boolean initialized = false;
+    private boolean gotCameraPermission = false;
     private TextureView cameraView;
     private TextureView overlayView;
+    private TextView infoTextLabel;
     private Surface cameraViewSurface = null;
     private Surface overlayViewSurface = null;
 
@@ -68,6 +73,24 @@ public class MainActivity extends AppCompatActivity
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
+        infoTextLabel = (TextView) findViewById(R.id.textView);
+        infoTextLabel.setText("Loading resources...");
+
+        new ResourceDownloadAsyncTask(getApplicationContext(), (result) -> {
+            if (result == ResourceDownloadAsyncTask.SUCCESS)  {
+                infoTextLabel.setText("");
+                nativeAppManager.notifyResourcesReady(
+                        getApplicationContext().getFilesDir().getAbsolutePath());
+                setupTextureView();
+                initialized = true;
+                maybeSetupCamera();
+            } else {
+                infoTextLabel.setText("Resource loading failure... Please enable network");
+            }
+        }).execute();
+    }
+
+    private void setupTextureView() {
         cameraView = (TextureView) findViewById(R.id.cameraView);
         cameraView.setSurfaceTextureListener(new TextureView.SurfaceTextureListener() {
             @Override
@@ -249,6 +272,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onResume()
     {
+        gotCameraPermission = false;
         super.onResume();
 
         if (ContextCompat.checkSelfPermission(
@@ -259,7 +283,8 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
-        setupCamera();
+        gotCameraPermission = true;
+        maybeSetupCamera();
     }
 
     @Override
@@ -272,7 +297,8 @@ public class MainActivity extends AppCompatActivity
         }
 
         if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            setupCamera();
+            gotCameraPermission = true;
+            maybeSetupCamera();
         }
     }
 
@@ -283,7 +309,14 @@ public class MainActivity extends AppCompatActivity
         nativeCamera.close();
     }
 
-    private void setupCamera() {
+    private void maybeSetupCamera() {
+        if (!gotCameraPermission) {
+            return;
+        }
+        if (!initialized) {
+            return;
+        }
+
         nativeCamera.open();
         if (cameraView.isAvailable()) {
             onPreviewSurfaceTextureAvailable(cameraView.getSurfaceTexture(),
