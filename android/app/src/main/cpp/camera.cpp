@@ -17,6 +17,7 @@
 */
 
 #include "camera.h"
+#include "log_utils.h"
 #include <mobisane/image_utils.h>
 #include <android/log.h>
 #include <string>
@@ -31,24 +32,6 @@ void clear_ptr_if_set(T *&ptr, F &&clear_function) {
         ptr = nullptr;
     }
 }
-
-#define CHECK_CAMERA_STATUS(func)                                                                  \
-    do {                                                                                           \
-        camera_status_t status = func;                                                             \
-        if (status != ACAMERA_OK) {                                                                \
-            __android_log_print(ANDROID_LOG_ERROR, "Camera", "call %s to camera failed %d",        \
-                                #func, status);                                                    \
-        }                                                                                          \
-    } while (false)
-
-#define CHECK_MEDIA_STATUS(func)                                                                   \
-    do {                                                                                           \
-        media_status_t status = func;                                                              \
-        if (status != AMEDIA_OK ) {                                                                \
-            __android_log_print(ANDROID_LOG_ERROR, "Camera", "call %s to media failed %d",         \
-                                #func, status);                                                    \
-        }                                                                                          \
-    } while (false)
 
 double compute_maybe_rotated_aspect_ratio(int width, int height)
 {
@@ -209,7 +192,7 @@ void Camera::start_for_window(ANativeWindow* window)
 
 
     std::vector<ANativeWindowRef> capture_windows;
-    preview_windows.emplace_back(reader_win);
+    capture_windows.emplace_back(reader_win);
     setup_camera_stream(capture_stream_, std::move(capture_windows), TEMPLATE_STILL_CAPTURE);
 
     CHECK_CAMERA_STATUS(ACameraDevice_createCaptureSession(device_, output_container_,

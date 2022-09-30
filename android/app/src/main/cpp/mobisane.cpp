@@ -18,6 +18,7 @@
 
 #include "camera.h"
 #include "app_manager.h"
+#include "log_utils.h"
 
 #include <android/asset_manager_jni.h>
 #include <android/native_window_jni.h>
@@ -39,6 +40,7 @@ extern "C" {
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 {
+    sanescan::setup_std_stream_redirection_to_logcat("mobisane");
     g_camera = std::make_unique<sanescan::Camera>();
     g_app_manager = std::make_unique<sanescan::AppManager>(*g_camera);
     return JNI_VERSION_1_4;

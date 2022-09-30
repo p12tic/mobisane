@@ -46,6 +46,7 @@ set(SOURCES
     app_manager.cc
     mobisane.cpp
     camera.cpp
+    log_utils.cc
 )
 
 add_library(mobisaneapp SHARED ${SOURCES})
