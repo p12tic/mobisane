@@ -440,6 +440,17 @@ def build_libtiff(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_pugixml(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh(['cmake',
+         '-GNinja',
+         srcdir
+         ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_gmp(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([
@@ -1069,6 +1080,7 @@ known_dependencies = [
     ('libpng', build_libpng),
     ('libjpeg-turbo', build_libjpeg),
     ('libtiff', build_libtiff),
+    ('pugixml', build_pugixml),
     ('gmp', build_gmp),
     ('mpfr', build_mpfr),
     ('openblas', build_openblas),
