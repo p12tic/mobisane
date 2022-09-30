@@ -44,6 +44,7 @@
 #include <aliceVision/robustEstimation/estimators.hpp>
 #include <aliceVision/sensorDB/parseDatabase.hpp>
 #include <aliceVision/sfm/pipeline/regionsIO.hpp>
+#include <aliceVision/sfm/pipeline/sequential/ReconstructionEngine_sequentialSfM.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfmDataIO/viewIO.hpp>
 #include <aliceVision/vfs/filesystem.hpp>
@@ -91,6 +92,12 @@ namespace {
         return db;
     }
 
+    std::vector<aliceVision::feature::EImageDescriberType> get_describer_types()
+    {
+        return {
+            aliceVision::feature::EImageDescriberType::DSPSIFT
+        };
+    }
 } // namespace
 
 struct PhotoData
@@ -132,6 +139,7 @@ struct SharedAppManager::Data
     std::uint64_t next_image_id = 0;
 
     Options options = Options::NONE;
+    int random_seed = 1;
 
     BoundsDetectionPipeline bounds_pipeline;
     // The following params are used for images submitted via submit_photo() which use different
@@ -170,6 +178,11 @@ struct SharedAppManager::Data
     {
         return get_path_to_current_session() / "feature_matches";
     }
+
+    vfs::path get_path_to_current_session_sfm_folder()
+    {
+        return get_path_to_current_session() / "sfm";
+    }
 };
 
 SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
@@ -184,6 +197,7 @@ SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
     vfs::create_directories(d_->get_path_to_current_session());
     vfs::create_directories(d_->get_path_to_current_session_features_folder());
     vfs::create_directories(d_->get_path_to_current_session_feature_matches_folder());
+    vfs::create_directories(d_->get_path_to_current_session_sfm_folder());
 
     d_->sensor_db = parse_sensor_database(vfs::path(aliceVision::image::getAliceVisionRoot()) /
                                           "share/aliceVision/cameraSensors.db");
@@ -424,6 +438,7 @@ void SharedAppManager::serial_detect()
 {
     match_images();
     match_features();
+    compute_structure_from_motion();
 }
 
 void SharedAppManager::match_images()
@@ -462,11 +477,7 @@ void SharedAppManager::match_features()
     d_->pairwise_geometric_matches.clear();
 
     auto geometric_filter_type = EGeometricFilterType::FUNDAMENTAL_MATRIX;
-
-    std::vector<aliceVision::feature::EImageDescriberType> describer_types =
-    {
-        aliceVision::feature::EImageDescriberType::DSPSIFT
-    };
+    auto describer_types = get_describer_types();
 
     std::set<aliceVision::IndexT> filter;
 
@@ -595,6 +606,60 @@ void SharedAppManager::match_features()
         d_->pairwise_geometric_matches.clear();
     }
     ALICEVISION_LOG_TRACE("match_features(): End");
+}
+
+void SharedAppManager::compute_structure_from_motion()
+{
+    ALICEVISION_LOG_TRACE("compute_structure_from_motion(): Start");
+
+    aliceVision::sfm::ReconstructionEngine_sequentialSfM::Params sfm_params;
+    sfm_params.localizerEstimator = aliceVision::robustEstimation::ERobustEstimator::ACRANSAC;
+    sfm_params.localizerEstimatorError = std::numeric_limits<double>::infinity();
+    sfm_params.minNbObservationsForTriangulation = 3;
+
+    auto describer_types = get_describer_types();
+
+    aliceVision::feature::FeaturesPerView features_per_view;
+    if(!aliceVision::sfm::loadFeaturesPerView(
+            features_per_view, d_->sfm_data,
+            {d_->get_path_to_current_session_features_folder().string()},
+            describer_types))
+    {
+        throw std::runtime_error("Could not load features");
+    }
+
+    aliceVision::matching::PairwiseMatches pairwise_matches = d_->pairwise_final_matches;
+
+    // TODO: investigate whether to set initial pair
+
+    aliceVision::sfm::ReconstructionEngine_sequentialSfM sfm_engine(
+                d_->sfm_data, sfm_params,
+                d_->get_path_to_current_session_sfm_folder().string(),
+                (d_->get_path_to_current_session_sfm_folder() / "sfm_log.html").string());
+
+    sfm_engine.initRandomSeed(d_->random_seed);
+    sfm_engine.setFeatures(&features_per_view);
+    sfm_engine.setMatches(&pairwise_matches);
+
+    if (!sfm_engine.process()) {
+        throw std::runtime_error("Could not run SfM algorithm");
+    }
+
+    sfm_engine.getSfMData().addFeaturesFolders(
+                {d_->get_path_to_current_session_features_folder().string()});
+    sfm_engine.getSfMData().addMatchesFolders(
+                {d_->get_path_to_current_session_features_folder().string()});
+    sfm_engine.getSfMData().setAbsolutePath(
+                {d_->get_path_to_current_session_sfm_folder().string()});
+
+    sfm_engine.retrieveMarkersId();
+
+    // sfm::generateSfMReport(sfm_engine.getSfMData(),
+    //                       (d_->get_path_to_current_session_sfm_folder() / "sfm_report.html").string());
+
+    d_->sfm_data = sfm_engine.getSfMData();
+
+    ALICEVISION_LOG_TRACE("compute_structure_from_motion(): End");
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
