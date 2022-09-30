@@ -982,11 +982,16 @@ def build_glm(srcdir, builddir, settings):
         extra_flags += [
             '-DCMAKE_CXX_FLAGS=-Wno-error=float-equal -Wno-error=implicit-int-float-conversion',
         ]
+    if settings.target_platform == TargetPlatform.IOS:
+        extra_flags += [
+            '-DCMAKE_CXX_STANDARD=17',
+        ]
 
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
         '-GNinja',
+        '-DBUILD_TESTING=OFF',
         '-DCMAKE_CXX_FLAGS=-Wno-error=float-equal -Wno-error=implicit-int-float-conversion',
         srcdir] + cmake_flags_from_settings(settings) + extra_flags
     )
