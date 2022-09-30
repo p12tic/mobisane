@@ -397,6 +397,10 @@ void Camera::deliver_image_to_cb(AImageReader* reader, const ImageCallback& cb, 
     AImage *image;
     CHECK_MEDIA_STATUS(AImageReader_acquireLatestImage(reader, &image));
 
+    if (!image) {
+        return;
+    }
+
     if (!cb) {
         AImage_delete(image);
         return;
