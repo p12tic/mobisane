@@ -113,9 +113,15 @@ def build_mpfr(srcdir, builddir, settings):
 
 def build_lapack(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={settings.prefix}', srcdir])
-    bsh(['ninja'])
-    bsh(['ninja', 'install'])
+    for shared in ['OFF', 'ON']:
+        bsh(['cmake',
+             '-GNinja',
+             f'-DBUILD_SHARED_LIBS={shared}',
+             f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+             f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+             srcdir])
+        bsh(['ninja'])
+        bsh(['ninja', 'install'])
 
 
 def build_eigen(srcdir, builddir, settings):
@@ -125,6 +131,27 @@ def build_eigen(srcdir, builddir, settings):
         '-GNinja',
         '-DBUILD_TESTING=OFF',
         f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
+def build_ceres(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        '-DSUITESPARSE:BOOL=OFF',
+        '-DCXSPARSE:BOOL=OFF',
+        '-DLAPACK:BOOL=ON',
+        '-DMINIGLOG=ON',
+        '-DBUILD_EXAMPLES:BOOL=OFF',
+        '-DCERES_THREADING_MODEL=CXX_THREADS',
+        '-DCMAKE_CXX_STANDARD=17',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         srcdir
     ])
     bsh(['ninja'])
@@ -138,6 +165,7 @@ known_dependencies = [
     ('mpfr', build_mpfr),
     ('lapack', build_lapack),
     ('eigen', build_eigen),
+    ('ceres', build_ceres),
 ]
 
 
