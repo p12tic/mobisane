@@ -21,6 +21,7 @@ set(SOURCES
     edge_calculator_precise.cc
     longest_line_recognizer.cc
     mean_flood_fill.cc
+    feature_extraction_job.cc
     flood_fill_utils.cc
     image_utils.cc
     edge_utils.cc
@@ -33,6 +34,7 @@ set(PUBLIC_HEADERS
     bounds_detection_pipeline.h
     edge_calculator_precise.h
     edge_utils.h
+    feature_extraction_job.h
     flood_fill_utils.h
     image_utils.h
     longest_line_recognizer.h
@@ -42,6 +44,10 @@ set(PUBLIC_HEADERS
 )
 
 find_package(OpenCV REQUIRED)
+find_package(AliceVision REQUIRED)
+
+# FIXME: fix AliceVision config to impor OpenEXR
+find_package(OpenEXR REQUIRED)
 
 add_library(mobisanecommon ${SOURCES})
 
@@ -51,6 +57,9 @@ target_include_directories(mobisanecommon PUBLIC
 
 target_link_libraries(mobisanecommon PUBLIC
     ${OpenCV_LIBS}
+    aliceVision_numeric
+    aliceVision_sfm
+    aliceVision_vfs
 )
 
 target_include_directories(mobisanecommon PUBLIC

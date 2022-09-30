@@ -32,6 +32,8 @@ public:
     SharedAppManager();
     ~SharedAppManager();
 
+    void submit_photo(const cv::Mat& rgb_image);
+
     // dst_image is assumed to be in BGRA format
     void calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image);
 
