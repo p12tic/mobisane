@@ -296,10 +296,10 @@ def create_meson_cross_file_for_settings(path, settings):
             f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
             "",
             "[built-in options]",
-            "c_args = ['--sysroot=' + sdk_path]",
-            "c_link_args = ['--sysroot=' + sdk_path]",
-            "cpp_args = ['--sysroot=' + sdk_path]",
-            "cpp_link_args = ['--sysroot=' + sdk_path]",
+            "c_args = ['--sysroot=' + sdk_path, '-mios-version-min=14.0']",
+            "c_link_args = ['--sysroot=' + sdk_path, '-mios-version-min=14.0']",
+            "cpp_args = ['--sysroot=' + sdk_path, '-mios-version-min=14.0']",
+            "cpp_link_args = ['--sysroot=' + sdk_path, '-mios-version-min=14.0']",
         ]
         with open(path, 'w') as f:
             f.write('\n'.join(lines))
@@ -591,8 +591,8 @@ def build_boost(srcdir, builddir, settings):
             cxx = os.path.join(toolchain_path, 'usr/bin/c++')
             user_config_f.write(f'''
                 using clang : iphone : "{cxx}" :
-                    <compileflags>"--sysroot={sdk_path}"
-                    <linkflags>"--sysroot={sdk_path}"
+                    <compileflags>"--sysroot={sdk_path} -mios-version-min=14.0"
+                    <linkflags>"--sysroot={sdk_path} -mios-version-min=14.0"
                 ;''')
 
             extra_args += [
