@@ -168,6 +168,7 @@ find_package(OpenCV REQUIRED)
 find_package(AliceVision REQUIRED)
 find_package(Taskflow REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Sanescan REQUIRED)
 
 # FIXME: fix AliceVision config to impor OpenEXR
 find_package(OpenEXR REQUIRED)
@@ -194,6 +195,7 @@ target_link_libraries(mobisanecommon PUBLIC
     aliceVision_sfm
     aliceVision_vfs
     vulkan
+    Sanescan::sanescanocr
 )
 target_link_directories(mobisanecommon PUBLIC ${CMAKE_PREFIX_PATH}/lib)
 

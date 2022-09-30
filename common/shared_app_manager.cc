@@ -50,6 +50,8 @@
 #include <common/bff/Bff.h>
 #include <common/bff/MeshIO.h>
 #include <sanescanocr/ocr/ocr_point.h>
+#include <sanescanocr/ocr/ocr_pipeline_run.h>
+#include <sanescanocr/ocr/pdf.h>
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/matching/io.hpp>
 #include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
@@ -214,6 +216,9 @@ struct SharedAppManager::Data
 
     // Results from render_object_mesh()
     cv::Mat unfolded_image;
+
+    // Results from detect_text()
+    OcrResults ocr_results;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -550,6 +555,13 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                    d_->sfm_landmarks_unfolded, d_->mesh_triangles_filtered);
     });
 
+    taskflow.emplace([&]()
+    {
+        std::ofstream stream_pdf(std::filesystem::path(debug_folder_path) / "ocr_results.pdf");
+        write_pdf(stream_pdf, d_->ocr_results.adjusted_image,
+                  d_->ocr_results.adjusted_paragraphs, WritePdfFlags::NONE);
+    });
+
     d_->executor.run_and_wait(taskflow);
 }
 
@@ -620,6 +632,7 @@ void SharedAppManager::serial_detect()
     compute_object_mesh();
     unfold_object_mesh();
     render_object_mesh();
+    detect_text();
 }
 
 void SharedAppManager::match_images()
@@ -1000,6 +1013,20 @@ void SharedAppManager::render_object_mesh()
                                                   d_->sfm_landmarks_unfolded,
                                                   d_->mesh_triangles_filtered);
     d_->unfolded_image = render_unfolded_images(info);
+}
+
+void SharedAppManager::detect_text()
+{
+    TimeLogger time_logger{"detect_text()"};
+
+    OcrOptions options;
+    options.language = "eng";
+    OcrPipelineRun run{d_->unfolded_image, options, options, {}};
+    run.execute();
+    d_->ocr_results = run.results();
+    if (!d_->ocr_results.success) {
+        ALICEVISION_LOG_WARNING("Failed to perform OCR: " << d_->ocr_results.error_text);
+    }
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,

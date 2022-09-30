@@ -73,6 +73,7 @@ private:
     void compute_object_mesh();
     void unfold_object_mesh();
     void render_object_mesh();
+    void detect_text();
 
     static void draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
                                     const cv::Mat& object_mask,
