@@ -18,20 +18,26 @@
 
 
 import argparse
+import enum
 import multiprocessing
 import os
 import shutil
 import subprocess
 import sys
 
-
 import attr
+
+
+class LibType(enum.Enum):
+    STATIC = 1
+    SHARED = 2
 
 
 @attr.s
 class Settings:
     prefix = attr.ib(converter=str)
     parallel = attr.ib(converter=int)
+    libtype = attr.ib()
 
 
 def sh(cmd, cwd, env=None):
@@ -58,15 +64,23 @@ def sh_with_cwd(cwd):
     return sh_wrapper
 
 
+def cmake_flags_from_settings(settings):
+    is_shared = 'ON' if settings.libtype == LibType.SHARED else 'OFF'
+
+    return [
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        f'-DBUILD_SHARED_LIBS={is_shared}',
+    ]
+
+
 def build_zlib(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir
-    ])
+        srcdir] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -84,9 +98,8 @@ def build_libpng(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        ] + flags_zlib(settings) + [srcdir]
+        srcdir,
+        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -97,9 +110,8 @@ def build_libjpeg(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        ] + flags_zlib(settings) + [srcdir]
+        srcdir,
+        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -110,10 +122,8 @@ def build_libtiff(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
         # Seems libtiff CMake build is broken for some reason as rpth is set to empty string
         f'-DCMAKE_INSTALL_RPATH={settings.prefix}/lib',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-Dlibdeflate=OFF',
         '-Djpeg12=OFF',
         '-Djbig=OFF',
@@ -130,13 +140,14 @@ def build_libtiff(srcdir, builddir, settings):
         '-DCMAKE_DISABLE_FIND_PACKAGE_WebP=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_OpenGL=ON',
         srcdir,
-        ] + flags_zlib(settings)
+        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
 
 def build_gmp(srcdir, builddir, settings):
+    # Both static and shared libraries are built by default
     bsh = sh_with_cwd(builddir)
     bsh([os.path.join(srcdir, 'configure'), f'--prefix={settings.prefix}', '--enable-cxx'])
     bsh(['make', f'-j{settings.parallel}'])
@@ -144,6 +155,7 @@ def build_gmp(srcdir, builddir, settings):
 
 
 def build_mpfr(srcdir, builddir, settings):
+    # Both static and shared libraries are built by default
     bsh = sh_with_cwd(builddir)
     sh(['./autogen.sh'], cwd=srcdir)
     bsh([
@@ -157,15 +169,13 @@ def build_mpfr(srcdir, builddir, settings):
 
 def build_lapack(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    for shared in ['OFF', 'ON']:
-        bsh(['cmake',
-             '-GNinja',
-             f'-DBUILD_SHARED_LIBS={shared}',
-             f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-             f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-             srcdir])
-        bsh(['ninja'])
-        bsh(['ninja', 'install'])
+    bsh(['cmake',
+         '-GNinja',
+         srcdir
+         ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
 
 
 def build_eigen(srcdir, builddir, settings):
@@ -174,10 +184,9 @@ def build_eigen(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         '-DBUILD_TESTING=OFF',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -187,7 +196,6 @@ def build_ceres(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
         '-DSUITESPARSE:BOOL=OFF',
         '-DCXSPARSE:BOOL=OFF',
         '-DLAPACK:BOOL=ON',
@@ -195,14 +203,15 @@ def build_ceres(srcdir, builddir, settings):
         '-DBUILD_EXAMPLES:BOOL=OFF',
         '-DCERES_THREADING_MODEL=CXX_THREADS',
         '-DCMAKE_CXX_STANDARD=17',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
 
 def build_boost(srcdir, builddir, settings):
+    linktype = 'shared' if settings.libtype == LibType.SHARED else 'static'
     bsh = sh_with_cwd(srcdir)
     bsh([
         './bootstrap.sh',
@@ -213,7 +222,7 @@ def build_boost(srcdir, builddir, settings):
         './b2',
         f'--prefix={settings.prefix}',
         'variant=release',
-        'link=shared',
+        f'link={linktype}',
         'threading=multi',
         f'-j{settings.parallel}',
     ])
@@ -221,7 +230,7 @@ def build_boost(srcdir, builddir, settings):
         './b2',
         f'--prefix={settings.prefix}',
         'variant=release',
-        'link=shared',
+        f'link={linktype}',
         'threading=multi',
         'install',
     ])
@@ -232,10 +241,9 @@ def build_imath(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -245,12 +253,10 @@ def build_openexr(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DOPENEXR_BUILD_PYTHON_LIBS=OFF',
         '-DOPENEXR_ENABLE_TESTS=OFF',
         srcdir,
-        ] + flags_zlib(settings)
+        ] + cmake_flags_from_settings(settings) + flags_zlib(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -261,8 +267,6 @@ def build_openimageio(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
         f'-DBOOST_ROOT={settings.prefix}',
         '-DOIIO_BUILD_TESTS:BOOL=OFF',
         '-DOIIO_BUILD_TOOLS:BOOL=OFF',
@@ -292,7 +296,7 @@ def build_openimageio(srcdir, builddir, settings):
         '-DENABLE_Robinmap=OFF',
         '-DENABLE_OpenColorIO=OFF',
         srcdir,
-        ] + flags_zlib(settings)
+        ] + flags_zlib(settings) + cmake_flags_from_settings(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -303,12 +307,11 @@ def build_tbb(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DTBB_TEST=OFF',
         '-DTBBMALLOC_BUILD=OFF',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -318,8 +321,6 @@ def build_opencv(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DCMAKE_DISABLE_FIND_PACKAGE_PythonInterp=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_PythonLibs=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_OpenJPEG=ON',
@@ -346,8 +347,9 @@ def build_opencv(srcdir, builddir, settings):
         '-DWITH_V4L=OFF',
         '-DWITH_VTK=OFF',
         '-DWITH_WEBP=OFF',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -357,18 +359,18 @@ def build_freetype(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DFT_DISABLE_BZIP2=ON',
         '-DFT_DISABLE_HARFBUZZ=ON',
         '-DFT_DISABLE_BROTLI=ON',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
 
 def build_fontconfig(srcdir, builddir, settings):
+    default_library = 'shared' if settings.libtype == LibType.SHARED else 'static'
     bsh = sh_with_cwd(builddir)
     bsh([
         'meson',
@@ -378,6 +380,8 @@ def build_fontconfig(srcdir, builddir, settings):
         '-Dtests=disabled',
         '-Dtools=disabled',
         '-Dcache-build=disabled',
+        '-Dlibdir=lib',
+        f'-Ddefault_library={default_library}',
         srcdir,
     ])
     bsh(['ninja'])
@@ -389,8 +393,6 @@ def build_podofo(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DPODOFO_BUILD_LIB_ONLY=ON',
         f'-DFREETYPE_INCLUDE_DIR={settings.prefix}/include/freetype2',
         '-DCMAKE_CXX_STANDARD=17',
@@ -398,8 +400,9 @@ def build_podofo(srcdir, builddir, settings):
         '-DCMAKE_DISABLE_FIND_PACKAGE_LIBIDN=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_UNISTRING=ON',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -409,13 +412,12 @@ def build_tesseract(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DBUILD_TRAINING_TOOLS=OFF',
         '-DCMAKE_DISABLE_FIND_PACKAGE_LibArchive=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON',
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -427,8 +429,6 @@ def build_geogram(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         f'-DVORPALINE_PLATFORM={platform}',
         '-DGEOGRAM_WITH_HLBFGS=OFF',
         '-DGEOGRAM_WITH_TETGEN=OFF',
@@ -436,7 +436,8 @@ def build_geogram(srcdir, builddir, settings):
         '-DGEOGRAM_WITH_EXPLORAGRAM=OFF',
         '-DGEOGRAM_WITH_LUA=OFF',
         srcdir,
-    ])
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -446,10 +447,8 @@ def build_coinutils(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir,
-    ])
+        srcdir] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -459,10 +458,8 @@ def build_osi(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir,
-    ])
+        srcdir] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -472,10 +469,8 @@ def build_clp(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
-        srcdir,
-    ])
+        srcdir] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -486,12 +481,11 @@ def build_assimp(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         '-DASSIMP_BUILD_ASSIMP_TOOLS:BOOL=OFF',
         '-DASSIMP_BUILD_TESTS:BOOL=OFF',
         srcdir,
-    ])
+        ] + cmake_flags_from_settings(settings)
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -501,8 +495,6 @@ def build_alicevision(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
-        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
         "-DALICEVISION_USE_CUDA=OFF",
         "-DALICEVISION_BUILD_DOC=OFF",
         "-DALICEVISION_BUILD_TESTS=OFF",
@@ -516,8 +508,9 @@ def build_alicevision(srcdir, builddir, settings):
         '-DALICEVISION_USE_MESHSDFILTER=OFF',
         "-DALICEVISION_REQUIRE_CERES_WITH_SUITESPARSE=OFF",
         "-DAV_EIGEN_MEMORY_ALIGNMENT=ON",
-        srcdir
-    ])
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
     # Alicevision uses relatively large amounts of RAM per compilation unit
     bsh(['ninja', f'-j{settings.parallel // 2}'])
     bsh(['ninja', 'install'])
@@ -560,6 +553,8 @@ def main():
                         help='Comma-separated list of dependencies to build')
     parser.add_argument('--parallel', type=int, default=None,
                         help='Parallelism to use')
+    parser.add_argument('--libtype', type=str, default='static', choices=['shared', 'static'],
+                        help='Library type')
     args = parser.parse_args()
 
     known_dependency_names = [name for name, _ in known_dependencies]
@@ -577,7 +572,8 @@ def main():
 
     settings = Settings(
         parallel=args.parallel if args.parallel is not None else multiprocessing.cpu_count(),
-        prefix=args.prefix
+        prefix=args.prefix,
+        libtype=LibType.STATIC if args.libtype == 'static' else LibType.SHARED,
     )
 
     for name, fn in build_deps:
