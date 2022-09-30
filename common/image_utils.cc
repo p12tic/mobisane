@@ -159,7 +159,7 @@ void convert_yuv420_any_to_cv_mat_bgr(const std::uint8_t* y_ptr,
     const std::uint8_t *v_first_row_ptr = v_ptr + (src_top / 2) * uv_stride +
             (src_left / 2) * uv_pixel_stride;
 
-
+#if (CV_VERSION_MAJOR * 10000 + CV_VERSION_MINOR * 100 + CV_VERSION_REVISION) >= 40504
     if (uv_pixel_stride == 2 && u_first_row_ptr == v_first_row_ptr - 1) {
         // FIXME: this will cause UV components to shift by one row or column if src_top % 2 == 1
         // or src_left % 2 == 1
@@ -176,7 +176,7 @@ void convert_yuv420_any_to_cv_mat_bgr(const std::uint8_t* y_ptr,
                                      channels, false, 1);
         return;
     }
-
+#endif
 
     if (channels == 4) {
         convert_yuv420_any_to_cv_mat_impl<true>(y_first_row_ptr, y_stride,
