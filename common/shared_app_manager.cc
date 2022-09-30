@@ -148,11 +148,6 @@ struct PhotoData
     PhotoData& operator=(const PhotoData&) = delete;
 };
 
-struct MeshTriangle
-{
-    std::array<aliceVision::IndexT, 3> indices;
-};
-
 struct SharedAppManager::Data
 {
     tbb::task_arena& task_arena;
@@ -506,20 +501,17 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
     {
-        auto path = std::filesystem::path(debug_folder_path) / "sfm_only_points.ply";
-        export_ply(path, d_->sfm_landmarks_exact);
-    }));
+        export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points.ply",
+                   d_->sfm_landmarks_exact, {});
 
-    d_->task_arena.enqueue(print_tasks.defer([&]()
-    {
-        auto path = std::filesystem::path(debug_folder_path) / "sfm_only_points_inexact.ply";
-        export_ply(path, d_->sfm_landmarks_inexact);
-    }));
+        export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_inexact.ply",
+                   d_->sfm_landmarks_inexact, {});
 
-    d_->task_arena.enqueue(print_tasks.defer([&]()
-    {
-        auto path = std::filesystem::path(debug_folder_path) / "sfm_only_points_filtered_hz.ply";
-        export_ply(path, d_->sfm_landmarks_filtered_horiz);
+        export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_filtered_hz.ply",
+                   d_->sfm_landmarks_filtered_horiz, {});
+
+        export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_filtered_hz_mesh.ply",
+                   d_->sfm_landmarks_filtered_horiz, d_->mesh_triangles_filtered);
     }));
 
     print_tasks.wait();

@@ -22,7 +22,14 @@
 
 namespace sanescan {
 
-void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& landmarks);
-void export_ply(const std::string& path, const aliceVision::sfmData::Landmarks& landmarks);
+struct MeshTriangle
+{
+    std::array<aliceVision::IndexT, 3> indices;
+};
+
+void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& landmarks,
+                const std::vector<MeshTriangle>& triangles);
+void export_ply(const std::string& path, const aliceVision::sfmData::Landmarks& landmarks,
+                const std::vector<MeshTriangle>& triangles);
 
 } // namespace sanescan

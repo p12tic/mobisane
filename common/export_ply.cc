@@ -22,7 +22,8 @@
 
 namespace sanescan {
 
-void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& landmarks)
+void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& landmarks,
+                const std::vector<MeshTriangle>& triangles)
 {
     stream << "ply\n"
            << "format ascii 1.0\n"
@@ -32,8 +33,18 @@ void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& lan
            << "property float z\n"
            << "property uchar red\n"
            << "property uchar green\n"
-           << "property uchar blue\n"
-           << "end_header\n";
+           << "property uchar blue\n";
+    if (!triangles.empty()) {
+        stream << "element face " << triangles.size() << "\n"
+               << "property list uchar int vertex_indices\n";
+    }
+
+    stream << "end_header\n";
+
+    std::unordered_map<aliceVision::IndexT, std::size_t> id_to_vertex_index;
+    id_to_vertex_index.reserve(landmarks.size());
+
+    std::size_t curr_vertex_index = 0;
     for (const auto& [id, landmark] : landmarks) {
         stream << landmark.X.x() << " "
                << landmark.X.y() << " "
@@ -41,13 +52,24 @@ void export_ply(std::ostream& stream, const aliceVision::sfmData::Landmarks& lan
                << 255 << " "
                << 255 << " "
                << 255 << "\n";
+
+        id_to_vertex_index.emplace(id, curr_vertex_index);
+        curr_vertex_index++;
+    }
+
+    for (const auto& triangle : triangles) {
+        stream << 3 << " "
+               << id_to_vertex_index[triangle.indices[0]] << " "
+               << id_to_vertex_index[triangle.indices[1]] << " "
+               << id_to_vertex_index[triangle.indices[2]] << "\n";
     }
 }
 
-void export_ply(const std::string& path, const aliceVision::sfmData::Landmarks& landmarks)
+void export_ply(const std::string& path, const aliceVision::sfmData::Landmarks& landmarks,
+                const std::vector<MeshTriangle>& triangles)
 {
     std::ofstream stream(path);
-    export_ply(stream, landmarks);
+    export_ply(stream, landmarks, triangles);
 }
 
 } // namespace sanescan
