@@ -230,6 +230,7 @@ input_path and output_path options can be passed either as positional or named a
 
     tf::Executor executor;
     sanescan::SharedAppManager app_manager{executor};
+    app_manager.init("");
     app_manager.set_options(static_cast<sanescan::SharedAppManager::Options>(
                                 sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA |
                                 sanescan::SharedAppManager::COLLECT_DEBUG_INFO));

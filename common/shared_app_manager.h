@@ -40,6 +40,8 @@ public:
     SharedAppManager(tf::Executor& executor);
     ~SharedAppManager();
 
+    void init(const std::string& root_resource_path);
+
     void set_bounds_detection_params(const BoundsDetectionParams& params);
     void set_options(Options options);
 

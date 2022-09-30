@@ -274,15 +274,22 @@ std::unique_ptr<aliceVision::system::IParallelismBackend> g_alicevision_parallel
 SharedAppManager::SharedAppManager(tf::Executor& executor) :
     d_{std::make_unique<Data>(executor)}
 {
-    static bool first_init = true;
-    if (first_init) {
-        first_init = false;
+}
 
-        g_alicevision_parallelism_backend = std::make_unique<ParallelismBackendTaskflow>(executor);
-        aliceVision::system::setCurrentParallelistBackend(*g_alicevision_parallelism_backend);
-        vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
-                                            std::make_unique<vfs::FilesystemTreeInMemory>());
+SharedAppManager::~SharedAppManager() = default;
+
+void SharedAppManager::init(const std::string& root_resource_path)
+{
+    static bool first_init = true;
+    if (!first_init) {
+        return;
     }
+
+    first_init = false;
+    g_alicevision_parallelism_backend = std::make_unique<ParallelismBackendTaskflow>(d_->executor);
+    aliceVision::system::setCurrentParallelistBackend(*g_alicevision_parallelism_backend);
+    vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
+                                        std::make_unique<vfs::FilesystemTreeInMemory>());
 
     vfs::create_directories(d_->vfs_project_path);
     vfs::current_path(d_->vfs_project_path);
@@ -291,13 +298,18 @@ SharedAppManager::SharedAppManager(tf::Executor& executor) :
     vfs::create_directories(d_->get_path_to_current_session_feature_matches_folder());
     vfs::create_directories(d_->get_path_to_current_session_sfm_folder());
 
-    d_->sensor_db = parse_sensor_database(vfs::path(aliceVision::image::getAliceVisionRoot()) /
-                                          "share/aliceVision/cameraSensors.db");
+    std::string sensor_db_path;
+    if (root_resource_path.empty()) {
+        sensor_db_path = (vfs::path(aliceVision::image::getAliceVisionRoot()) /
+                "share/aliceVision/cameraSensors.db").string();
+    } else {
+        sensor_db_path = (vfs::path(root_resource_path) / "cameraSensors.db").string();
+    }
+
+    d_->sensor_db = parse_sensor_database(sensor_db_path);
     d_->image_describer = aliceVision::feature::createImageDescriber(
                 aliceVision::feature::EImageDescriberType::DSPSIFT);
 }
-
-SharedAppManager::~SharedAppManager() = default;
 
 void SharedAppManager::set_bounds_detection_params(const BoundsDetectionParams& params)
 {
