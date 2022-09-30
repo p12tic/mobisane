@@ -1079,6 +1079,18 @@ def parse_archs(archs):
     return target_archs
 
 
+def expand_dependencies(dependencies):
+    expanded = []
+    for arg, fn in dependencies:
+        if isinstance(arg, tuple):
+            name, path = arg
+        else:
+            path = arg
+            name = arg
+        expanded.append((name, path, fn))
+    return expanded
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('prefix', type=str, help="Output prefix")
@@ -1102,16 +1114,18 @@ def main():
 
     args = parser.parse_args()
 
-    known_dependency_names = [name for name, _ in known_dependencies]
+    expanded_dependencies = expand_dependencies(known_dependencies)
+    known_dependency_names = [name for name, _, __ in expanded_dependencies]
 
     if args.dependencies is not None:
         for d in args.dependencies.split(','):
             if d not in known_dependency_names:
                 print(f'Unknown dependency {d}')
                 sys.exit(1)
-        build_deps = [(name, fn) for name, fn in known_dependencies if name in args.dependencies]
+        build_deps = [(name, path, fn)
+                      for name, path, fn in expanded_dependencies if name in args.dependencies]
     else:
-        build_deps = known_dependencies
+        build_deps = expanded_dependencies
 
     src_path_root = os.path.dirname(os.path.abspath(__file__))
 
@@ -1139,12 +1153,12 @@ def main():
             has_ccache=can_call_cmd(['ccache', '-V']),
         )
 
-        for name, fn in build_deps:
+        for name, path, fn in build_deps:
             builddir = os.path.join(os.path.abspath(args.builddir), name)
             print(f'Building {name} in {builddir}')
 
             recreate_dir(builddir)
-            fn(os.path.join(src_path_root, name), builddir, settings)
+            fn(os.path.join(src_path_root, path), builddir, settings)
 
 
 if __name__ == '__main__':
