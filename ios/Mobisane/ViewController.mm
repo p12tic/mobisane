@@ -33,7 +33,7 @@
 - (void) viewDidAppear:(BOOL)animated
 {
     _capture = [[VideoCapture alloc] init];
-    [_capture setDisplayView:_cameraView];
+    [_capture setCameraView:_cameraView];
     [_capture start];
 }
 

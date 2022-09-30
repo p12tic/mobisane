@@ -21,4 +21,14 @@
 
 @implementation CameraView
 
++ (Class) layerClass
+{
+    return [AVCaptureVideoPreviewLayer class];
+}
+
+- (AVCaptureVideoPreviewLayer*) previewLayer
+{
+    return (AVCaptureVideoPreviewLayer*) self.layer;
+}
+
 @end

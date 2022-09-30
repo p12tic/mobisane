@@ -22,9 +22,7 @@
 @interface VideoCapture () <AVCaptureVideoDataOutputSampleBufferDelegate>
 @property (nonatomic) dispatch_queue_t sessionQueue;
 @property (nonatomic, strong) AVCaptureSession* session;
-@property (nonatomic, strong) CIContext* ciContext;
-@property (nonatomic, strong) CALayer* layer;
-@property(nonatomic, weak) UIView* displayView;
+@property(nonatomic, weak) CameraView* displayView;
 @end
 
 @implementation VideoCapture
@@ -51,18 +49,7 @@
     }
 
     [_session addInput:input];
-
-    auto* output = [[AVCaptureVideoDataOutput alloc] init];
-    output.videoSettings = @{
-        (NSString*) kCVPixelBufferPixelFormatTypeKey : @(kCVPixelFormatType_32RGBA),
-    };
-    [_session addOutput:output];
-    [output setSampleBufferDelegate:self queue:_sessionQueue];
-
     [_session commitConfiguration];
-    _ciContext = [[CIContext alloc] init];
-
-    _layer = [CALayer layer];
 
     return self;
 }
@@ -77,28 +64,10 @@
     [self.session stopRunning];
 }
 
-- (void) setDisplayView:(UIView*)view
+- (void) setCameraView:(CameraView*)view
 {
     _displayView = view;
-    [_displayView.layer addSublayer:_layer];
-    _layer.frame = _displayView.bounds;
-}
-
-- (void) captureOutput:(AVCaptureOutput*)captureOutput
- didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
-        fromConnection:(AVCaptureConnection*)connection
-{
-    CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-    CVPixelBufferLockBaseAddress(imageBuffer, 0);
-
-    auto* ciImage = [CIImage imageWithCVImageBuffer:imageBuffer];
-    auto* cgImage = [_ciContext createCGImage:ciImage fromRect:[ciImage extent]];
-
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        _layer.contents = (__bridge_transfer id)cgImage;
-    });
-
-    CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+    _displayView.previewLayer.session = _session;
 }
 
 @end

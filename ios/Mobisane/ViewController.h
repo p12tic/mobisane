@@ -17,10 +17,11 @@
 */
 
 #import <UIKit/UIKit.h>
+#import "CameraView.h"
 
 @interface ViewController : UIViewController
 
-@property (nonatomic, weak) IBOutlet UIView* cameraView;
+@property (nonatomic, weak) IBOutlet CameraView* cameraView;
 
 @end
 

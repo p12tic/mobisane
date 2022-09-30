@@ -17,7 +17,10 @@
 */
 
 #import <UIKit/UIKit.h>
+#import <AVFoundation/AVFoundation.h>
 
 @interface CameraView : UIView
+
+@property (nonatomic, readonly) AVCaptureVideoPreviewLayer* previewLayer;
 
 @end

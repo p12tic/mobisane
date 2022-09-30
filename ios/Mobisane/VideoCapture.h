@@ -16,12 +16,13 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#import "CameraView.h"
 #import <UIKit/UIKit.h>
 
 @interface VideoCapture : NSObject
 
 - (void) start;
 - (void) stop;
-- (void) setDisplayView:(UIView*) view;
+- (void) setCameraView:(CameraView*) view;
 
 @end
