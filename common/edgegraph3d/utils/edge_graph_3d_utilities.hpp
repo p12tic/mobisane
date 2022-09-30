@@ -72,10 +72,13 @@ cv::Matx34f convert_glm_mat4_to_cv_Mat34(const Mat4f &glm_mat);
 
 cv::Matx44f convert_glm_mat4_to_cv_Mat(const Mat4f &glm_mat);
 
-cv::Point2f convert_glm_vec2_to_cv_Point2f(const Vec2f &glm_vec);
-cv::Point3f convert_glm_vec3_to_cv_Point3f(const Vec3f &glm_vec);
-
-void convert_glm_vec2_to_cv_Point2f(const Vec2f &glm_vec, cv::Point2f &out);
+inline cv::Point2f convert_glm_vec2_to_cv_Point2f(const Vec2f &glm_vec)
+{
+    cv::Point2f out;
+    out.x = glm_vec[0];
+    out.y = glm_vec[1];
+    return out;
+}
 
 std::string remove_path(std::string s);
 std::string remove_extension(std::string s);

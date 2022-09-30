@@ -39,23 +39,24 @@
 
 namespace sanescan::edgegraph3d {
 
-int em_point2D3DJacobian(const std::vector<cv::Matx44d> &cameras, const cv::Matx31d &cur3Dpoint,
-                         cv::Mat &J, cv::Matx33d &hessian)
+int em_point2D3DJacobian(const std::vector<Mat4f> &cameras, const Vec3 &cur3Dpoint,
+                         Eigen::Matrix<double, Eigen::Dynamic, 3> &J, Mat3 &hessian)
 {
 
   int numMeasures = cameras.size();
-  cv::Matx41d cur3DPointHomog;
+  Vec4 cur3DPointHomog;
 
-  cur3DPointHomog(0, 0) = cur3Dpoint(0, 0);
-  cur3DPointHomog(1, 0) = cur3Dpoint(1, 0);
-  cur3DPointHomog(2, 0) = cur3Dpoint(2, 0);
-  cur3DPointHomog(3, 0) = 1.0;
+  cur3DPointHomog(0) = cur3Dpoint(0);
+  cur3DPointHomog(1) = cur3Dpoint(1);
+  cur3DPointHomog(2) = cur3Dpoint(2);
+  cur3DPointHomog(3) = 1.0;
 
-  J = cv::Mat(2 * numMeasures, 3, CV_64FC1);  //2 rows for each point: one for x, the other for y
-  hessian = cv::Mat(3, 3, CV_64FC1);
+  J.resize(2 * numMeasures, 3); //2 rows for each point: one for x, the other for y
+
+  hessian = Mat3();
 
   for (int curMeas = 0; curMeas < numMeasures; ++curMeas) {
-    cv::Matx41d curReproj = cameras[curMeas] * cur3DPointHomog;
+    Vec4 curReproj = cameras[curMeas].cast<double>() * cur3DPointHomog;
     double xH = curReproj(0, 0);
     double yH = curReproj(1, 0);
     double zH = curReproj(2, 0);
@@ -70,21 +71,20 @@ int em_point2D3DJacobian(const std::vector<cv::Matx44d> &cameras, const cv::Matx
     double p22 = cameras[curMeas](2, 2);
 
     //d(P*X3D)/dX
-    J.at<double>(2 * curMeas, 0) = (p00 * zH - p20 * xH) / (zH * zH);
-    J.at<double>(2 * curMeas + 1, 0) = (p10 * zH - p20 * yH) / (zH * zH);
+    J(2 * curMeas, 0) = (p00 * zH - p20 * xH) / (zH * zH);
+    J(2 * curMeas + 1, 0) = (p10 * zH - p20 * yH) / (zH * zH);
 
     //d(P*X3D)/dY
-    J.at<double>(2 * curMeas, 1) = (p01 * zH - p21 * xH) / (zH * zH);
-    J.at<double>(2 * curMeas + 1, 1) = (p11 * zH - p21 * yH) / (zH * zH);
+    J(2 * curMeas, 1) = (p01 * zH - p21 * xH) / (zH * zH);
+    J(2 * curMeas + 1, 1) = (p11 * zH - p21 * yH) / (zH * zH);
 
     //d(P*X3D)/dZ
-    J.at<double>(2 * curMeas, 2) = (p02 * zH - p22 * xH) / (zH * zH);
-    J.at<double>(2 * curMeas + 1, 2) = (p12 * zH - p22 * yH) / (zH * zH);
+    J(2 * curMeas, 2) = (p02 * zH - p22 * xH) / (zH * zH);
+    J(2 * curMeas + 1, 2) = (p12 * zH - p22 * yH) / (zH * zH);
   }
 
-  hessian = (cv::Mat)(J.t() * J);
-  double d;
-  d = cv::determinant(hessian);
+  hessian = J.transpose() * J;
+  double d = hessian.determinant();
   if (d < 0.00001) {
     //// printf("doh");
     return -1;
@@ -93,21 +93,23 @@ int em_point2D3DJacobian(const std::vector<cv::Matx44d> &cameras, const cv::Matx
   }
 }
 
-int em_GaussNewton(const std::vector<cv::Matx44d> &cameras, const std::vector<cv::Point2f> &points,
+int em_GaussNewton(const std::vector<Mat4f> &cameras, const std::vector<Vec2f> &points,
                    const cv::Point3d &init3Dpoint,
   cv::Point3d &optimizedPoint) {
 
   int numMeasures = points.size();
-  cv::Mat r = cv::Mat(numMeasures * 2, 1, CV_64F);
-  cv::Matx31d curEstimate3DPoint;
-  cv::Matx41d curEstimate3DPointH;
+  Eigen::Matrix<double, Eigen::Dynamic, 1> r;
+  r.resize(numMeasures * 2, 1);
 
-  curEstimate3DPoint(0, 0) = init3Dpoint.x;
-  curEstimate3DPoint(1, 0) = init3Dpoint.y;
-  curEstimate3DPoint(2, 0) = init3Dpoint.z;
+  Vec3 curEstimate3DPoint;
+  Vec4 curEstimate3DPointH;
 
-  cv::Mat J;
-  cv::Matx33d H;
+  curEstimate3DPoint(0) = init3Dpoint.x;
+  curEstimate3DPoint(1) = init3Dpoint.y;
+  curEstimate3DPoint(2) = init3Dpoint.z;
+
+  Eigen::Matrix<double, Eigen::Dynamic, 3> J;
+  Mat3 H;
   double last_mse = 0;
 
   /************NB maxGaussNewtonIteration needs to be fixed ***********/
@@ -117,30 +119,27 @@ int em_GaussNewton(const std::vector<cv::Matx44d> &cameras, const std::vector<cv
     double mse = 0;
         //compute residuals
     for (int curMeas = 0; curMeas < numMeasures; ++curMeas) {
-      curEstimate3DPointH(0, 0) = curEstimate3DPoint(0, 0);
-      curEstimate3DPointH(1, 0) = curEstimate3DPoint(1, 0);
-      curEstimate3DPointH(2, 0) = curEstimate3DPoint(2, 0);
-      curEstimate3DPointH(3, 0) = 1.0;
+      curEstimate3DPointH(0) = curEstimate3DPoint(0);
+      curEstimate3DPointH(1) = curEstimate3DPoint(1);
+      curEstimate3DPointH(2) = curEstimate3DPoint(2);
+      curEstimate3DPointH(3) = 1.0;
 
-      cv::Matx41d cur2DpositionH = cameras[curMeas] * curEstimate3DPointH;
+      Vec4 cur2DpositionH = cameras[curMeas].cast<double>() * curEstimate3DPointH;
 
-      r.at<double>(2 * curMeas, 0) =
-              ((points[curMeas].x - cur2DpositionH(0, 0) / cur2DpositionH(2, 0)));
+      r(2 * curMeas) = ((points[curMeas].x() - cur2DpositionH(0) / cur2DpositionH(2)));
+      mse += r(2 * curMeas) * r(2 * curMeas);
 
-      mse += r.at<double>(2 * curMeas, 0) * r.at<double>(2 * curMeas, 0);
+      r(2 * curMeas + 1) = ((points[curMeas].y() - cur2DpositionH(1) / cur2DpositionH(2)));
 
-      r.at<double>(2 * curMeas + 1, 0) =
-              ((points[curMeas].y - cur2DpositionH(1, 0) / cur2DpositionH(2, 0)));
-
-      mse += r.at<double>(2 * curMeas + 1, 0) * r.at<double>(2 * curMeas + 1, 0);
+      mse += r(2 * curMeas + 1) * r(2 * curMeas + 1);
 #ifdef DEBUG_OPTIMIZATION_VERBOSE
-      std::cout<<"CurMeas: "<<curMeas<<std::endl<<"curEstimate3DPointH="<< curEstimate3DPointH.t()<<std::endl;
+      std::cout<<"CurMeas: "<<curMeas<<std::endl<<"curEstimate3DPointH="<< curEstimate3DPointH.transpose()<<std::endl;
       std::cout<<"CurCam"<<cameras[curMeas]<<std::endl;
-      std::cout << "cur2DpositionH: "<<cur2DpositionH(0, 0) / cur2DpositionH(2, 0)
-                << ", "<<cur2DpositionH(1, 0)/cur2DpositionH(2, 0)<<std::endl;
+      std::cout << "cur2DpositionH: "<<cur2DpositionH(0, 0) / cur2DpositionH(2)
+                << ", "<<cur2DpositionH(1)/cur2DpositionH(2)<<std::endl;
       std::cout<<"points[curMeas]: "<<points[curMeas]<<std::endl;
-      std::cout<<"residual on x: "<<r.at<double>(2 * curMeas, 0)<<std::endl;
-      std::cout<<"residual on y: "<<r.at<double>(2 * curMeas + 1 , 0)<<std::endl;
+      std::cout<<"residual on x: "<<r(2 * curMeas)<<std::endl;
+      std::cout<<"residual on y: "<<r(2 * curMeas + 1)<<std::endl;
       std::cout<<std::endl;
 #endif
     }
@@ -158,16 +157,17 @@ int em_GaussNewton(const std::vector<cv::Matx44d> &cameras, const std::vector<cv
     std::cout<<"H: "<<H<<std::endl;
 #endif
 
-    curEstimate3DPoint = (cv::Mat)(curEstimate3DPoint + (H.inv() * J.t() * r));
+    // non-owning matrix to avoid memory allocation
+    curEstimate3DPoint += H.inverse() * J.transpose() * r;
 
 #ifdef DEBUG_OPTIMIZATION
     // printf("%d %f\n", i, last_mse);
 #endif
   }
   if (last_mse < 9/*3 pixels*/) {
-    optimizedPoint.x = curEstimate3DPoint(0, 0);
-    optimizedPoint.y = curEstimate3DPoint(1, 0);
-    optimizedPoint.z = curEstimate3DPoint(2, 0);
+    optimizedPoint.x = curEstimate3DPoint(0);
+    optimizedPoint.y = curEstimate3DPoint(1);
+    optimizedPoint.z = curEstimate3DPoint(2);
     return 1;
   } else {
     return -1;
@@ -195,9 +195,6 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 	cv::Point3d triangulated3DPointInit, triangulated3DPoint;
 	cv::Vec4f triangulated3DPointInitTemp;
     std::vector<cv::Point2f> firstPositionVec, lastPositionVec;
-	cv::Point2f firstPoint, lastPoint;
-    std::vector<cv::Matx44d> curCams;
-	std::vector<cv::Point2f> curPoints;
 
 	firstCamIdx = selected_2d_reprojections_ids[min_max_ind.first];
 	lastCamIdx = selected_2d_reprojections_ids[min_max_ind.second];
@@ -205,15 +202,13 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
     auto firstCam = convert_glm_mat4_to_cv_Mat34(sfmd.camerasList_[firstCamIdx].cameraMatrix);
     auto lastCam = convert_glm_mat4_to_cv_Mat34(sfmd.camerasList_[lastCamIdx].cameraMatrix);
 
-	convert_glm_vec2_to_cv_Point2f(
-			selected_2d_reprojections_coords[min_max_ind.first], firstPoint);
-	convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections_coords[min_max_ind.second],
-			lastPoint);
+    auto firstPoint = convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections_coords[min_max_ind.first]);
+    auto lastPoint = convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections_coords[min_max_ind.second]);
 
 	firstPositionVec.push_back(firstPoint);
 	lastPositionVec.push_back(lastPoint);
 
-	cv::triangulatePoints(firstCam, lastCam, firstPositionVec, lastPositionVec,
+    cv::triangulatePoints(firstCam, lastCam, firstPositionVec, lastPositionVec,
 			triangulated3DPointInitTemp);
 
 	triangulated3DPointInit.x = triangulated3DPointInitTemp[0]
@@ -224,17 +219,15 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 			/ triangulated3DPointInitTemp[3];
 
 	//Pack the information to start the Gauss Newton algorithm
-	for (int i = 0; i < selected_2d_reprojections_ids.size(); i++) {
+
+    std::vector<Mat4f> curCams;
+    for (int i = 0; i < selected_2d_reprojections_ids.size(); i++) {
 		int camIdx = selected_2d_reprojections_ids[i];
-        curCams.push_back(convert_glm_mat4_to_cv_Mat(sfmd.camerasList_[camIdx].cameraMatrix));
+        curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
+    }
 
-		cv::Point2f curPoint;
-		convert_glm_vec2_to_cv_Point2f(
-					selected_2d_reprojections_coords[i], curPoint);
-		curPoints.push_back(curPoint);
-	}
-
-	int resGN = em_GaussNewton(curCams, curPoints, triangulated3DPointInit, triangulated3DPoint);
+    int resGN = em_GaussNewton(curCams, selected_2d_reprojections_coords, triangulated3DPointInit,
+                               triangulated3DPoint);
 
 	if(resGN != -1) {
 		triangulated_point[0] = triangulated3DPoint.x;
@@ -266,8 +259,8 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 	cv::Point3d triangulated3DPointInit, triangulated3DPoint;
 	cv::Vec4f triangulated3DPointInitTemp;
     std::vector<cv::Point2f> firstPositionVec, lastPositionVec;
-    std::vector<cv::Matx44d> curCams;
-	std::vector<cv::Point2f> curPoints;
+    std::vector<Mat4f> curCams;
+    std::vector<Vec2f> curPoints;
 
 	firstCamIdx = selected_2d_reprojections_ids[min_max_ind.first];
 	lastCamIdx = selected_2d_reprojections_ids[min_max_ind.second];
@@ -294,8 +287,8 @@ void em_estimate3Dpositions(const SfMDataWrapper &sfmd,
 	//Pack the information to start the Gauss Newton algorithm
 	for (int i = 0; i < selected_2d_reprojections_ids.size(); i++) {
 		int camIdx = selected_2d_reprojections_ids[i];
-        curCams.push_back(convert_glm_mat4_to_cv_Mat(sfmd.camerasList_[camIdx].cameraMatrix));
-        curPoints.push_back(convert_glm_vec2_to_cv_Point2f(selected_2d_reprojections_coords[i].plp.coords));
+        curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
+        curPoints.push_back(selected_2d_reprojections_coords[i].plp.coords);
 	}
 
 	int resGN = em_GaussNewton(curCams, curPoints, triangulated3DPointInit, triangulated3DPoint);
@@ -348,8 +341,8 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 	cv::Vec4f triangulated3DPointInitTemp;
     std::vector<cv::Point2f> firstPositionVec, lastPositionVec;
 	cv::Point2f firstPoint, lastPoint;
-    std::vector<cv::Matx44d> curCams;
-	std::vector<cv::Point2f> curPoints;
+    std::vector<Mat4f> curCams;
+    std::vector<Vec2f> curPoints;
 
     triangulated3DPointInit.x = current_point.pos[0];
     triangulated3DPointInit.y = current_point.pos[1];
@@ -358,19 +351,14 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 	//Pack the information to start the Gauss Newton algorithm
     for (int i = 0; i < current_point.reprojection_ids.size(); i++) {
         int camIdx = current_point.reprojection_ids[i];
-        curCams.push_back(convert_glm_mat4_to_cv_Mat(sfmd.camerasList_[camIdx].cameraMatrix));
+        curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
 
-		cv::Point2f curPoint;
-        convert_glm_vec2_to_cv_Point2f(current_point.reprojected_coords[i].plp.coords, curPoint);
-		curPoints.push_back(curPoint);
+        curPoints.push_back(current_point.reprojected_coords[i].plp.coords);
 	}
 
 	int camIdx = new_viewpoint_id;
-    curCams.push_back(convert_glm_mat4_to_cv_Mat(sfmd.camerasList_[camIdx].cameraMatrix));
-
-	cv::Point2f curPoint;
-	convert_glm_vec2_to_cv_Point2f(new_coords,curPoint);
-	curPoints.push_back(curPoint);
+    curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
+    curPoints.push_back(new_coords);
 
 	int resGN = em_GaussNewton(curCams, curPoints, triangulated3DPointInit, triangulated3DPoint);
 
@@ -404,8 +392,8 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 	cv::Vec4f triangulated3DPointInitTemp;
     std::vector<cv::Point2f> firstPositionVec, lastPositionVec;
     cv::Point2f firstPoint, lastPoint;
-    std::vector<cv::Matx44d> curCams;
-	std::vector<cv::Point2f> curPoints;
+    std::vector<Mat4f> curCams;
+    std::vector<Vec2f> curPoints;
 
 	triangulated3DPointInit.x = current_point_coords[0];
 	triangulated3DPointInit.y = current_point_coords[1];
@@ -414,20 +402,14 @@ void em_add_new_observation_to_3Dpositions(const SfMDataWrapper &sfmd,
 	//Pack the information to start the Gauss Newton algorithm
 	for (int i = 0; i < current_point_observation_ids.size(); i++) {
 		int camIdx = current_point_observation_ids[i];
-        curCams.push_back(convert_glm_mat4_to_cv_Mat(sfmd.camerasList_[camIdx].cameraMatrix));
-
-		cv::Point2f curPoint;
-		convert_glm_vec2_to_cv_Point2f(
-				current_point_observation_coords[i], curPoint);
-		curPoints.push_back(curPoint);
+        curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
+        curPoints.push_back(current_point_observation_coords[i]);
 	}
 
 	int camIdx = new_viewpoint_id;
-    curCams.push_back(convert_glm_mat4_to_cv_Mat(sfmd.camerasList_[camIdx].cameraMatrix));
+    curCams.push_back(sfmd.camerasList_[camIdx].cameraMatrix);
 
-	cv::Point2f curPoint;
-	convert_glm_vec2_to_cv_Point2f(new_coords,curPoint);
-	curPoints.push_back(curPoint);
+    curPoints.push_back(new_coords);
 
 	int resGN = em_GaussNewton(curCams, curPoints, triangulated3DPointInit, triangulated3DPoint);
 

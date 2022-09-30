@@ -213,17 +213,6 @@ cv::Scalar get_refpoint_mixed_color(const SfMDataWrapper &sfmd, const std::vecto
                       out_col[2] / float(num_observations));
 }
 
-cv::Point2f convert_glm_vec2_to_cv_Point2f(const Vec2f &glm_vec) {
-	cv::Point2f out;
-	out.x = glm_vec[0];
-	out.y = glm_vec[1];
-	return out;
-}
-
-cv::Point3f convert_glm_vec3_to_cv_Point3f(const Vec3f &glm_vec) {
-	return cv::Point3f(glm_vec[0],glm_vec[1],glm_vec[2]);
-}
-
 void convert_glm_vec2_to_cv_Point2f(const Vec2f &glm_vec, cv::Point2f &out) {
 	out.x = glm_vec[0];
 	out.y = glm_vec[1];
