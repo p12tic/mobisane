@@ -241,14 +241,13 @@ void compute_edge_directional_2nd_deriv(const cv::Mat& src,
                                      static_cast<float>(segment_vec.y));
 
             int search_radius_x = 0;
+            float slope = 0;
             if (segment_vec.y == 0) {
                 search_radius_x = edge_precise_search_radius;
             } else {
-                int max_search_radius_x = std::abs(segment_vec.x) + edge_precise_search_radius;
                 search_radius_x = std::abs(edge_precise_search_radius * length / segment_vec.y);
-                search_radius_x = std::min(search_radius_x, max_search_radius_x);
+                slope = static_cast<float>(segment_vec.x) / segment_vec.y;
             }
-            float slope = static_cast<float>(segment_vec.x) / segment_vec.y;
 
             // Only the segment slope needs to be considered because the areas where edge segments
             // of significantly different directions are present will be ignored in the final
@@ -267,9 +266,13 @@ void compute_edge_directional_2nd_deriv(const cv::Mat& src,
                 const auto* row_dx = d2vdx2.ptr<cv::Vec3s>(iy);
                 const auto* row_dy = d2vdy2.ptr<cv::Vec3s>(iy);
 
-                int segment_center_x_pos = pa.x + (iy - pa.y) * slope;
-                auto min_x = std::max(min_area_x, segment_center_x_pos - search_radius_x);
-                auto max_x = std::min(max_area_x, segment_center_x_pos + search_radius_x);
+                auto min_x = min_area_x;
+                auto max_x = max_area_x;
+                if (segment_vec.y != 0) {
+                    int segment_center_x_pos = pa.x + (iy - pa.y) * slope;
+                    min_x = std::max(min_x, segment_center_x_pos - search_radius_x);
+                    max_x = std::min(max_x, segment_center_x_pos + search_radius_x);
+                }
 
                 for (int ix = min_x; ix < max_x; ++ix) {
                     append_2nd_deriv_pixel(row_dx[ix], row_dy[ix], row_deriv[ix],
