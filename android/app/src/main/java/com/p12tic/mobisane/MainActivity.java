@@ -1,27 +1,50 @@
+/*  SPDX-License-Identifier: GPL-3.0-or-later
+
+    Copyright (C) 2022  Povilas Kanapickas <povilas@radix.lt>
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 package com.p12tic.mobisane;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.graphics.PixelFormat;
 import android.os.Bundle;
-
-import com.google.android.material.snackbar.Snackbar;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import android.view.View;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 
-import androidx.navigation.NavController;
-import androidx.navigation.Navigation;
-import androidx.navigation.ui.AppBarConfiguration;
-import androidx.navigation.ui.NavigationUI;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.p12tic.mobisane.databinding.ActivityMainBinding;
 
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.WindowManager;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SurfaceHolder.Callback {
+    static final int PERMISSION_REQUEST_CAMERA = 10;
 
-    private AppBarConfiguration appBarConfiguration;
+    private NativeCamera nativeCamera = new NativeCamera();
+
     private ActivityMainBinding binding;
+
+    private SurfaceView cameraView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,17 +55,11 @@ public class MainActivity extends AppCompatActivity {
 
         setSupportActionBar(binding.toolbar);
 
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
-        appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
-        NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        binding.fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+        cameraView = (SurfaceView) findViewById(R.id.cameraView);
+        cameraView.getHolder().addCallback(this);
+        cameraView.getHolder().setFormat(PixelFormat.RGBA_8888);
     }
 
     @Override
@@ -67,10 +84,47 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+
     @Override
-    public boolean onSupportNavigateUp() {
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
-        return NavigationUI.navigateUp(navController, appBarConfiguration)
-                || super.onSupportNavigateUp();
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height)
+    {
+        nativeCamera.setSurface(holder.getSurface());
+    }
+
+    @Override
+    public void surfaceCreated(SurfaceHolder holder)
+    {
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder)
+    {
+    }
+
+    @Override
+    public void onResume()
+    {
+        super.onResume();
+
+        if (ContextCompat.checkSelfPermission(
+                getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED)
+        {
+            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.CAMERA},
+                    PERMISSION_REQUEST_CAMERA);
+        }
+
+        nativeCamera.open();
+    }
+
+    @Override
+    public void onPause()
+    {
+        super.onPause();
+
+        nativeCamera.close();
+    }
+
+    static {
+        System.loadLibrary("mobisane");
     }
 }
