@@ -1,5 +1,7 @@
 build-android-tmp-arm64
 build-android-prefix-arm64
+build-ios-tmp
+build-ios-prefix
 
 zlib
 libpng

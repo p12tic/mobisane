@@ -37,7 +37,8 @@ class LibType(enum.Enum):
 class TargetPlatform(enum.Enum):
     LINUX = 1
     ANDROID = 2
-    APPLE = 3
+    MACOS = 3
+    IOS = 4
 
 
 class TargetArch(enum.Enum):
@@ -119,6 +120,26 @@ def cmake_flags_from_settings(settings):
             f'-DANDROID_PLATFORM=android-{settings.android_minsdkversion}',
             '-DANDROID_STL=c++_static',
         ]
+
+    if settings.target_platform == TargetPlatform.IOS:
+        arch_to_arch = {
+            TargetArch.X86_64: 'x86_64',
+            TargetArch.ARM64: 'arm64',
+        }
+        arch_to_processor = {
+            TargetArch.ARM64: 'arm64',
+        }
+
+        arch = arch_to_arch[settings.target_arch]
+        processor = arch_to_processor[settings.target_arch]
+
+        flags += [
+            "-DCMAKE_SYSTEM_NAME=iOS",
+            f'-DCMAKE_OSX_ARCHITECTURES={arch}',
+            f'-DCMAKE_SYSTEM_PROCESSOR={processor}',
+            '-DIOS_DEPLOYMENT_TARGET=10.0',
+        ]
+
     return flags
 
 
@@ -150,6 +171,32 @@ def autotools_flags_for_setings(settings):
             'STRIP=' + os.path.join(toolchain_path, 'bin/llvm-strip'),
         ]
 
+    if settings.target_platform == TargetPlatform.IOS:
+        arch_to_host = {
+            TargetArch.ARM64: 'aarch64-apple-darwin',
+            TargetArch.X86_64: 'x86_64-apple-darwin',
+        }
+
+        xcode_path = '/Applications/Xcode.app'
+        toolchain_path = os.path.join(xcode_path,
+                                      'Contents/Developer/Toolchains/XcodeDefault.xctoolchain')
+        platforms_path = os.path.join(xcode_path, 'Contents/Developer/Platforms')
+        sdk_path = os.path.join(platforms_path, 'iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk')
+
+        # TODO: pick correct SDK
+        flags += [
+            '--host=' + arch_to_host[settings.target_arch],
+            '--target=' + arch_to_host[settings.target_arch],
+            f'AR={toolchain_path}/usr/bin/ar',
+            f'CC={toolchain_path}/usr/bin/cc',
+            f'CXX={toolchain_path}/usr/bin/c++',
+            f'LD={toolchain_path}/usr/bin/ld',
+            f'RANLIB={toolchain_path}/usr/bin/ranlib',
+            f'CFLAGS=--sysroot={sdk_path}',
+            f'CXXFLAGS=--sysroot={sdk_path}',
+            f'LDFLAGS=--sysroot={sdk_path}',
+        ]
+
     return flags
 
 
@@ -158,46 +205,89 @@ def create_meson_cross_file_for_settings(path, settings):
         TargetArch.ARM64: 'aarch64',
         TargetArch.X86_64: 'x86_64',
     }
-
-    arch_to_host = {
-        TargetArch.ARM64: 'aarch64-linux-android',
-        TargetArch.X86_64: 'x86_64-linux-android',
+    settings_to_host = {
+        (TargetPlatform.ANDROID, TargetArch.ARM64): 'aarch64-linux-android',
+        (TargetPlatform.ANDROID, TargetArch.X86_64): 'x86_64-linux-android',
+        (TargetPlatform.IOS, TargetArch.ARM64): 'aarch64-apple-darwin',
+        (TargetPlatform.IOS, TargetArch.X86_64): 'x86_64-apple-darwin',
     }
 
-    toolchain_path = os.path.join(settings.android_ndkroot,
-                                  'toolchains/llvm/prebuilt/linux-x86_64')
-    target = arch_to_host[settings.target_arch]
-    targetapi = target + settings.android_minsdkversion
+    cpu_family = arch_to_cpu_family[settings.target_arch]
+    host = settings_to_host[(settings.target_platform, settings.target_arch)]
 
-    lines = [
-        "[host_machine]",
-        "system = 'android'",
-        f"cpu_family = '{arch_to_cpu_family[settings.target_arch]}'",
-        f"cpu = '{arch_to_cpu_family[settings.target_arch]}'",
-        "endian = 'little'",
-        "",
-        "[constants]",
-        f"toolchain_path = '{toolchain_path}/'",
-        "",
-        "[binaries]",
-        f"c = toolchain_path + 'bin/{targetapi}-clang'",
-        f"cpp = toolchain_path + 'bin/{targetapi}-clang++'",
-        "ar = toolchain_path + 'bin/llvm-ar'",
-        "ld = toolchain_path + 'bin/ld'",
-        "c_ld = toolchain_path + 'bin/ld'",
-        "strip = toolchain_path + 'bin/llvm-strip'",
-        "pkgconfig = '/usr/bin/pkg-config'",
-        "",
-        "[properties]",
-        f"sys_root = '{settings.prefix}'",
-        f"pkg_config_path = '{settings.prefix}/share/pkgconfig'",
-        f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
-        #"c_args = ['-L/home/git/work/ndk/builddir/out/lib', '-I/home/git/work/ndk/builddir/out/include']
-        #"cpp_args = ['-L/home/git/work/ndk/builddir/out/lib', '-I/home/git/work/ndk/builddir/out/include']
-        #"c_link_args = ['-I/home/git/work/ndk/builddir/out/include', '-L/home/git/work/ndk/builddir/out/lib']
-    ]
-    with open(path, 'w') as f:
-        f.write('\n'.join(lines))
+    if settings.target_platform == TargetPlatform.ANDROID:
+        toolchain_path = os.path.join(settings.android_ndkroot,
+                                    'toolchains/llvm/prebuilt/linux-x86_64')
+        targetapi = host + settings.android_minsdkversion
+
+        lines = [
+            "[host_machine]",
+            "system = 'android'",
+            f"cpu_family = '{cpu_family}'",
+            f"cpu = '{cpu_family}'",
+            "endian = 'little'",
+            "",
+            "[constants]",
+            f"toolchain_path = '{toolchain_path}/'",
+            "",
+            "[binaries]",
+            f"c = toolchain_path + 'bin/{targetapi}-clang'",
+            f"cpp = toolchain_path + 'bin/{targetapi}-clang++'",
+            "ar = toolchain_path + 'bin/llvm-ar'",
+            "ld = toolchain_path + 'bin/ld'",
+            "c_ld = toolchain_path + 'bin/ld'",
+            "strip = toolchain_path + 'bin/llvm-strip'",
+            "pkgconfig = '/usr/bin/pkg-config'",
+            "",
+            "[properties]",
+            f"sys_root = '{settings.prefix}'",
+            f"pkg_config_path = '{settings.prefix}/share/pkgconfig'",
+            f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
+        ]
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
+
+    if settings.target_platform == TargetPlatform.IOS:
+
+        xcode_path = '/Applications/Xcode.app'
+        toolchain_path = os.path.join(xcode_path,
+                                      'Contents/Developer/Toolchains/XcodeDefault.xctoolchain')
+        platforms_path = os.path.join(xcode_path, 'Contents/Developer/Platforms')
+        sdk_path = os.path.join(platforms_path, 'iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk')
+
+        lines = [
+            "[host_machine]",
+            "system = 'darwin'",
+            f"cpu_family = '{arch_to_cpu_family[settings.target_arch]}'",
+            f"cpu = '{arch_to_cpu_family[settings.target_arch]}'",
+            "endian = 'little'",
+            "",
+            "[constants]",
+            f"toolchain_path = '{toolchain_path}/'",
+            f"sdk_path = '{sdk_path}/'",
+            "",
+            "[binaries]",
+            "c = toolchain_path + 'usr/bin/cc'",
+            "cpp = toolchain_path + 'usr/bin/c++'",
+            "ar = toolchain_path + 'usr/bin/ar'",
+            "ld = toolchain_path + 'usr/bin/ld'",
+            "c_ld = toolchain_path + 'usr/bin/ld'",
+            "strip = toolchain_path + 'usr/bin/strip'",
+            "pkgconfig = '/opt/local/bin/pkg-config'",
+            "",
+            "[properties]",
+            f"sys_root = '{settings.prefix}'",
+            f"pkg_config_path = '{settings.prefix}/share/pkgconfig'",
+            f"pkg_config_libdir = '{settings.prefix}/lib/pkgconfig'",
+            "",
+            "[built-in options]",
+            "c_args = ['--sysroot=' + sdk_path]",
+            "c_link_args = ['--sysroot=' + sdk_path]",
+            "cpp_args = ['--sysroot=' + sdk_path]",
+            "cpp_link_args = ['--sysroot=' + sdk_path]",
+        ]
+        with open(path, 'w') as f:
+            f.write('\n'.join(lines))
 
 
 def build_zlib(srcdir, builddir, settings):
@@ -245,6 +335,7 @@ def build_libpng(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
+        '-DSKIP_INSTALL_PROGRAMS=ON',
         srcdir,
         ] + cmake_flags_from_settings(settings) + flags_zlib(settings) + extra_flags
     )
@@ -279,6 +370,10 @@ def build_libtiff(srcdir, builddir, settings):
         '-Dzstd=OFF',
         '-Dwebp=OFF',
         '-Dcxx=OFF',
+        '-Dtiff-tools=OFF',
+        '-Dtiff-tests=OFF',
+        '-Dtiff-docs=OFF',
+        '-Dtiff-contrib=OFF',
         '-DCMAKE_DISABLE_FIND_PACKAGE_Deflate=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_JBIG=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_LibLZMA=ON',
@@ -331,7 +426,7 @@ def build_mpfr(srcdir, builddir, settings):
 
 
 def build_openblas(srcdir, builddir, settings):
-    if settings.target_platform == TargetPlatform.APPLE:
+    if settings.target_platform in [TargetPlatform.MACOS, TargetPlatform.IOS]:
         return
 
     bsh = sh_with_cwd(builddir)
@@ -413,6 +508,31 @@ def build_boost(srcdir, builddir, settings):
                 'cxxflags=-fPIC',
             ]
 
+        if settings.target_platform == TargetPlatform.IOS:
+            arch_to_host = {
+                TargetArch.ARM64: 'aarch64-apple-darwin',
+                TargetArch.X86_64: 'x86_64-apple-darwin',
+            }
+
+            xcode_path = '/Applications/Xcode.app'
+            toolchain_path = os.path.join(xcode_path,
+                                        'Contents/Developer/Toolchains/XcodeDefault.xctoolchain')
+            platforms_path = os.path.join(xcode_path, 'Contents/Developer/Platforms')
+            sdk_path = os.path.join(platforms_path, 'iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk')
+
+            target = arch_to_host[settings.target_arch]
+
+            cxx = os.path.join(toolchain_path, 'usr/bin/c++')
+            user_config_f.write(f'''
+                using clang : iphone : "{cxx}" :
+                    <compileflags>"--sysroot={sdk_path}"
+                    <linkflags>"--sysroot={sdk_path}"
+                ;''')
+
+            extra_args += [
+                'target-os=iphone',
+                'toolset=clang-iphone'
+            ]
 
     bsh = sh_with_cwd(srcdir)
     bsh(['git', 'clean', '-fdx'])
@@ -540,6 +660,12 @@ def build_tbb(srcdir, builddir, settings):
 
 
 def build_opencv(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.target_platform == TargetPlatform.IOS:
+        extra_flags = [
+            '-DAPPLE_FRAMEWORK=ON',
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
@@ -558,6 +684,7 @@ def build_opencv(srcdir, builddir, settings):
         '-DBUILD_LIST=core,improc,photo,objdetect,video,imgcodecs,videoio,features2d,xfeatures2d,version,mcc',
         '-DBUILD_ANDROID_PROJECTS=OFF',
         '-DBUILD_EXAMPLES=OFF',
+        '-DBUILD_opencv_world=OFF',
         '-DWITH_1394=OFF',
         '-DWITH_CUDA=OFF',
         '-DWITH_FFMPEG=OFF',
@@ -572,7 +699,7 @@ def build_opencv(srcdir, builddir, settings):
         '-DWITH_VTK=OFF',
         '-DWITH_WEBP=OFF',
         srcdir,
-        ] + cmake_flags_from_settings(settings)
+        ] + cmake_flags_from_settings(settings) + extra_flags
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -611,7 +738,7 @@ def build_libexpat(srcdir, builddir, settings):
 
 def build_fontconfig(srcdir, builddir, settings):
     extra_flags = []
-    if settings.target_platform == TargetPlatform.ANDROID:
+    if settings.target_platform in [TargetPlatform.ANDROID, TargetPlatform.IOS]:
         cross_file_path = os.path.join(builddir, 'cross-file.txt')
         create_meson_cross_file_for_settings(cross_file_path, settings)
         extra_flags += [
@@ -695,10 +822,12 @@ def build_geogram(srcdir, builddir, settings):
         (TargetPlatform.LINUX, TargetArch.X86_64, LibType.STATIC): 'Linux64-gcc',
         (TargetPlatform.ANDROID, TargetArch.ARM64, LibType.SHARED): 'Android-aarch64-clang-dynamic',
         (TargetPlatform.ANDROID, TargetArch.ARM64, LibType.STATIC): 'Android-aarch64-clang',
-        (TargetPlatform.APPLE, TargetArch.X86_64, LibType.SHARED): 'Darwin-clang-dynamic',
-        (TargetPlatform.APPLE, TargetArch.X86_64, LibType.STATIC): 'Darwin-clang',
-        (TargetPlatform.APPLE, TargetArch.ARM64, LibType.SHARED): 'Darwin-aarch64-clang-dynamic',
-        (TargetPlatform.APPLE, TargetArch.ARM64, LibType.STATIC): 'Darwin-aarch64-clang',
+        (TargetPlatform.MACOS, TargetArch.X86_64, LibType.SHARED): 'Darwin-clang-dynamic',
+        (TargetPlatform.MACOS, TargetArch.X86_64, LibType.STATIC): 'Darwin-clang',
+        (TargetPlatform.MACOS, TargetArch.ARM64, LibType.SHARED): 'Darwin-aarch64-clang-dynamic',
+        (TargetPlatform.MACOS, TargetArch.ARM64, LibType.STATIC): 'Darwin-aarch64-clang',
+        (TargetPlatform.IOS, TargetArch.ARM64, LibType.SHARED): 'Darwin-aarch64-clang-dynamic',
+        (TargetPlatform.IOS, TargetArch.ARM64, LibType.STATIC): 'Darwin-aarch64-clang',
     }
 
     platform = known_platforms[(settings.target_platform, settings.target_arch, settings.libtype)]
@@ -707,6 +836,7 @@ def build_geogram(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         f'-DVORPALINE_PLATFORM={platform}',
+        '-DGEOGRAM_LIB_ONLY=ON',
         '-DGEOGRAM_WITH_HLBFGS=OFF',
         '-DGEOGRAM_WITH_TETGEN=OFF',
         '-DGEOGRAM_WITH_GRAPHICS=OFF',
@@ -798,7 +928,8 @@ def build_taskflow(srcdir, builddir, settings):
 
 def build_alicevision(srcdir, builddir, settings):
     extra_flags = []
-    if settings.target_platform == TargetPlatform.APPLE:
+    if settings.target_platform in [TargetPlatform.MACOS, TargetPlatform.IOS,
+                                    TargetPlatform.ANDROID]:
         extra_flags += ['-DALICEVISION_USE_OPENMP=OFF']
     if settings.target_arch == TargetArch.ARM64:
         extra_flags += ['-DVL_DISABLE_SSE2=1']
@@ -813,6 +944,7 @@ def build_alicevision(srcdir, builddir, settings):
         "-DALICEVISION_USE_OPENCV=ON",
         "-DALICEVISION_USE_ALEMBIC=OFF",
         "-DALICEVISION_BUILD_EXAMPLES=OFF",
+        "-DALICEVISION_BUILD_SOFTWARE=OFF",
         "-DALICEVISION_USE_OPENCV=OFF",
         "-DALICEVISION_USE_OPENGV=OFF",
         "-DALICEVISION_USE_APRILTAG=OFF",
@@ -869,7 +1001,7 @@ def parse_platform(platform_arg):
     if platform_arg is None:
         system_to_target_platform = {
             'Linux': TargetPlatform.LINUX,
-            'Darwin': TargetPlatform.APPLE,
+            'Darwin': TargetPlatform.MACOS,
         }
         if platform.system() not in system_to_target_platform:
             print(f'Unknown system for platform detection {platform.system()}')
@@ -882,7 +1014,8 @@ def parse_platform(platform_arg):
     arg_to_target_platform = {
         'linux': TargetPlatform.LINUX,
         'android': TargetPlatform.ANDROID,
-        'darwin': TargetPlatform.APPLE,
+        'macos': TargetPlatform.MACOS,
+        'ios': TargetPlatform.IOS,
     }
     return arg_to_target_platform[platform_arg]
 
@@ -925,7 +1058,8 @@ def main():
                         help='Parallelism to use')
     parser.add_argument('--libtype', type=str, default='static', choices=['shared', 'static'],
                         help='Library type')
-    parser.add_argument('--platform', type=str, default=None, choices=['linux', 'android', 'apple'],
+    parser.add_argument('--platform', type=str, default=None,
+                        choices=['linux', 'android', 'macos', 'ios'],
                         help='Target platform type. Must be set when cross compiling')
     parser.add_argument('--archs', type=str, default=None,
                         help='A comma-separated string of target architectures. '
