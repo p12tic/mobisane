@@ -143,10 +143,21 @@ def cmake_flags_from_settings(settings):
     return flags
 
 
-def autotools_flags_for_setings(settings):
+def autotools_flags_for_settings(settings):
     flags = [
         f'--prefix={settings.prefix}'
     ]
+
+    if settings.libtype == LibType.STATIC:
+        flags += [
+            '--enable-static',
+            '--disable-shared',
+        ]
+    else:
+        flags += [
+            '--enable-shared',
+            '--disable-static',
+        ]
 
     if settings.target_platform == TargetPlatform.ANDROID:
         arch_to_host = {
@@ -302,17 +313,35 @@ def build_zlib(srcdir, builddir, settings):
     shutil.move(os.path.join(srcdir, 'zconf.h.included'),
                 os.path.join(srcdir, 'zconf.h'))
 
+    # ZLib does not support disabling of static/shared library build
+    if settings.libtype == LibType.STATIC:
+        os.remove(os.path.join(settings.prefix, 'lib/libz.so'))
+    else:
+        os.remove(os.path.join(settings.prefix, 'lib/libz.a'))
+
 
 def flags_zlib(settings):
     return [f'-DZLIB_ROOT={settings.prefix}']
 
 
 def build_bzip2(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.libtype == LibType.STATIC:
+        extra_flags += [
+            '-DENABLE_SHARED_LIB:BOOL=OFF',
+            '-DENABLE_STATIC_LIB:BOOL=ON',
+        ]
+    else:
+        extra_flags += [
+            '-DENABLE_SHARED_LIB:BOOL=ON',
+            '-DENABLE_STATIC_LIB:BOOL=OFF',
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
         '-GNinja',
-        srcdir] + cmake_flags_from_settings(settings)
+        srcdir] + cmake_flags_from_settings(settings) + extra_flags
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -329,6 +358,17 @@ def build_libpng(srcdir, builddir, settings):
             '-DPNG_ARM_NEON=on',
         ]
 
+    if settings.libtype == LibType.STATIC:
+        extra_flags += [
+            '-DPNG_SHARED:BOOL=OFF',
+            '-DPNG_STATIC:BOOL=ON',
+        ]
+    else:
+        extra_flags += [
+            '-DPNG_SHARED:BOOL=ON',
+            '-DPNG_STATIC:BOOL=OFF',
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
@@ -342,12 +382,22 @@ def build_libpng(srcdir, builddir, settings):
 
 
 def build_libjpeg(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.libtype == LibType.STATIC:
+        extra_flags += [
+            '-DENABLE_SHARED:BOOL=OFF'
+        ]
+    else:
+        extra_flags += [
+            '-DENABLE_STATIC:BOOL=OFF'
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
         '-GNinja',
         srcdir,
-        ] + cmake_flags_from_settings(settings)
+        ] + cmake_flags_from_settings(settings) + extra_flags
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
@@ -387,19 +437,17 @@ def build_libtiff(srcdir, builddir, settings):
 
 
 def build_gmp(srcdir, builddir, settings):
-    # Both static and shared libraries are built by default
     bsh = sh_with_cwd(builddir)
     bsh([
         os.path.join(srcdir, 'configure'),
         '--enable-cxx'
-        ] + autotools_flags_for_setings(settings),
+        ] + autotools_flags_for_settings(settings)
         )
     bsh(['make', f'-j{settings.parallel}'])
     bsh(['make', 'install'])
 
 
 def build_mpfr(srcdir, builddir, settings):
-    # Both static and shared libraries are built by default
     bsh = sh_with_cwd(builddir)
 
     # The following is what's roughly in autogen.sh. We can't use that script because it runs
@@ -417,7 +465,7 @@ def build_mpfr(srcdir, builddir, settings):
     bsh([
         os.path.join(srcdir, 'configure'),
         f'--with-gmp={settings.prefix}'
-        ] + autotools_flags_for_setings(settings),
+        ] + autotools_flags_for_settings(settings),
         )
     bsh(['make', f'-j{settings.parallel}'])
     bsh(['make', 'install'])
