@@ -30,6 +30,7 @@
 #include "finally.h"
 #include "image_debug_utils.h"
 #include "image_utils.h"
+#include "time_logger.h"
 #include <common/edgegraph3d/io/input/convert_edge_images_pixel_to_segment.hpp>
 #include <common/edgegraph3d/plg_edge_manager.hpp>
 #include <common/edgegraph3d/filtering/outliers_filtering.hpp>
@@ -576,7 +577,7 @@ void SharedAppManager::serial_detect()
 
 void SharedAppManager::match_images()
 {
-    ALICEVISION_LOG_TRACE("Start match_images()");
+    TimeLogger time_logger{"match_images()"};
     aliceVision::imageMatching::OrderedPairList matched_image_pairs_list;
     aliceVision::imageMatching::generateAllMatchesInOneMap(d_->sfm_data.getViewsKeys(),
                                                            matched_image_pairs_list);
@@ -586,14 +587,14 @@ void SharedAppManager::match_images()
             d_->matched_image_pairs.emplace(image_pairs.first, index);
         }
     }
-    ALICEVISION_LOG_TRACE("End match_images()");
 }
 
 void SharedAppManager::match_features()
 {
+    TimeLogger time_logger{"match_features()"};
+
     using namespace aliceVision::matchingImageCollection;
 
-    ALICEVISION_LOG_TRACE("match_features(): Start");
     auto geometric_estimator = aliceVision::robustEstimation::ERobustEstimator::ACRANSAC;
     auto geometric_error_max = std::numeric_limits<double>::infinity();
     auto nearest_matching_method = aliceVision::matching::EMatcherType::ANN_L2;
@@ -738,12 +739,11 @@ void SharedAppManager::match_features()
         d_->pairwise_putative_matches.clear();
         d_->pairwise_geometric_matches.clear();
     }
-    ALICEVISION_LOG_TRACE("match_features(): End");
 }
 
 void SharedAppManager::compute_structure_from_motion()
 {
-    ALICEVISION_LOG_TRACE("compute_structure_from_motion(): Start");
+    TimeLogger time_logger{"compute_structure_from_motion()"};
 
     aliceVision::sfm::ReconstructionEngine_sequentialSfM::Params sfm_params;
     sfm_params.localizerEstimator = aliceVision::robustEstimation::ERobustEstimator::ACRANSAC;
@@ -791,6 +791,8 @@ void SharedAppManager::compute_structure_from_motion()
 
 void SharedAppManager::compute_edge_structure_from_motion()
 {
+    TimeLogger time_logger{"compute_edge_structure_from_motion()"};
+
     std::vector<aliceVision::IndexT> orig_view_ids;
     for (const auto& image_data : d_->submitted_data) {
         orig_view_ids.push_back(image_data->view_id);
