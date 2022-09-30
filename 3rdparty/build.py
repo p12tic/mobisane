@@ -60,7 +60,13 @@ def sh_with_cwd(cwd):
 
 def build_zlib(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={settings.prefix}', srcdir])
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        srcdir
+    ])
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
@@ -75,8 +81,13 @@ def flags_zlib(settings):
 
 def build_libpng(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
-    bsh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={settings.prefix}'] + flags_zlib(settings) +
-        [srcdir])
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        ] + flags_zlib(settings) + [srcdir]
+    )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
 
