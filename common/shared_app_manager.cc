@@ -19,6 +19,7 @@
 #include "shared_app_manager.h"
 #include "edge_utils.h"
 #include "feature_extraction_job.h"
+#include "finally.h"
 #include "image_utils.h"
 #include <sanescanocr/ocr/ocr_point.h>
 #include <aliceVision/image/io.hpp>
@@ -85,6 +86,12 @@ struct PhotoData
 struct SharedAppManager::Data
 {
     tbb::task_arena& task_arena;
+
+    std::mutex task_status_mutex;
+
+    // Contains all tasks running for a single pipeline
+    tbb::task_group pipeline_tasks;
+    std::uint32_t running_feature_extraction_tasks = 0;
 
     // All data related to specific photos submitted via submit_photo(). std::shared_ptr is used
     // to allow thread-safe concurrent modification of the array.
@@ -189,16 +196,23 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                                         std::make_shared<aliceVision::sfmData::View>(sfm_view));
         d_->sfm_data.getIntrinsics().emplace(sfm_view.getIntrinsicId(), intrinsic);
 
-        FeatureExtractionJob feature_job;
-        feature_job.params.session_path = session_path.string();
-        feature_job.params.config_preset.gridFiltering = true;
-        feature_job.params.config_preset.quality = aliceVision::feature::EFeatureQuality::NORMAL;
-        feature_job.params.config_preset.descPreset =
-                aliceVision::feature::EImageDescriberPreset::NORMAL;
-        feature_job.params.config_preset.contrastFiltering =
-                aliceVision::feature::EFeatureConstrastFiltering::GridSort;
-        feature_job.params.describer = d_->image_describer;
-        feature_job.run(d_->sfm_data.getView(view_id));
+        const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
+        started_feature_extraction_task();
+        d_->pipeline_tasks.run([this, &attached_sfm_view, session_path]()
+        {
+            auto on_finish = finally([&](){ finished_feature_extraction_task(); });
+
+            FeatureExtractionJob feature_job;
+            feature_job.params.session_path = session_path.string();
+            feature_job.params.config_preset.gridFiltering = true;
+            feature_job.params.config_preset.quality = aliceVision::feature::EFeatureQuality::NORMAL;
+            feature_job.params.config_preset.descPreset =
+                    aliceVision::feature::EImageDescriberPreset::NORMAL;
+            feature_job.params.config_preset.contrastFiltering =
+                    aliceVision::feature::EFeatureConstrastFiltering::GridSort;
+            feature_job.params.describer = d_->image_describer;
+            feature_job.run(attached_sfm_view);
+        });
     });
 }
 
@@ -223,6 +237,18 @@ void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Ma
     draw_bounds_overlay(rgb_image, dst_image, d_->bounds_pipeline.target_object_mask,
                         d_->bounds_pipeline.params.initial_point_image_shrink,
                         d_->bounds_pipeline.precise_edges);
+}
+
+void SharedAppManager::started_feature_extraction_task()
+{
+    std::lock_guard lock{d_->task_status_mutex};
+    d_->running_feature_extraction_tasks++;
+}
+
+void SharedAppManager::finished_feature_extraction_task()
+{
+    std::lock_guard lock{d_->task_status_mutex};
+    d_->running_feature_extraction_tasks--;
 }
 
 void SharedAppManager::draw_bounds_overlay(const cv::Mat& src_image, cv::Mat& dst_image,
