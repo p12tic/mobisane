@@ -960,6 +960,26 @@ def build_alicevision(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_sanescan(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+
+    bsh([
+        'cmake',
+        '-GNinja',
+        '-DSANESCAN_BUILD_CLI:BOOL=OFF',
+        '-DSANESCAN_BUILD_GUI:BOOL=OFF',
+        '-DSANESCAN_BUILD_TESTS:BOOL=OFF',
+        '-DSANESCAN_BUILD_HOCR:BOOL=OFF',
+        '-DSANESCAN_WITH_LIBSANE:BOOL=OFF',
+        '-DSANESCAN_WITH_POPPLER:BOOL=OFF',
+        f'-DOpenCV_DIR={settings.prefix}/sdk/native/jni',
+        srcdir,
+        ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('bzip2', build_bzip2),
@@ -992,6 +1012,7 @@ known_dependencies = [
     ('glm', build_glm),
     ('taskflow', build_taskflow),
     ('alicevision', build_alicevision),
+    ('sanescan', build_sanescan),
 ]
 
 
