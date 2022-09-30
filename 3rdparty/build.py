@@ -107,12 +107,26 @@ def build_lapack(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_eigen(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        '-DBUILD_TESTING=OFF',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        srcdir
+    ])
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
     ('gmp', build_gmp),
     ('mpfr', build_mpfr),
     ('lapack', build_lapack),
+    ('eigen', build_eigen),
 ]
 
 
