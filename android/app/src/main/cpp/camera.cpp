@@ -43,6 +43,8 @@ double compute_maybe_rotated_aspect_ratio(int width, int height)
 
 } // namespace
 
+#define MOBISANE_DEBUG_CAMERA_PREVIEW_FRAMES 0
+
 Camera::Camera()
 {
     device_callbacks_.context = this;
@@ -375,7 +377,9 @@ void Camera::on_image_available(AImageReader* reader)
 
 void Camera::on_preview_image_available(AImageReader* reader)
 {
+#if MOBISANE_DEBUG_CAMERA_PREVIEW_FRAMES
     __android_log_print(ANDROID_LOG_WARN, "Camera", "on_preview_image_available");
+#endif
     process_received_image(preview_reader_, preview_cached_mat_, preview_captured_cb_, [&]()
     {
         // At most one concurrent preview pipeline is performed.
