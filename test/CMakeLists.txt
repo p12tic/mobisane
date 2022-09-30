@@ -16,20 +16,24 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set(SOURCES
-    mean_flood_fill.cc
-    flood_fill_utils.cc
+    main.cc
     edge_utils.cc
 )
 
-find_package(OpenCV REQUIRED)
+include(FindPkgConfig)
+find_package(GTest REQUIRED)
+pkg_check_modules(GMOCK REQUIRED gmock)
 
-add_library(mobisanecommon OBJECT ${SOURCES})
+add_executable(unittest ${SOURCES})
 
-target_link_libraries(mobisanecommon PUBLIC
-    ${OpenCV_LIBS}
+target_include_directories(unittest PUBLIC
+    ${PROJECT_SOURCE_DIR}
+    ${GTEST_INCLUDE_DIRS}
+    ${GMOCK_INCLUDE_DIRS}
 )
 
-target_include_directories(mobisanecommon PUBLIC
-    ${CMAKE_INSTALL_PREFIX}/include
-    ${OpenCV_INCLUDE_DIRS}
+target_link_libraries(unittest
+    ${GTEST_LIBRARIES} ${GMOCK_LIBRARIES}
+    Threads::Threads
+    mobisanecommon
 )

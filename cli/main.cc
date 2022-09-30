@@ -16,7 +16,9 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "common/edge_utils.h"
 #include "common/mean_flood_fill.h"
+#include "common/flood_fill_utils.h"
 #include <sanescanocr/ocr/ocr_point.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -45,6 +47,10 @@ struct Options {
     static constexpr const char* FLOOD_MAX_HUE_DIFF = "flood-max-hue-diff";
     static constexpr const char* FLOOD_MAX_SAT_DIFF = "flood-max-sat-diff";
     static constexpr const char* FLOOD_MAX_VALUE_DIFF = "flood-max-value-diff";
+
+    static constexpr const char* EDGE_MIN_LENGTH = "edge-min-length";
+    static constexpr const char* EDGE_MAX_ANGLE_DIFF = "edge-max-angle-diff";
+    static constexpr const char* EDGE_SEGMENT_MIN_LENGTH = "edge-segment-min-length";
 };
 
 sanescan::OcrPoint parse_initial_point(const std::string& value)
@@ -68,22 +74,22 @@ sanescan::OcrBox create_start_area(const sanescan::OcrPoint& point, unsigned siz
     };
 }
 
-void write_flood_fill_debug_image(const std::string& debug_folder_path, const cv::Mat& image,
-                                  const cv::Mat& detected)
+void write_image_with_mask_overlay(const std::string& debug_folder_path, const std::string& filename,
+                                   const cv::Mat& image, const cv::Mat& mask)
 {
-    auto size_x = detected.size.p[1];
-    auto size_y = detected.size.p[0];
+    auto size_x = mask.size.p[1];
+    auto size_y = mask.size.p[0];
 
     if (size_x != image.size.p[1] || size_y != image.size.p[0]) {
         throw std::invalid_argument("Image sizes do not match");
     }
 
-    auto flood_fill_debug_path = std::filesystem::path{debug_folder_path} / "flood_fill.png";
+    auto flood_fill_debug_path = std::filesystem::path{debug_folder_path} / filename;
 
     cv::Mat flood_fill_debug = image.clone();
     for (unsigned y = 0; y < size_y; ++y) {
         for (unsigned x = 0; x < size_x; ++x) {
-            if (detected.at<std::uint8_t>(y, x)) {
+            if (mask.at<std::uint8_t>(y, x)) {
                 flood_fill_debug.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
             }
         }
@@ -140,6 +146,10 @@ input_path and output_path options can be passed either as positional or named a
     flood_params.search_size = initial_point_image_shrink * 7;
     flood_params.nofill_border_size = initial_point_image_shrink * 1;
 
+    unsigned edge_min_length = 20;
+    double edge_max_angle_diff_deg = 30;
+    unsigned edge_segment_min_length = 4;
+
     ocr_options_desc.add_options()
             (Options::INITIAL_POINT,
              po::value(&initial_points_str)->multitoken(),
@@ -166,6 +176,13 @@ input_path and output_path options can be passed either as positional or named a
              "maximum saturation difference for area selection of object bounds detection")
             (Options::FLOOD_MAX_VALUE_DIFF, po::value(&flood_params.max_value_diff),
              "maximum value difference for area selection of object bounds detection")
+
+            (Options::EDGE_MIN_LENGTH, po::value(&edge_min_length),
+             "minimum length of detected edges")
+            (Options::EDGE_MAX_ANGLE_DIFF, po::value(&edge_max_angle_diff_deg),
+             "maximum difference between angles of segments within detected edge, in degrees")
+            (Options::EDGE_SEGMENT_MIN_LENGTH, po::value(&edge_segment_min_length),
+             "minimum length of segments within detected edges")
     ;
 
     po::options_description all_options_desc;
@@ -255,10 +272,46 @@ input_path and output_path options can be passed either as positional or named a
         cv::Mat hsv;
         cv::cvtColor(small_for_fill, hsv, cv::COLOR_BGR2HSV);
 
-        auto flood_fill_mask = sanescan::mean_flood_fill(small_for_fill, flood_params);
+        auto target_object_unfilled_mask = sanescan::mean_flood_fill(small_for_fill, flood_params);
+
+        // Extract straight lines bounding the area of interest. We perform a combination of erosion
+        // and dilation as a simple way to straighten up the contour. These introduce additional
+        // defects around corners and in similar areas. Fortunately, we only care about lines
+        // without any image features nearby. Areas with features are better handled by point
+        // feature detectors.
+
+        cv::Mat target_object_mask;
+        sanescan::fill_flood_fill_internals(target_object_unfilled_mask, target_object_mask);
+        cv::erode(target_object_mask, target_object_mask,
+                   cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3)), cv::Point(-1, -1), 4);
+        cv::dilate(target_object_mask, target_object_mask,
+                   cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3)), cv::Point(-1, -1), 24);
+        cv::erode(target_object_mask, target_object_mask,
+                   cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3)), cv::Point(-1, -1), 20);
 
         if (!debug_folder_path.empty()) {
-            write_flood_fill_debug_image(debug_folder_path, small_for_fill, flood_fill_mask);
+            write_image_with_mask_overlay(debug_folder_path, "target_object_unfilled.png",
+                                          small_for_fill, target_object_unfilled_mask);
+            write_image_with_mask_overlay(debug_folder_path, "target_object.png",
+                                          small_for_fill, target_object_mask);
+        }
+
+        // Get contours and optimize them to reduce the number of segments by accepting position
+        // error of several pixels.
+        std::vector<std::vector<cv::Point>> contours;
+        cv::findContours(target_object_mask, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+        for (auto& contour : contours) {
+            cv::approxPolyDP(contour, contour, 2, true);
+        }
+
+        // Split contours into mostly straight lines. Short segments are removed as the next steps
+        // require at least approximate information about edge direction. Short segments will be
+        // mostly in areas of edge direction change which we don't care about anyway.
+        std::vector<std::vector<cv::Point>> edges;
+        for (auto& contour : contours) {
+            sanescan::split_contour_to_straight_edges(contour, edges, edge_min_length,
+                                                      edge_max_angle_diff_deg,
+                                                      edge_segment_min_length);
         }
 
         cv::imwrite(output_path, image);

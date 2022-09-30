@@ -25,3 +25,4 @@ project(mobisane VERSION ${MOBISANE_VERSION})
 
 add_subdirectory(cli)
 add_subdirectory(common)
+add_subdirectory(test)
