@@ -105,6 +105,37 @@ def build_libjpeg(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_libtiff(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        f'-DCMAKE_INSTALL_PREFIX={settings.prefix}',
+        # Seems libtiff CMake build is broken for some reason as rpth is set to empty string
+        f'-DCMAKE_INSTALL_RPATH={settings.prefix}/lib',
+        f'-DCMAKE_PREFIX_PATH={settings.prefix}',
+        '-Dlibdeflate=OFF',
+        '-Djpeg12=OFF',
+        '-Djbig=OFF',
+        '-Dlerc=OFF',
+        '-Dlzma=OFF',
+        '-Dzstd=OFF',
+        '-Dwebp=OFF',
+        '-Dcxx=OFF',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_Deflate=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_JBIG=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_LibLZMA=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_LERC=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_ZSTD=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_WebP=ON',
+        '-DCMAKE_DISABLE_FIND_PACKAGE_OpenGL=ON',
+        srcdir,
+        ] + flags_zlib(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_gmp(srcdir, builddir, settings):
     bsh = sh_with_cwd(builddir)
     bsh([os.path.join(srcdir, 'configure'), f'--prefix={settings.prefix}', '--enable-cxx'])
@@ -229,6 +260,7 @@ known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
     ('libjpeg-turbo', build_libjpeg),
+    ('libtiff', build_libtiff),
     ('gmp', build_gmp),
     ('mpfr', build_mpfr),
     ('lapack', build_lapack),
