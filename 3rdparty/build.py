@@ -43,8 +43,6 @@ def recreate_dir(path):
 
 
 def build_zlib(prefix, srcdir, builddir):
-    recreate_dir(builddir)
-
     sh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}', srcdir], cwd=builddir)
     sh(['ninja'], cwd=builddir)
     sh(['ninja', 'install'], cwd=builddir)
@@ -54,8 +52,20 @@ def build_zlib(prefix, srcdir, builddir):
                 os.path.join(srcdir, 'zconf.h'))
 
 
+def flags_zlib(prefix):
+    return [f'-DZLIB_ROOT={prefix}']
+
+
+def build_libpng(prefix, srcdir, builddir):
+    sh(['cmake', '-GNinja', f'-DCMAKE_INSTALL_PREFIX={prefix}'] + flags_zlib(prefix) + [srcdir],
+       cwd=builddir)
+    sh(['ninja'], cwd=builddir)
+    sh(['ninja', 'install'], cwd=builddir)
+
+
 known_dependencies = [
-    ('zlib', build_zlib)
+    ('zlib', build_zlib),
+    ('libpng', build_libpng),
 ]
 
 
@@ -81,8 +91,11 @@ def main():
     src_path_root = os.path.dirname(os.path.abspath(__file__))
 
     for name, fn in build_deps:
-        print(f'Building {name}')
-        fn(args.prefix, os.path.join(src_path_root, name), os.path.join(args.builddir, name))
+        builddir = os.path.join(args.builddir, name)
+        print(f'Building {name} in {builddir}')
+
+        recreate_dir(builddir)
+        fn(args.prefix, os.path.join(src_path_root, name), builddir)
 
 
 if __name__ == '__main__':
