@@ -48,6 +48,7 @@ known_dependencies = [
     ('boost', 'https://github.com/boostorg/boost', 'boost-1.76.0'),
     ('imath', 'https://github.com/AcademySoftwareFoundation/Imath.git', 'v3.1.5'),
     ('openexr', 'https://github.com/AcademySoftwareFoundation/openexr', 'v3.1.2'),
+    ('libtiff', 'https://gitlab.com/libtiff/libtiff', 'd66540a28f024adc7833275a164a77c9f8a12b9c'),
 ]
 
 
