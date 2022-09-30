@@ -152,114 +152,111 @@ void SharedAppManager::set_bounds_detection_params(const BoundsDetectionParams& 
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
 {
-    d_->task_arena.execute([&]()
+    auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
+
+    tbb::task_group cloning_task_group;
+    d_->task_arena.enqueue(cloning_task_group.defer([&]()
     {
-        auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
+        // The image is copied twice: once to a file on vfs and second time for further
+        // processing here. It may be possible to optimize this copy out. The cost is
+        // relatively small compared to the rest of image processing.
+        curr_photo_data->image = rgb_image.clone();
+    }));
 
-        tbb::task_group cloning_task_group;
-        cloning_task_group.run([&]()
-        {
-            // The image is copied twice: once to a file on vfs and second time for further
-            // processing here. It may be possible to optimize this copy out. The cost is
-            // relatively small compared to the rest of image processing.
-            curr_photo_data->image = rgb_image.clone();
-        });
+    auto image_id = d_->next_image_id++;
+    auto session_path = d_->get_path_to_current_session();
+    auto image_path = get_path_for_input_image(session_path, image_id);
 
-        auto image_id = d_->next_image_id++;
-        auto session_path = d_->get_path_to_current_session();
-        auto image_path = get_path_for_input_image(session_path, image_id);
+    auto sfm_image_id = std::to_string(d_->curr_session_id) + "_" + std::to_string(image_id);
 
-        auto sfm_image_id = std::to_string(d_->curr_session_id) + "_" + std::to_string(image_id);
+    OIIO::ParamValueList metadata;
+    metadata.push_back(OIIO::ParamValue("imageCounter", std::to_string(image_id)));
+    metadata.push_back(OIIO::ParamValue("ImageUniqueID", sfm_image_id));
+    aliceVision::image::writeImage(image_path.string(), cv_mat_to_image_span(rgb_image),
+                                   aliceVision::image::ImageWriteOptions(), metadata);
 
-        OIIO::ParamValueList metadata;
-        metadata.push_back(OIIO::ParamValue("imageCounter", std::to_string(image_id)));
-        metadata.push_back(OIIO::ParamValue("ImageUniqueID", sfm_image_id));
-        aliceVision::image::writeImage(image_path.string(), cv_mat_to_image_span(rgb_image),
-                                       aliceVision::image::ImageWriteOptions(), metadata);
+    aliceVision::sfmData::View sfm_view;
+    sfm_view.setImagePath(image_path.string());
+    aliceVision::sfmDataIO::updateIncompleteView(sfm_view,
+                                                 aliceVision::sfmDataIO::EViewIdMethod::METADATA,
+                                                 "");
+    sfm_view.setFrameId(image_id);
 
-        aliceVision::sfmData::View sfm_view;
-        sfm_view.setImagePath(image_path.string());
-        aliceVision::sfmDataIO::updateIncompleteView(sfm_view,
-                                                     aliceVision::sfmDataIO::EViewIdMethod::METADATA,
-                                                     "");
-        sfm_view.setFrameId(image_id);
+    aliceVision::sfmDataIO::BuildViewIntrinsicsReport intrinsics_report;
 
-        aliceVision::sfmDataIO::BuildViewIntrinsicsReport intrinsics_report;
+    auto allowed_camera_models = aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA |
+            aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_RADIAL1 |
+            aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_RADIAL3 |
+            aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_BROWN |
+            aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_FISHEYE |
+            aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_FISHEYE1;
 
-        auto allowed_camera_models = aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA |
-                aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_RADIAL1 |
-                aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_RADIAL3 |
-                aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_BROWN |
-                aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_FISHEYE |
-                aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA_FISHEYE1;
+    auto intrinsic = aliceVision::sfmDataIO::buildViewIntrinsic(
+                sfm_view, d_->sensor_db, -1.0, 45, 1.0, 0.0, 0.0,
+                aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA, allowed_camera_models,
+                aliceVision::sfmDataIO::EGroupCameraFallback::FOLDER, intrinsics_report);
 
-        auto intrinsic = aliceVision::sfmDataIO::buildViewIntrinsic(
-                    sfm_view, d_->sensor_db, -1.0, 45, 1.0, 0.0, 0.0,
-                    aliceVision::camera::EINTRINSIC::PINHOLE_CAMERA, allowed_camera_models,
-                    aliceVision::sfmDataIO::EGroupCameraFallback::FOLDER, intrinsics_report);
+    if (!intrinsic || !intrinsic->isValid()) {
+        throw std::runtime_error("Could not build intrinsic");
+    }
+    sfm_view.addMetadata("AliceVision:useWhiteBalance", "1");
 
-        if (!intrinsic || !intrinsic->isValid()) {
-            throw std::runtime_error("Could not build intrinsic");
+    auto view_id = sfm_view.getViewId();
+    d_->sfm_data.getViews().emplace(view_id,
+                                    std::make_shared<aliceVision::sfmData::View>(sfm_view));
+    d_->sfm_data.getIntrinsics().emplace(sfm_view.getIntrinsicId(), intrinsic);
+
+    const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
+    started_feature_extraction_task();
+    d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, &attached_sfm_view, session_path]()
+    {
+        auto on_finish = finally([&](){ finished_feature_extraction_task(); });
+
+        FeatureExtractionJob feature_job;
+        feature_job.params.session_path = session_path.string();
+        feature_job.params.config_preset.gridFiltering = true;
+        feature_job.params.config_preset.quality = aliceVision::feature::EFeatureQuality::NORMAL;
+        feature_job.params.config_preset.descPreset =
+                aliceVision::feature::EImageDescriberPreset::NORMAL;
+        feature_job.params.config_preset.contrastFiltering =
+                aliceVision::feature::EFeatureConstrastFiltering::GridSort;
+        feature_job.params.describer = d_->image_describer;
+        feature_job.run(attached_sfm_view);
+    }));
+
+    // Bounds detection task will need private image
+    cloning_task_group.wait();
+
+    started_bounds_calculation_task();
+    d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, curr_photo_data,
+                                                     params = d_->photo_bounds_pipeline_params,
+                                                     options]()
+    {
+        auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
+
+        auto& image = curr_photo_data->image;
+        auto& bounds_pipeline = curr_photo_data->bounds_pipeline;
+        bounds_pipeline.params = params;
+
+        auto size_x = image.size.p[1];
+        auto size_y = image.size.p[0];
+
+        std::vector<sanescan::OcrPoint> initial_points = {
+            {size_x / 2, size_y / 2}
+        };
+
+        for (const auto& point : initial_points) {
+            bounds_pipeline.params.flood_params.start_areas.push_back(
+                    create_start_area(point, bounds_pipeline.params.initial_point_area_radius,
+                                      size_x, size_y));
         }
-        sfm_view.addMetadata("AliceVision:useWhiteBalance", "1");
 
-        auto view_id = sfm_view.getViewId();
-        d_->sfm_data.getViews().emplace(view_id,
-                                        std::make_shared<aliceVision::sfmData::View>(sfm_view));
-        d_->sfm_data.getIntrinsics().emplace(sfm_view.getIntrinsicId(), intrinsic);
+        bounds_pipeline.run(image);
 
-        const auto& attached_sfm_view = d_->sfm_data.getView(view_id);
-        started_feature_extraction_task();
-        d_->pipeline_tasks.run([this, &attached_sfm_view, session_path]()
-        {
-            auto on_finish = finally([&](){ finished_feature_extraction_task(); });
-
-            FeatureExtractionJob feature_job;
-            feature_job.params.session_path = session_path.string();
-            feature_job.params.config_preset.gridFiltering = true;
-            feature_job.params.config_preset.quality = aliceVision::feature::EFeatureQuality::NORMAL;
-            feature_job.params.config_preset.descPreset =
-                    aliceVision::feature::EImageDescriberPreset::NORMAL;
-            feature_job.params.config_preset.contrastFiltering =
-                    aliceVision::feature::EFeatureConstrastFiltering::GridSort;
-            feature_job.params.describer = d_->image_describer;
-            feature_job.run(attached_sfm_view);
-        });
-
-        // Bounds detection task will need private image
-        cloning_task_group.wait();
-
-        started_bounds_calculation_task();
-        d_->pipeline_tasks.run([this, curr_photo_data,
-                               params = d_->photo_bounds_pipeline_params,
-                               options]()
-        {
-            auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
-
-            auto& image = curr_photo_data->image;
-            auto& bounds_pipeline = curr_photo_data->bounds_pipeline;
-            bounds_pipeline.params = params;
-
-            auto size_x = image.size.p[1];
-            auto size_y = image.size.p[0];
-
-            std::vector<sanescan::OcrPoint> initial_points = {
-                {size_x / 2, size_y / 2}
-            };
-
-            for (const auto& point : initial_points) {
-                bounds_pipeline.params.flood_params.start_areas.push_back(
-                        create_start_area(point, bounds_pipeline.params.initial_point_area_radius,
-                                          size_x, size_y));
-            }
-
-            bounds_pipeline.run(image);
-
-            if ((options & PRESERVE_INTERMEDIATE_DATA) == 0) {
-                bounds_pipeline.clear_intermediate_data();
-            }
-        });
-    });
+        if ((options & PRESERVE_INTERMEDIATE_DATA) == 0) {
+            bounds_pipeline.clear_intermediate_data();
+        }
+    }));
 }
 
 const cv::Mat& SharedAppManager::get_photo(std::size_t index) const
