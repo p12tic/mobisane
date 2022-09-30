@@ -46,6 +46,16 @@ void AppManager::set_preview_surface(ANativeWindow* win)
     preview_win_ = ANativeWindowRef(win);
 }
 
+std::string AppManager::get_current_status_string() const
+{
+    return shared_manager_.get_current_status_string();
+}
+
+std::optional<double> AppManager::get_current_progress() const
+{
+    return shared_manager_.get_current_progress();
+}
+
 void AppManager::on_image_captured(const cv::Mat& image, const std::function<void()>& cb)
 {
     shared_manager_.submit_photo(image);

@@ -23,6 +23,10 @@ import android.view.Surface;
 public class NativeAppManager {
     public native void setPreviewSurface(Surface surface);
     public native void notifyResourcesReady(String rootPath);
+    public native String getCurrentStatus();
+
+    // Returns NaN if no progress is currently recorded
+    public native double getCurrentProgress();
 
     static {
         System.loadLibrary("mobisaneapp");

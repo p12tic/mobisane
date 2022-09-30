@@ -153,4 +153,21 @@ JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_notifyResources
     env->ReleaseStringUTFChars(root_path, path_str);
 }
 
+JNIEXPORT jstring JNICALL Java_com_p12tic_mobisane_NativeAppManager_getCurrentStatus(
+        JNIEnv* env, jobject obj)
+{
+    auto current_status = g_app_manager->get_current_status_string();
+    return env->NewStringUTF(current_status.c_str());
+}
+
+JNIEXPORT jdouble JNICALL Java_com_p12tic_mobisane_NativeAppManager_getCurrentProgress(
+        JNIEnv* env, jobject obj)
+{
+    auto current_progress = g_app_manager->get_current_progress();
+    if (current_progress) {
+        return *current_progress;
+    }
+    return std::numeric_limits<double>::quiet_NaN();
+}
+
 } // extern "C"

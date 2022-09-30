@@ -27,6 +27,7 @@ import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.os.Handler;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
@@ -42,15 +43,19 @@ import android.view.MenuItem;
 import android.view.TextureView;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity
         implements ActivityCompat.OnRequestPermissionsResultCallback {
     static final int PERMISSION_REQUEST_CAMERA = 10;
 
-
     private NativeCamera nativeCamera = new NativeCamera();
     private NativeAppManager nativeAppManager = new NativeAppManager();
+
+    Handler handler = new Handler();
+    Runnable progressRefreshRunnable;
+    static final int PROGRESS_REFRESH_INTERVAL_MS = 250;
 
     private ActivityMainBinding binding;
 
@@ -58,9 +63,10 @@ public class MainActivity extends AppCompatActivity
     private boolean gotCameraPermission = false;
     private TextureView cameraView;
     private TextureView overlayView;
-    private TextView infoTextLabel;
     private Surface cameraViewSurface = null;
     private Surface overlayViewSurface = null;
+    private TextView infoTextLabel;
+    private ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +81,8 @@ public class MainActivity extends AppCompatActivity
 
         infoTextLabel = (TextView) findViewById(R.id.textView);
         infoTextLabel.setText("Loading resources...");
+        progressBar = (ProgressBar) findViewById(R.id.progressBar);
+        progressBar.setAlpha(0);
 
         new ResourceDownloadAsyncTask(getApplicationContext(), (result) -> {
             if (result == ResourceDownloadAsyncTask.SUCCESS)  {
@@ -275,6 +283,8 @@ public class MainActivity extends AppCompatActivity
         gotCameraPermission = false;
         super.onResume();
 
+        enableProgressReporting();
+
         if (ContextCompat.checkSelfPermission(
                 getApplicationContext(), Manifest.permission.CAMERA) == PackageManager.PERMISSION_DENIED)
         {
@@ -305,6 +315,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onPause() {
         super.onPause();
+        disableProgressReporting();
 
         nativeCamera.close();
     }
@@ -326,5 +337,36 @@ public class MainActivity extends AppCompatActivity
             onOverlaySurfaceTextureAvailable(overlayView.getSurfaceTexture(),
                     overlayView.getWidth(), overlayView.getHeight());
         }
+    }
+
+
+    private void enableProgressReporting() {
+        handler.postDelayed(progressRefreshRunnable = new Runnable() {
+            public void run() {
+                handler.postDelayed(progressRefreshRunnable, PROGRESS_REFRESH_INTERVAL_MS);
+
+                if (!initialized) {
+                    return;
+                }
+                double progress = nativeAppManager.getCurrentProgress();
+                if (Double.isNaN(progress)) {
+                    progressBar.setAlpha(0);
+                } else {
+                    progressBar.setAlpha(1);
+                    progressBar.setMax(100);
+                    progressBar.setProgress((int)(progress * 100));
+                }
+                String status = nativeAppManager.getCurrentStatus();
+                if (status.isEmpty()) {
+                    infoTextLabel.setText("");
+                } else {
+                    infoTextLabel.setText(status);
+                }
+            }
+        }, PROGRESS_REFRESH_INTERVAL_MS);
+    }
+
+    private void disableProgressReporting() {
+        handler.removeCallbacks(progressRefreshRunnable);
     }
 }

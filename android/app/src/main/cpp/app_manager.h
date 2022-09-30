@@ -33,6 +33,9 @@ public:
 
     void set_preview_surface(ANativeWindow* win);
 
+    std::string get_current_status_string() const;
+    std::optional<double> get_current_progress() const;
+
 private:
     void on_image_captured(const cv::Mat& image, const std::function<void()>& cb);
     void on_preview_captured(const cv::Mat& image, const std::function<void()>& cb);
