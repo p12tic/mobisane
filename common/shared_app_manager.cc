@@ -153,6 +153,11 @@ struct SharedAppManager::Data
 
     std::mt19937 rng;
 
+    std::mutex status_mutex;
+    std::string current_status;
+    std::uint64_t progress_tasks_total = 0;
+    std::uint64_t progress_tasks_finished = 0;
+
     // Contains all tasks running for a single pipeline
     std::atomic<std::uint32_t> running_taskflows_any = 0;
     std::atomic<std::uint32_t> running_taskflows_per_image = 0;
@@ -311,6 +316,20 @@ void SharedAppManager::init(const std::string& root_resource_path)
                 aliceVision::feature::EImageDescriberType::DSPSIFT);
 }
 
+std::string SharedAppManager::get_current_status_string() const
+{
+    std::lock_guard lock{d_->status_mutex};
+    return d_->current_status;
+}
+
+std::optional<double> SharedAppManager::get_current_progress() const
+{
+    if (d_->progress_tasks_total <= 0) {
+        return {};
+    }
+    return static_cast<double>(d_->progress_tasks_finished) / d_->progress_tasks_total;
+}
+
 void SharedAppManager::set_bounds_detection_params(const BoundsDetectionParams& params)
 {
     d_->photo_bounds_pipeline_params = params;
@@ -325,6 +344,9 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
     auto image_id = d_->next_image_id++;
     TimeLogger time_logger{"submit_photo():sync submit", image_id};
+
+    set_status("Analyzing image...");
+    progress_tasks_add(2);
 
     tf::Taskflow taskflow;
 
@@ -406,6 +428,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
                 aliceVision::feature::EFeatureConstrastFiltering::GridSort;
         feature_job.params.describer = d_->image_describer;
         feature_job.run(attached_sfm_view);
+        progress_tasks_finish(1);
     });
 
     auto task_bounds_calc = taskflow.emplace([this, curr_photo_data,
@@ -435,6 +458,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
         if ((d_->options & PRESERVE_INTERMEDIATE_DATA) == 0) {
             bounds_pipeline.clear_intermediate_data();
         }
+        progress_tasks_finish(1);
     });
 
     // Bounds detection task will need private image
@@ -445,6 +469,12 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
         std::lock_guard lock{d_->task_status_mutex};
         d_->running_taskflows_any--;
         d_->running_taskflows_per_image--;
+
+        progress_tasks_reset(2);
+        if (d_->running_taskflows_per_image == 0) {
+            set_status("");
+        }
+
         maybe_on_photo_tasks_finished();
     });
 }
@@ -455,6 +485,7 @@ void SharedAppManager::perform_detection()
     if (d_->serial_detection_requested) {
         throw std::invalid_argument("Detection task is already queued");
     }
+    progress_tasks_add(15);
     d_->serial_detection_requested = true;
     maybe_on_photo_tasks_finished();
 }
@@ -646,19 +677,72 @@ void SharedAppManager::maybe_on_photo_tasks_finished()
     }
 }
 
+void SharedAppManager::set_status(const std::string& status)
+{
+    std::lock_guard lock{d_->status_mutex};
+    d_->current_status = status;
+}
+
+void SharedAppManager::progress_tasks_add(int count)
+{
+    d_->progress_tasks_total += count;
+}
+
+void SharedAppManager::progress_tasks_finish(int count)
+{
+    d_->progress_tasks_finished += count;
+}
+
+void SharedAppManager::progress_tasks_reset(int count)
+{
+    d_->progress_tasks_total -= count;
+    d_->progress_tasks_finished -= count;
+}
+
 void SharedAppManager::serial_detect()
 {
+    set_status("Matching images...");
     match_images();
+    progress_tasks_finish(1);
+
+    set_status("Matching features...");
     load_per_image_data();
     match_features();
+    progress_tasks_finish(2);
+
+    set_status("Analyzing 3D scene...");
     compute_structure_from_motion();
+    progress_tasks_finish(3);
+
     compute_structure_from_motion_inexact();
+    progress_tasks_finish(1);
+
+    set_status("Analyzing edges in 3D scene...");
     compute_edge_structure_from_motion();
+    progress_tasks_finish(2);
+
+    set_status("Computing object bounds...");
     compute_object_bounds();
+    progress_tasks_finish(1);
+
+    set_status("Triangulating mesh...");
     compute_object_mesh();
+    progress_tasks_finish(1);
+
+    set_status("Unfolding 3D mesh to 2D plane...");
     unfold_object_mesh();
+    progress_tasks_finish(1);
+
+    set_status("Rendering image...");
     render_object_mesh();
+    progress_tasks_finish(1);
+
+    set_status("Detecting text...");
     detect_text();
+    progress_tasks_finish(2);
+    progress_tasks_reset(15);
+
+    set_status("");
 }
 
 void SharedAppManager::match_images()

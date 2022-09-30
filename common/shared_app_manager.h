@@ -21,6 +21,7 @@
 #include "bounds_detection_pipeline.h"
 #include <taskflow/core/executor.hpp>
 #include <memory>
+#include <optional>
 
 namespace sanescan {
 
@@ -41,6 +42,9 @@ public:
     ~SharedAppManager();
 
     void init(const std::string& root_resource_path);
+
+    std::string get_current_status_string() const;
+    std::optional<double> get_current_progress() const;
 
     void set_bounds_detection_params(const BoundsDetectionParams& params);
     void set_options(Options options);
@@ -68,6 +72,11 @@ private:
     std::unique_ptr<Data> d_;
 
     void maybe_on_photo_tasks_finished();
+
+    void set_status(const std::string& status);
+    void progress_tasks_add(int count);
+    void progress_tasks_finish(int count);
+    void progress_tasks_reset(int count);
 
     void serial_detect();
     void match_images();
