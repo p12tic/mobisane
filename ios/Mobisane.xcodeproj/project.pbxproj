@@ -17,6 +17,8 @@
 		1C1CD07E28DC1F0200C70EC8 /* MobisaneTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.mm */; };
 		1C1CD08828DC1F0200C70EC8 /* MobisaneUITests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.mm */; };
 		1C1CD08A28DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */; };
+		1C1CD09728DEB0A100C70EC8 /* CameraView.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09628DEB0A100C70EC8 /* CameraView.mm */; };
+		1C1CD09928DEB0E000C70EC8 /* CameraView.h in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD09828DEB0E000C70EC8 /* CameraView.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +56,8 @@
 		1C1CD08328DC1F0200C70EC8 /* MobisaneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MobisaneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MobisaneUITests.mm; sourceTree = "<group>"; };
 		1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MobisaneUITestsLaunchTests.mm; sourceTree = "<group>"; };
+		1C1CD09628DEB0A100C70EC8 /* CameraView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = CameraView.mm; sourceTree = "<group>"; };
+		1C1CD09828DEB0E000C70EC8 /* CameraView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CameraView.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,6 +119,8 @@
 				1C1CD06F28DC1F0100C70EC8 /* LaunchScreen.storyboard */,
 				1C1CD07228DC1F0100C70EC8 /* Info.plist */,
 				1C1CD07328DC1F0100C70EC8 /* main.mm */,
+				1C1CD09628DEB0A100C70EC8 /* CameraView.mm */,
+				1C1CD09828DEB0E000C70EC8 /* CameraView.h */,
 			);
 			path = Mobisane;
 			sourceTree = "<group>";
@@ -268,8 +274,10 @@
 			files = (
 				1C1CD06928DC1F0100C70EC8 /* ViewController.mm in Sources */,
 				1C1CD06328DC1F0100C70EC8 /* AppDelegate.mm in Sources */,
+				1C1CD09728DEB0A100C70EC8 /* CameraView.mm in Sources */,
 				1C1CD07428DC1F0100C70EC8 /* main.mm in Sources */,
 				1C1CD06628DC1F0100C70EC8 /* SceneDelegate.mm in Sources */,
+				1C1CD09928DEB0E000C70EC8 /* CameraView.h in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

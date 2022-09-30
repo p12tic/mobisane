@@ -16,11 +16,8 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#import <UIKit/UIKit.h>
+#import "CameraView.h"
 
-@interface ViewController : UIViewController
-
-@property (nonatomic, weak) IBOutlet UIView* cameraView;
+@implementation CameraView
 
 @end
-
