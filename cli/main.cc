@@ -432,7 +432,7 @@ input_path and output_path options can be passed either as positional or named a
 
         auto precise_edges = sanescan::compute_precise_edges(hsv_derivatives, edges,
                                                              edge_precise_search_radius,
-                                                             20, 0, 2.5f, 0.5);
+                                                             20, 2, 2.5f, 0.5);
 
         if (!debug_folder_path.empty()) {
             write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",

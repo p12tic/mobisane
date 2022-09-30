@@ -411,9 +411,12 @@ std::vector<std::vector<cv::Point>>
         }
     }
 
-    // FIXME: simplify edge positions
+    auto precise_edges = calculator.get_lines();
+    for (auto& edge : precise_edges) {
+        cv::approxPolyDP(edge, edge, edge_simplify_pos_precise, false);
+    }
 
-    return calculator.get_lines();
+    return precise_edges;
 }
 
 void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors, unsigned channel)
