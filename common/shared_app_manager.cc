@@ -1015,7 +1015,15 @@ void SharedAppManager::compute_object_mesh()
     for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
         // The meshing is being done in 2D. It is assumed that the scanned page is not folded so
         // much that it overlaps.
-        int index = subdiv.insert(cv::Point2f(landmark.X.x(), landmark.X.y()));
+        int index = 0;
+        try {
+            index = subdiv.insert(cv::Point2f(landmark.X.x(), landmark.X.y()));
+        } catch (cv::Exception ex) {
+            ALICEVISION_LOG_WARNING("Failed to insert landmark to mesh: "
+                                    << landmark.X.x() << " " << landmark.X.y());
+            continue;
+        }
+
         cv_to_landmark_id_map.emplace(index, id);
     }
 
@@ -1065,10 +1073,21 @@ void SharedAppManager::unfold_object_mesh()
 
     std::unordered_map<int, aliceVision::IndexT> model_id_to_landmark_id;
     std::unordered_map<aliceVision::IndexT, int> landmark_id_to_model_id;
+    std::unordered_set<aliceVision::IndexT> landmark_ids_in_triangles;
 
     landmark_id_to_model_id.reserve(d_->sfm_landmarks_filtered_horiz.size());
+    landmark_ids_in_triangles.reserve(d_->sfm_landmarks_filtered_horiz.size());
+
+    for (const auto& triangle : d_->mesh_triangles_filtered) {
+        for (auto landmark_id : triangle.indices) {
+            landmark_ids_in_triangles.insert(landmark_id);
+        }
+    }
 
     for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
+        if (!landmark_ids_in_triangles.contains(id)) {
+            continue;
+        }
         auto model_id = polygon_soup.positions.size();
         polygon_soup.positions.push_back({landmark.X.x(), landmark.X.y(), landmark.X.z()});
         landmark_id_to_model_id.emplace(id, model_id);
@@ -1093,6 +1112,10 @@ void SharedAppManager::unfold_object_mesh()
     bff_calculator.flatten(u, true);
 
     for (const auto& [id, landmark] : d_->sfm_landmarks_filtered_horiz) {
+        if (!landmark_id_to_model_id.contains(id)) {
+            continue;
+        }
+
         auto model_id = landmark_id_to_model_id.at(id);
         const auto& vertex = mesh.vertices[model_id];
         auto unfolded_pos = vertex.wedge()->uv;
