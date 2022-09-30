@@ -327,6 +327,7 @@ input_path and output_path options can be passed either as positional or named a
 
     tbb::task_arena task_arena;
     sanescan::SharedAppManager app_manager{task_arena};
+    app_manager.set_options(sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA);
     app_manager.set_bounds_detection_params(bounds_params);
 
     try {
@@ -336,7 +337,7 @@ input_path and output_path options can be passed either as positional or named a
                 throw std::invalid_argument("Image has not been found");
             }
 
-            app_manager.submit_photo(image, sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA);
+            app_manager.submit_photo(image);
         }
 
         app_manager.perform_detection();

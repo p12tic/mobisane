@@ -110,6 +110,8 @@ struct SharedAppManager::Data
     std::uint64_t curr_session_id = 0;
     std::uint64_t next_image_id = 0;
 
+    Options options = Options::NONE;
+
     BoundsDetectionPipeline bounds_pipeline;
     // The following params are used for images submitted via submit_photo() which use different
     // bounds detection pipelines in submitted_data array.
@@ -162,7 +164,12 @@ void SharedAppManager::set_bounds_detection_params(const BoundsDetectionParams& 
     d_->photo_bounds_pipeline_params = params;
 }
 
-void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
+void SharedAppManager::set_options(Options options)
+{
+    d_->options = options;
+}
+
+void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
     auto curr_photo_data = d_->submitted_data.emplace_back(std::make_shared<PhotoData>());
 
@@ -243,8 +250,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
 
     started_bounds_calculation_task();
     d_->task_arena.enqueue(d_->pipeline_tasks.defer([this, curr_photo_data,
-                                                     params = d_->photo_bounds_pipeline_params,
-                                                     options]()
+                                                     params = d_->photo_bounds_pipeline_params]()
     {
         auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
 
@@ -267,7 +273,7 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
 
         bounds_pipeline.run(image);
 
-        if ((options & PRESERVE_INTERMEDIATE_DATA) == 0) {
+        if ((d_->options & PRESERVE_INTERMEDIATE_DATA) == 0) {
             bounds_pipeline.clear_intermediate_data();
         }
     }));

@@ -42,8 +42,9 @@ public:
     ~SharedAppManager();
 
     void set_bounds_detection_params(const BoundsDetectionParams& params);
+    void set_options(Options options);
 
-    void submit_photo(const cv::Mat& rgb_image, Options options = NONE);
+    void submit_photo(const cv::Mat& rgb_image);
 
     const cv::Mat& get_photo(std::size_t index) const;
     const BoundsDetectionPipeline& get_bounds_detection_pipeline(std::size_t index) const;
