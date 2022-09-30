@@ -75,6 +75,13 @@ sanescan::OcrBox create_start_area(const sanescan::OcrPoint& point, unsigned siz
     };
 }
 
+void write_debug_image(const std::string& debug_folder_path, const std::string& filename,
+                       const cv::Mat& image)
+{
+    auto path = std::filesystem::path{debug_folder_path} / filename;
+    cv::imwrite(path.c_str(), image);
+}
+
 void write_image_with_mask_overlay(const std::string& debug_folder_path, const std::string& filename,
                                    const cv::Mat& image, const cv::Mat& mask)
 {
@@ -85,7 +92,6 @@ void write_image_with_mask_overlay(const std::string& debug_folder_path, const s
         throw std::invalid_argument("Image sizes do not match");
     }
 
-    auto flood_fill_debug_path = std::filesystem::path{debug_folder_path} / filename;
 
     cv::Mat flood_fill_debug = image.clone();
     for (unsigned y = 0; y < size_y; ++y) {
@@ -96,14 +102,12 @@ void write_image_with_mask_overlay(const std::string& debug_folder_path, const s
         }
     }
 
-    cv::imwrite(flood_fill_debug_path.c_str(), flood_fill_debug);
+    write_debug_image(debug_folder_path, filename, flood_fill_debug);
 }
 
 void write_image_with_edges(const std::string& debug_folder_path, const std::string& filename,
                             const cv::Mat& image, const std::vector<std::vector<cv::Point>>& edges)
 {
-    auto output_path = std::filesystem::path{debug_folder_path} / filename;
-
     auto output = image.clone();
     auto color = cv::Scalar{0, 0, 255};
     auto direction_color = cv::Scalar{0, 255, 255};
@@ -134,7 +138,7 @@ void write_image_with_edges(const std::string& debug_folder_path, const std::str
         }
     }
 
-    cv::imwrite(output_path.c_str(), output);
+    write_debug_image(debug_folder_path, filename, output);
 }
 
 int main(int argc, char* argv[])
