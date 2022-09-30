@@ -443,6 +443,22 @@ def build_freetype(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_libexpat(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        os.path.join(srcdir, 'expat'),
+        '-DEXPAT_BUILD_TESTS=OFF',
+        '-DEXPAT_BUILD_TOOLS=OFF',
+        '-DEXPAT_BUILD_EXAMPLES=OFF',
+        '-DEXPAT_BUILD_DOCS=OFF',
+        ] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_fontconfig(srcdir, builddir, settings):
     default_library = 'shared' if settings.libtype == LibType.SHARED else 'static'
     bsh = sh_with_cwd(builddir)
@@ -667,6 +683,7 @@ known_dependencies = [
     ('openimageio', build_openimageio),
     ('opencv', build_opencv),
     ('freetype', build_freetype),
+    ('libexpat', build_libexpat),
     ('fontconfig', build_fontconfig),
     ('podofo', build_podofo),
     ('leptonica', build_leptonica),
