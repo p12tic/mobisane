@@ -39,6 +39,8 @@ public:
     SharedAppManager(tbb::task_arena& task_arena);
     ~SharedAppManager();
 
+    void set_bounds_detection_params(const BoundsDetectionParams& params);
+
     void submit_photo(const cv::Mat& rgb_image, Options options = NONE);
 
     // dst_image is assumed to be in BGRA format

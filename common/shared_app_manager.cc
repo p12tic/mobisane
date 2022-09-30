@@ -107,6 +107,9 @@ struct SharedAppManager::Data
     std::uint64_t next_image_id = 0;
 
     BoundsDetectionPipeline bounds_pipeline;
+    // The following params are used for images submitted via submit_photo() which use different
+    // bounds detection pipelines in submitted_data array.
+    BoundsDetectionParams photo_bounds_pipeline_params;
 
     std::vector<aliceVision::sensorDB::Datasheet> sensor_db;
 
@@ -136,6 +139,13 @@ SharedAppManager::SharedAppManager(tbb::task_arena& task_arena) :
                                           "share/aliceVision/cameraSensors.db");
     d_->image_describer = aliceVision::feature::createImageDescriber(
                 aliceVision::feature::EImageDescriberType::DSPSIFT);
+}
+
+SharedAppManager::~SharedAppManager() = default;
+
+void SharedAppManager::set_bounds_detection_params(const BoundsDetectionParams& params)
+{
+    d_->photo_bounds_pipeline_params = params;
 }
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
@@ -218,12 +228,15 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
         cloning_task_group.wait();
 
         started_bounds_calculation_task();
-        d_->pipeline_tasks.run([this, curr_photo_data, options]()
+        d_->pipeline_tasks.run([this, curr_photo_data,
+                               params = d_->photo_bounds_pipeline_params,
+                               options]()
         {
             auto on_finish = finally([&](){ finished_bounds_calculation_task(); });
 
             auto& image = curr_photo_data->image;
             auto& bounds_pipeline = curr_photo_data->bounds_pipeline;
+            bounds_pipeline.params = params;
 
             auto size_x = image.size.p[1];
             auto size_y = image.size.p[0];
@@ -247,7 +260,6 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image, Options options)
     });
 }
 
-SharedAppManager::~SharedAppManager() = default;
 
 void SharedAppManager::calculate_bounds_overlay(const cv::Mat& rgb_image, cv::Mat& dst_image)
 {
