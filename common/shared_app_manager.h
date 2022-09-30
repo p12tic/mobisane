@@ -77,6 +77,7 @@ private:
     void progress_tasks_add(int count);
     void progress_tasks_finish(int count);
     void progress_tasks_reset(int count);
+    void progress_tasks_reset_all();
 
     void serial_detect();
     void match_images();

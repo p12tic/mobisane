@@ -709,50 +709,61 @@ void SharedAppManager::progress_tasks_reset(int count)
     d_->progress_tasks_finished -= count;
 }
 
+void SharedAppManager::progress_tasks_reset_all()
+{
+    d_->progress_tasks_total = 0;
+    d_->progress_tasks_finished = 0;
+}
+
 void SharedAppManager::serial_detect()
 {
-    set_status("Matching images...");
-    match_images();
-    progress_tasks_finish(1);
+    try {
+        set_status("Matching images...");
+        match_images();
+        progress_tasks_finish(1);
 
-    set_status("Matching features...");
-    load_per_image_data();
-    match_features();
-    progress_tasks_finish(2);
+        set_status("Matching features...");
+        load_per_image_data();
+        match_features();
+        progress_tasks_finish(2);
 
-    set_status("Analyzing 3D scene...");
-    compute_structure_from_motion();
-    progress_tasks_finish(3);
+        set_status("Analyzing 3D scene...");
+        compute_structure_from_motion();
+        progress_tasks_finish(3);
 
-    compute_structure_from_motion_inexact();
-    progress_tasks_finish(1);
+        compute_structure_from_motion_inexact();
+        progress_tasks_finish(1);
 
-    set_status("Analyzing edges in 3D scene...");
-    compute_edge_structure_from_motion();
-    progress_tasks_finish(2);
+        set_status("Analyzing edges in 3D scene...");
+        compute_edge_structure_from_motion();
+        progress_tasks_finish(2);
 
-    set_status("Computing object bounds...");
-    compute_object_bounds();
-    progress_tasks_finish(1);
+        set_status("Computing object bounds...");
+        compute_object_bounds();
+        progress_tasks_finish(1);
 
-    set_status("Triangulating mesh...");
-    compute_object_mesh();
-    progress_tasks_finish(1);
+        set_status("Triangulating mesh...");
+        compute_object_mesh();
+        progress_tasks_finish(1);
 
-    set_status("Unfolding 3D mesh to 2D plane...");
-    unfold_object_mesh();
-    progress_tasks_finish(1);
+        set_status("Unfolding 3D mesh to 2D plane...");
+        unfold_object_mesh();
+        progress_tasks_finish(1);
 
-    set_status("Rendering image...");
-    render_object_mesh();
-    progress_tasks_finish(1);
+        set_status("Rendering image...");
+        render_object_mesh();
+        progress_tasks_finish(1);
 
-    set_status("Detecting text...");
-    detect_text();
-    progress_tasks_finish(2);
-    progress_tasks_reset(15);
+        set_status("Detecting text...");
+        detect_text();
+        progress_tasks_finish(2);
+        progress_tasks_reset_all();
 
-    set_status("");
+        set_status("");
+    } catch (const std::exception& e) {
+        progress_tasks_reset_all();
+        set_status("Got error: " + std::string(e.what()));
+    }
 }
 
 void SharedAppManager::match_images()
