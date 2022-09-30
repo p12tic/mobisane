@@ -114,8 +114,7 @@ void fill_initial_points(std::vector<OcrPoint>& next_points,
     }
 }
 
-cv::Mat mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillParams& params,
-                             unsigned search_size)
+cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
 {
     unsigned size_x = image.size.p[1];
     unsigned size_y = image.size.p[0];
@@ -207,22 +206,6 @@ cv::Mat mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillParams& pa
     }
 
     return std::move(colored);
-}
-
-template<unsigned search_size>
-cv::Mat mean_flood_fill_fast_path(const cv::Mat& image, const MeanFloodFillParams& params)
-{
-    return mean_flood_fill_impl(image, params, search_size);
-}
-
-cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
-{
-    switch (params.search_size) {
-        case 4: return mean_flood_fill_fast_path<4>(image, params);
-        case 5: return mean_flood_fill_fast_path<5>(image, params);
-        case 6: return mean_flood_fill_fast_path<6>(image, params);
-        default: return mean_flood_fill_impl(image, params, params.search_size);
-    }
 }
 
 } // namespace sanescan
