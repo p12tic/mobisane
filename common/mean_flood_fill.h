@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "vector2d.h"
 #include <sanescanocr/ocr/ocr_box.h>
 #include <opencv2/core/core.hpp>
 #include <boost/multi_array.hpp>
@@ -50,7 +49,9 @@ struct MeanFloodFillParams {
 /** Performs mean flood fill. The algorithm is similar to flood fill except that the decision
     whether to include a point is made according to the difference from the mean of the nearby
     accepted pixel values.
+
+    Returns 2D matrix with colored areas marked with value 1, all other elements set to zero.
 */
-Vector2D<bool> mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params);
+cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params);
 
 } // namespace sanescan

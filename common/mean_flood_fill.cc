@@ -85,7 +85,7 @@ bool is_pixel_colored(unsigned base_h, unsigned base_s, unsigned base_v,
 }
 
 void fill_initial_points(std::vector<OcrPoint>& next_points,
-                         Vector2D<bool>& colored,
+                         cv::Mat_<std::uint8_t>& colored,
                          const cv::Mat& image,
                          const OcrBox& bounds,
                          const std::array<FillHistogram, 3>& histograms,
@@ -107,15 +107,15 @@ void fill_initial_points(std::vector<OcrPoint>& next_points,
                 continue;
             }
 
-            colored.set(ix, iy, true);
+            colored(iy, ix) = 1;
             next_points.push_back({static_cast<std::int32_t>(ix),
                                    static_cast<std::int32_t>(iy)});
         }
     }
 }
 
-Vector2D<bool> mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillParams& params,
-                                    unsigned search_size)
+cv::Mat mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillParams& params,
+                             unsigned search_size)
 {
     unsigned size_x = image.size.p[1];
     unsigned size_y = image.size.p[0];
@@ -128,7 +128,7 @@ Vector2D<bool> mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillPar
                                  params.max_value_diff);
 
     std::vector<OcrPoint> next_points;
-    Vector2D<bool> colored(size_x, size_y, false);
+    cv::Mat_<std::uint8_t> colored(size_y, size_x, static_cast<std::uint8_t>(0));
 
     for (const auto& start_area : params.start_areas) {
         auto histograms = compute_histograms(image, start_area);
@@ -151,8 +151,9 @@ Vector2D<bool> mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillPar
         unsigned count = 0;
 
         for (unsigned y = start_y; y < end_y; ++y) {
+            auto* colored_row = colored.ptr(y);
             for (unsigned x = start_x; x < end_x; ++x) {
-                if (colored.get(x, y)) {
+                if (colored_row[x]) {
                     const std::uint8_t* row = image.ptr(y);
                     auto h = row[3 * x];
                     auto s = row[3 * x + 1];
@@ -175,8 +176,10 @@ Vector2D<bool> mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillPar
         unsigned base_v = sum_v / count;
 
         for (unsigned y = start_y; y < end_y; ++y) {
+            auto* colored_row = colored.ptr(y);
+
             for (unsigned x = start_x; x < end_x; ++x) {
-                if (colored.get(x, y)) {
+                if (colored_row[x]) {
                     continue;
                 }
 
@@ -189,7 +192,7 @@ Vector2D<bool> mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillPar
                     continue;
                 }
 
-                colored.set(x, y, true);
+                colored_row[x] = 1;
 
                 if (x < search_size || x >= size_x - search_size ||
                     y < search_size || y >= size_y - search_size)
@@ -203,16 +206,16 @@ Vector2D<bool> mean_flood_fill_impl(const cv::Mat& image, const MeanFloodFillPar
         }
     }
 
-    return colored;
+    return std::move(colored);
 }
 
 template<unsigned search_size>
-Vector2D<bool> mean_flood_fill_fast_path(const cv::Mat& image, const MeanFloodFillParams& params)
+cv::Mat mean_flood_fill_fast_path(const cv::Mat& image, const MeanFloodFillParams& params)
 {
     return mean_flood_fill_impl(image, params, search_size);
 }
 
-Vector2D<bool> mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
+cv::Mat mean_flood_fill(const cv::Mat& image, const MeanFloodFillParams& params)
 {
     switch (params.search_size) {
         case 4: return mean_flood_fill_fast_path<4>(image, params);

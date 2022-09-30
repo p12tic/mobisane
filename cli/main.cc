@@ -69,10 +69,10 @@ sanescan::OcrBox create_start_area(const sanescan::OcrPoint& point, unsigned siz
 }
 
 void write_flood_fill_debug_image(const std::string& debug_folder_path, const cv::Mat& image,
-                                  const sanescan::Vector2D<bool>& detected)
+                                  const cv::Mat& detected)
 {
-    auto size_x = detected.width();
-    auto size_y = detected.height();
+    auto size_x = detected.size.p[1];
+    auto size_y = detected.size.p[0];
 
     if (size_x != image.size.p[1] || size_y != image.size.p[0]) {
         throw std::invalid_argument("Image sizes do not match");
@@ -83,7 +83,7 @@ void write_flood_fill_debug_image(const std::string& debug_folder_path, const cv
     cv::Mat flood_fill_debug = image.clone();
     for (unsigned y = 0; y < size_y; ++y) {
         for (unsigned x = 0; x < size_x; ++x) {
-            if (detected.get(x, y)) {
+            if (detected.at<std::uint8_t>(y, x)) {
                 flood_fill_debug.at<cv::Vec3b>(y, x) = cv::Vec3b(0, 0, 255);
             }
         }
