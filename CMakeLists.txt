@@ -23,6 +23,10 @@ set(MOBISANE_VERSION 0.0.1)
 
 project(mobisane VERSION ${MOBISANE_VERSION})
 
+option(MOBISANE_BUILD_TESTS "Enable building of tests" ON)
+
 add_subdirectory(cli)
 add_subdirectory(common)
-add_subdirectory(test)
+if(MOBISANE_BUILD_TESTS)
+    add_subdirectory(test)
+endif()
