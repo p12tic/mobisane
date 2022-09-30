@@ -607,6 +607,17 @@ def build_glm(srcdir, builddir, settings):
     bsh(['ninja', 'install'])
 
 
+def build_taskflow(srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    bsh([
+        'cmake',
+        '-GNinja',
+        srcdir] + cmake_flags_from_settings(settings)
+    )
+    bsh(['ninja'])
+    bsh(['ninja', 'install'])
+
+
 def build_alicevision(srcdir, builddir, settings):
     extra_flags = []
     if settings.get_platform() == 'apple':
@@ -668,6 +679,7 @@ known_dependencies = [
     ('clp', build_clp),
     ('assimp', build_assimp),
     ('glm', build_glm),
+    ('taskflow', build_taskflow),
     ('alicevision', build_alicevision),
 ]
 
