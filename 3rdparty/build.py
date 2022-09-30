@@ -519,8 +519,8 @@ def build_tesseract(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         '-DBUILD_TRAINING_TOOLS=OFF',
-        '-DCMAKE_DISABLE_FIND_PACKAGE_LibArchive=ON',
-        '-DCMAKE_DISABLE_FIND_PACKAGE_CURL=ON',
+        '-DDISABLE_ARCHIVE=ON',
+        '-DDISABLE_CURL=ON',
         srcdir,
         ] + cmake_flags_from_settings(settings)
     )
