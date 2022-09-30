@@ -26,7 +26,8 @@ namespace sanescan {
 
 edgegraph3d::SfMDataWrapper
     edge_sfm_from_av_sfm_data(const std::vector<aliceVision::IndexT>& orig_view_ids,
-                              const aliceVision::sfmData::SfMData& sfm_data);
+                              const aliceVision::sfmData::SfMData& sfm_data,
+                              const aliceVision::sfmData::Landmarks& landmarks);
 
 edgegraph3d::PolyLineGraph2DHMapImpl
     build_polyline_graph_for_boundaries(const std::vector<std::vector<cv::Point>>& edges);

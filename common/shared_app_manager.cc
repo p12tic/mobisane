@@ -58,6 +58,8 @@
 #include <aliceVision/sensorDB/parseDatabase.hpp>
 #include <aliceVision/sfm/pipeline/regionsIO.hpp>
 #include <aliceVision/sfm/pipeline/sequential/ReconstructionEngine_sequentialSfM.hpp>
+#include <aliceVision/sfm/pipeline/structureFromKnownPoses/StructureEstimationFromKnownPoses.hpp>
+#include <aliceVision/sfm/sfmFilters.hpp>
 #include <aliceVision/sfmData/SfMData.hpp>
 #include <aliceVision/sfmDataIO/viewIO.hpp>
 #include <aliceVision/vfs/filesystem.hpp>
@@ -164,7 +166,16 @@ struct SharedAppManager::Data
     std::vector<std::shared_ptr<PhotoData>> submitted_data;
     std::map<aliceVision::IndexT, std::shared_ptr<PhotoData>> submitted_data_by_view_id;
 
+    // After the initial calculation the landmarks array is moved out of this data structure to
+    // sfm_landmarks_* variable below. To use sfm_data in any way after that, appropriate data
+    // needs to be copied/moved in.
     aliceVision::sfmData::SfMData sfm_data;
+
+    // Exact landmarks that will be used during OCR
+    aliceVision::sfmData::Landmarks sfm_landmarks_exact;
+    // Inexact landmarks with less matches. They will be used for auxiliary tasks.
+    aliceVision::sfmData::Landmarks sfm_landmarks_inexact;
+
     std::string vfs_root_name = "//mobisane";
     vfs::path vfs_project_path = "//mobisane/alicevision";
 
@@ -454,7 +465,7 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                             view_a_id, view_b_id,
                                             match.second,
                                             d_->features_per_view,
-                                            d_->sfm_data.getLandmarks());
+                                            d_->sfm_landmarks_inexact);
         }
     }));
 
@@ -470,11 +481,24 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
     {
+        auto sfm_data_exact = d_->sfm_data;
+        sfm_data_exact.getLandmarks() = d_->sfm_landmarks_exact;
         // Debug info is written outside vfs, thus an absolute path is needed.
-        auto path = (std::filesystem::absolute(debug_folder_path) / "sfm_only_points.ply").string();
-        aliceVision::sfmDataIO::Save(d_->sfm_data, path.c_str(),
+        auto path = std::filesystem::absolute(debug_folder_path) / "sfm_only_points.ply";
+        aliceVision::sfmDataIO::Save(sfm_data_exact, path.c_str(),
                                      aliceVision::sfmDataIO::ESfMData::ALL);
     }));
+
+    d_->task_arena.enqueue(print_tasks.defer([&]()
+    {
+        auto sfm_data_inexact = d_->sfm_data;
+        sfm_data_inexact.getLandmarks() = d_->sfm_landmarks_inexact;
+        // Debug info is written outside vfs, thus an absolute path is needed.
+        auto path = std::filesystem::absolute(debug_folder_path) / "sfm_only_points_inexact.ply";
+        aliceVision::sfmDataIO::Save(sfm_data_inexact, path.c_str(),
+                                     aliceVision::sfmDataIO::ESfMData::ALL);
+    }));
+
 
     print_tasks.wait();
 }
@@ -557,6 +581,7 @@ void SharedAppManager::serial_detect()
     load_per_image_data();
     match_features();
     compute_structure_from_motion();
+    compute_structure_from_motion_inexact();
     compute_edge_structure_from_motion();
 }
 
@@ -777,9 +802,26 @@ void SharedAppManager::compute_structure_from_motion()
     // sfm::generateSfMReport(sfm_engine.getSfMData(),
     //                       (d_->get_path_to_current_session_sfm_folder() / "sfm_report.html").string());
 
-    d_->sfm_data = sfm_engine.getSfMData();
+    d_->sfm_data = std::move(sfm_engine.getSfMData());
+    std::swap(d_->sfm_landmarks_exact, d_->sfm_data.getLandmarks());
+}
 
-    ALICEVISION_LOG_TRACE("compute_structure_from_motion(): End");
+void SharedAppManager::compute_structure_from_motion_inexact()
+{
+    TimeLogger time_logger{"compute_structure_from_motion_inexact()"};
+
+    double geometric_error_max = 5.5;
+
+    std::mt19937 rng(1);
+
+    aliceVision::sfm::StructureEstimationFromKnownPoses estimator;
+    estimator.match(d_->sfm_data, d_->matched_image_pairs, d_->regions_per_view,
+                    geometric_error_max);
+    estimator.filter(d_->sfm_data, d_->matched_image_pairs, d_->regions_per_view);
+    estimator.triangulate(d_->sfm_data, d_->regions_per_view, rng);
+    aliceVision::sfm::RemoveOutliers_AngleError(d_->sfm_data, 2.0);
+
+    std::swap(d_->sfm_data.getLandmarks(), d_->sfm_landmarks_inexact);
 }
 
 void SharedAppManager::compute_edge_structure_from_motion()
@@ -792,7 +834,8 @@ void SharedAppManager::compute_edge_structure_from_motion()
     }
 
     // the order of edge_sfm_data.camerasList_ corresponds to views in d_->submitted_data
-    auto edge_sfm_data = edge_sfm_from_av_sfm_data(orig_view_ids, d_->sfm_data);
+    auto edge_sfm_data = edge_sfm_from_av_sfm_data(orig_view_ids, d_->sfm_data,
+                                                   d_->sfm_landmarks_inexact);
     auto initial_points_count = edge_sfm_data.landmarks_.size();
 
     std::vector<edgegraph3d::PolyLineGraph2DHMapImpl> graphs;
@@ -851,14 +894,9 @@ void SharedAppManager::compute_edge_structure_from_motion()
     mfc.all_fundamental_matrices = fundamental_matrices;
     mfc.plgs = graphs;
 
-    int first_edgepoint = edge_sfm_data.landmarks_.size();
-
     // Run edge reconstruction pipeline
     edgegraph3d::edge_reconstruction_pipeline(graphs, edge_sfm_data, &mfc,
                                               plgmm, pl_maps);
-
-
-    auto& landmarks = d_->sfm_data.getLandmarks();
 
     for (std::size_t i = initial_points_count; i < edge_sfm_data.landmarks_.size(); ++i) {
         const auto& landmark_wrapper = edge_sfm_data.landmarks_[i];
@@ -876,7 +914,8 @@ void SharedAppManager::compute_edge_structure_from_motion()
                     aliceVision::sfmData::Observation(observation_wrapper.x.cast<double>(), 0, 0.0);
         }
 
-        landmarks[get_unused_landmark_id(landmarks)] = std::move(landmark);
+        d_->sfm_landmarks_exact[get_unused_landmark_id(d_->sfm_landmarks_exact)] =
+                std::move(landmark);
     }
 }
 

@@ -24,7 +24,8 @@ namespace sanescan {
 
 edgegraph3d::SfMDataWrapper
     edge_sfm_from_av_sfm_data(const std::vector<aliceVision::IndexT>& orig_view_ids,
-                              const aliceVision::sfmData::SfMData& sfm_data)
+                              const aliceVision::sfmData::SfMData& sfm_data,
+                              const aliceVision::sfmData::Landmarks& landmarks)
 {
     edgegraph3d::SfMDataWrapper res;
 
@@ -61,13 +62,13 @@ edgegraph3d::SfMDataWrapper
     }
 
     std::vector<aliceVision::IndexT> landmark_ids;
-    for (const auto& landmark : sfm_data.getLandmarks()) {
+    for (const auto& landmark : landmarks) {
         landmark_ids.push_back(landmark.first);
     }
     std::sort(landmark_ids.begin(), landmark_ids.end());
 
     for (auto landmark_id : landmark_ids) {
-        const auto& landmark = sfm_data.getLandmarks().at(landmark_id);
+        const auto& landmark = landmarks.at(landmark_id);
 
         edgegraph3d::LandmarkWrapper landmark_wrapper;
         landmark_wrapper.X = landmark.X.cast<float>();
