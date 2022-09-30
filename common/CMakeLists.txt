@@ -21,6 +21,7 @@ set(SOURCES
     longest_line_recognizer.cc
     mean_flood_fill.cc
     flood_fill_utils.cc
+    image_utils.cc
     edge_utils.cc
     segment_calculator_precise.cc
 )
@@ -31,6 +32,7 @@ set(PUBLIC_HEADERS
     edge_calculator_precise.h
     edge_utils.h
     flood_fill_utils.h
+    image_utils.h
     longest_line_recognizer.h
     mean_flood_fill.h
     segment_calculator_precise.h
