@@ -7,16 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1C1CD06328DC1F0100C70EC8 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD06228DC1F0100C70EC8 /* AppDelegate.m */; };
-		1C1CD06628DC1F0100C70EC8 /* SceneDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD06528DC1F0100C70EC8 /* SceneDelegate.m */; };
-		1C1CD06928DC1F0100C70EC8 /* ViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD06828DC1F0100C70EC8 /* ViewController.m */; };
+		1C1CD06328DC1F0100C70EC8 /* AppDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD06228DC1F0100C70EC8 /* AppDelegate.mm */; };
+		1C1CD06628DC1F0100C70EC8 /* SceneDelegate.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD06528DC1F0100C70EC8 /* SceneDelegate.mm */; };
+		1C1CD06928DC1F0100C70EC8 /* ViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD06828DC1F0100C70EC8 /* ViewController.mm */; };
 		1C1CD06C28DC1F0100C70EC8 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1C1CD06A28DC1F0100C70EC8 /* Main.storyboard */; };
 		1C1CD06E28DC1F0100C70EC8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1C1CD06D28DC1F0100C70EC8 /* Assets.xcassets */; };
 		1C1CD07128DC1F0100C70EC8 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 1C1CD06F28DC1F0100C70EC8 /* LaunchScreen.storyboard */; };
-		1C1CD07428DC1F0100C70EC8 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD07328DC1F0100C70EC8 /* main.m */; };
-		1C1CD07E28DC1F0200C70EC8 /* MobisaneTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.m */; };
-		1C1CD08828DC1F0200C70EC8 /* MobisaneUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.m */; };
-		1C1CD08A28DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.m */; };
+		1C1CD07428DC1F0100C70EC8 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD07328DC1F0100C70EC8 /* main.mm */; };
+		1C1CD07E28DC1F0200C70EC8 /* MobisaneTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.mm */; };
+		1C1CD08828DC1F0200C70EC8 /* MobisaneUITests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.mm */; };
+		1C1CD08A28DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm in Sources */ = {isa = PBXBuildFile; fileRef = 1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -39,21 +39,21 @@
 /* Begin PBXFileReference section */
 		1C1CD05E28DC1F0100C70EC8 /* Mobisane.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mobisane.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1C1CD06128DC1F0100C70EC8 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
-		1C1CD06228DC1F0100C70EC8 /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		1C1CD06228DC1F0100C70EC8 /* AppDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = AppDelegate.mm; sourceTree = "<group>"; };
 		1C1CD06428DC1F0100C70EC8 /* SceneDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SceneDelegate.h; sourceTree = "<group>"; };
-		1C1CD06528DC1F0100C70EC8 /* SceneDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = SceneDelegate.m; sourceTree = "<group>"; };
+		1C1CD06528DC1F0100C70EC8 /* SceneDelegate.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SceneDelegate.mm; sourceTree = "<group>"; };
 		1C1CD06728DC1F0100C70EC8 /* ViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ViewController.h; sourceTree = "<group>"; };
-		1C1CD06828DC1F0100C70EC8 /* ViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ViewController.m; sourceTree = "<group>"; };
+		1C1CD06828DC1F0100C70EC8 /* ViewController.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ViewController.mm; sourceTree = "<group>"; };
 		1C1CD06B28DC1F0100C70EC8 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		1C1CD06D28DC1F0100C70EC8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1C1CD07028DC1F0100C70EC8 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		1C1CD07228DC1F0100C70EC8 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		1C1CD07328DC1F0100C70EC8 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		1C1CD07328DC1F0100C70EC8 /* main.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = main.mm; sourceTree = "<group>"; };
 		1C1CD07928DC1F0200C70EC8 /* MobisaneTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MobisaneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MobisaneTests.m; sourceTree = "<group>"; };
+		1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MobisaneTests.mm; sourceTree = "<group>"; };
 		1C1CD08328DC1F0200C70EC8 /* MobisaneUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MobisaneUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MobisaneUITests.m; sourceTree = "<group>"; };
-		1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MobisaneUITestsLaunchTests.m; sourceTree = "<group>"; };
+		1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MobisaneUITests.mm; sourceTree = "<group>"; };
+		1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MobisaneUITestsLaunchTests.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -105,16 +105,16 @@
 			isa = PBXGroup;
 			children = (
 				1C1CD06128DC1F0100C70EC8 /* AppDelegate.h */,
-				1C1CD06228DC1F0100C70EC8 /* AppDelegate.m */,
+				1C1CD06228DC1F0100C70EC8 /* AppDelegate.mm */,
 				1C1CD06428DC1F0100C70EC8 /* SceneDelegate.h */,
-				1C1CD06528DC1F0100C70EC8 /* SceneDelegate.m */,
+				1C1CD06528DC1F0100C70EC8 /* SceneDelegate.mm */,
 				1C1CD06728DC1F0100C70EC8 /* ViewController.h */,
-				1C1CD06828DC1F0100C70EC8 /* ViewController.m */,
+				1C1CD06828DC1F0100C70EC8 /* ViewController.mm */,
 				1C1CD06A28DC1F0100C70EC8 /* Main.storyboard */,
 				1C1CD06D28DC1F0100C70EC8 /* Assets.xcassets */,
 				1C1CD06F28DC1F0100C70EC8 /* LaunchScreen.storyboard */,
 				1C1CD07228DC1F0100C70EC8 /* Info.plist */,
-				1C1CD07328DC1F0100C70EC8 /* main.m */,
+				1C1CD07328DC1F0100C70EC8 /* main.mm */,
 			);
 			path = Mobisane;
 			sourceTree = "<group>";
@@ -122,7 +122,7 @@
 		1C1CD07C28DC1F0200C70EC8 /* MobisaneTests */ = {
 			isa = PBXGroup;
 			children = (
-				1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.m */,
+				1C1CD07D28DC1F0200C70EC8 /* MobisaneTests.mm */,
 			);
 			path = MobisaneTests;
 			sourceTree = "<group>";
@@ -130,8 +130,8 @@
 		1C1CD08628DC1F0200C70EC8 /* MobisaneUITests */ = {
 			isa = PBXGroup;
 			children = (
-				1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.m */,
-				1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.m */,
+				1C1CD08728DC1F0200C70EC8 /* MobisaneUITests.mm */,
+				1C1CD08928DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm */,
 			);
 			path = MobisaneUITests;
 			sourceTree = "<group>";
@@ -266,10 +266,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1C1CD06928DC1F0100C70EC8 /* ViewController.m in Sources */,
-				1C1CD06328DC1F0100C70EC8 /* AppDelegate.m in Sources */,
-				1C1CD07428DC1F0100C70EC8 /* main.m in Sources */,
-				1C1CD06628DC1F0100C70EC8 /* SceneDelegate.m in Sources */,
+				1C1CD06928DC1F0100C70EC8 /* ViewController.mm in Sources */,
+				1C1CD06328DC1F0100C70EC8 /* AppDelegate.mm in Sources */,
+				1C1CD07428DC1F0100C70EC8 /* main.mm in Sources */,
+				1C1CD06628DC1F0100C70EC8 /* SceneDelegate.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -277,7 +277,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1C1CD07E28DC1F0200C70EC8 /* MobisaneTests.m in Sources */,
+				1C1CD07E28DC1F0200C70EC8 /* MobisaneTests.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,8 +285,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1C1CD08A28DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.m in Sources */,
-				1C1CD08828DC1F0200C70EC8 /* MobisaneUITests.m in Sources */,
+				1C1CD08A28DC1F0200C70EC8 /* MobisaneUITestsLaunchTests.mm in Sources */,
+				1C1CD08828DC1F0200C70EC8 /* MobisaneUITests.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
