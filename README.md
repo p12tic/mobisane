@@ -78,3 +78,9 @@ To build the static library, run the following command in `3rdparty` directory:
 ```
 ./build_ios.sh
 ```
+
+Force pushes
+============
+
+The code is still under heavy development and the repository may see occasional force pushes to
+clean up history.
