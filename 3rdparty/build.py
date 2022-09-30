@@ -983,6 +983,8 @@ def build_taskflow(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
+        '-DTF_BUILD_TESTS=OFF',
+        '-DTF_BUILD_EXAMPLES=OFF',
         srcdir] + cmake_flags_from_settings(settings)
     )
     bsh(['ninja'])

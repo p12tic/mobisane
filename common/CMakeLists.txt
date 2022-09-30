@@ -16,6 +16,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set(SOURCES
+    parallel_alicevision.cc
     bounds_detection_params.cc
     bounds_detection_pipeline.cc
     edge_calculator_precise.cc
@@ -30,6 +31,7 @@ set(SOURCES
 )
 
 set(PUBLIC_HEADERS
+    parallel_alicevision.h
     bounds_detection_params.h
     bounds_detection_pipeline.h
     edge_calculator_precise.h
@@ -45,6 +47,7 @@ set(PUBLIC_HEADERS
 
 find_package(OpenCV REQUIRED)
 find_package(AliceVision REQUIRED)
+find_package(Taskflow REQUIRED)
 
 # FIXME: fix AliceVision config to impor OpenEXR
 find_package(OpenEXR REQUIRED)
