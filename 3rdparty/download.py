@@ -20,6 +20,7 @@
 import argparse
 from concurrent import futures
 import os
+import shutil
 import subprocess
 import sys
 
@@ -72,11 +73,16 @@ known_dependencies = [
 ]
 
 
-def prepare_dependency(root_path, name, remote, commit):
+def prepare_dependency(root_path, overwrite, name, remote, commit):
     repo_path = os.path.join(root_path, name)
 
     if os.path.isdir(repo_path):
-        print('Not downloading already existing repository')
+        if overwrite:
+            print(f'Removing existing repository {name}')
+            shutil.rmtree(repo_path)
+            sh(['git', 'clone', remote, repo_path], cwd=root_path)
+        else:
+            print(f'Not downloading already existing repository {name}')
     else:
         sh(['git', 'clone', remote, repo_path], cwd=root_path)
 
@@ -88,6 +94,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-j', default=1, type=int,
                         help='The number of tasks to run in parallel')
+    parser.add_argument('--overwrite', default=False, action='store_true',
+                        help='Overwrite already existing repositories')
     args = parser.parse_args()
 
     root_path = os.path.abspath(os.path.dirname(__file__))
@@ -96,7 +104,7 @@ def main():
 
     with futures.ThreadPoolExecutor(max_workers=num_jobs) as executor:
         futures_list = [
-            executor.submit(prepare_dependency, root_path, name, remote, commit)
+            executor.submit(prepare_dependency, root_path, args.overwrite, name, remote, commit)
             for name, remote, commit in known_dependencies
         ]
 
