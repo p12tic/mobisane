@@ -113,19 +113,6 @@ namespace {
         };
     }
 
-    aliceVision::feature::FeaturesPerView
-        load_features_per_view(const aliceVision::sfmData::SfMData& sfm_data,
-                               const std::string& features_folder)
-    {
-        aliceVision::feature::FeaturesPerView features_per_view;
-        if (!aliceVision::sfm::loadFeaturesPerView(features_per_view, sfm_data, {features_folder},
-                                                   get_describer_types()))
-        {
-            throw std::runtime_error("Could not load features");
-        }
-        return features_per_view;
-    }
-
     aliceVision::IndexT get_unused_landmark_id(const aliceVision::sfmData::Landmarks& landmarks)
     {
         if (landmarks.empty()) {
@@ -192,6 +179,9 @@ struct SharedAppManager::Data
     // bounds detection pipelines in submitted_data array.
     BoundsDetectionParams photo_bounds_pipeline_params;
 
+    // Results from per-image processing pipeline
+    aliceVision::feature::FeaturesPerView features_per_view;
+    aliceVision::feature::RegionsPerView regions_per_view;
     // Results from match_images()
     aliceVision::PairSet matched_image_pairs;
     // Results from match_features()
@@ -443,9 +433,6 @@ void SharedAppManager::print_debug_info(std::ostream& stream)
 
 void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 {
-    auto features_per_view = load_features_per_view(
-                d_->sfm_data, d_->get_path_to_current_session_features_folder().string());
-
     tbb::task_group print_tasks;
 
     d_->task_arena.enqueue(print_tasks.defer([&]()
@@ -466,7 +453,7 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                             submitted_data_b->image,
                                             view_a_id, view_b_id,
                                             match.second,
-                                            features_per_view,
+                                            d_->features_per_view,
                                             d_->sfm_data.getLandmarks());
         }
     }));
@@ -522,12 +509,9 @@ void SharedAppManager::print_debug_images_for_photo(const std::string& debug_fol
     write_image_with_edges_precise(debug_folder_path, "target_object_precise_edges.png",
                                    image, bp.precise_edges);
 
-    auto features_per_view = load_features_per_view(
-                d_->sfm_data, d_->get_path_to_current_session_features_folder().string());
-
     const auto& view = d_->sfm_data.getView(data->view_id);
 
-    const auto& features_type = features_per_view.getData().at(view.getViewId());
+    const auto& features_type = d_->features_per_view.getData().at(view.getViewId());
     write_features_debug_image(debug_folder_path, "sfm_features.png", features_type, image);
 }
 
@@ -570,6 +554,7 @@ void SharedAppManager::maybe_on_photo_tasks_finished()
 void SharedAppManager::serial_detect()
 {
     match_images();
+    load_per_image_data();
     match_features();
     compute_structure_from_motion();
     compute_edge_structure_from_motion();
@@ -586,6 +571,36 @@ void SharedAppManager::match_images()
         for (const auto& index : image_pairs.second) {
             d_->matched_image_pairs.emplace(image_pairs.first, index);
         }
+    }
+    if (d_->matched_image_pairs.empty()) {
+        throw std::runtime_error("No matched image pairs");
+    }
+}
+
+void SharedAppManager::load_per_image_data()
+{
+    TimeLogger time_logger{"load_per_image_data()"};
+
+    std::set<aliceVision::IndexT> filter;
+
+    for (const auto& pair: d_->matched_image_pairs) {
+        filter.insert(pair.first);
+        filter.insert(pair.second);
+    }
+
+    auto features_folder = d_->get_path_to_current_session_features_folder().string();
+
+    auto describer_types = get_describer_types();
+    if (!aliceVision::sfm::loadRegionsPerView(d_->regions_per_view, d_->sfm_data,
+                                              {features_folder},
+                                              describer_types, filter))
+    {
+        throw std::runtime_error("Invalid regions");
+    }
+    if (!aliceVision::sfm::loadFeaturesPerView(d_->features_per_view, d_->sfm_data, {features_folder},
+                                               describer_types))
+    {
+        throw std::runtime_error("Could not load features");
     }
 }
 
@@ -613,36 +628,17 @@ void SharedAppManager::match_features()
     auto geometric_filter_type = EGeometricFilterType::FUNDAMENTAL_MATRIX;
     auto describer_types = get_describer_types();
 
-    std::set<aliceVision::IndexT> filter;
-
-    if (d_->matched_image_pairs.empty()) {
-        throw std::runtime_error("No image pairs to match");
-    }
-
-    for (const auto& pair: d_->matched_image_pairs) {
-        filter.insert(pair.first);
-        filter.insert(pair.second);
-    }
-
     auto matcher = createImageCollectionMatcher(nearest_matching_method, distance_ratio,
                                                 cross_matching);
 
-    aliceVision::feature::RegionsPerView regions_per_view;
-    if (!aliceVision::sfm::loadRegionsPerView(regions_per_view, d_->sfm_data,
-                                              {d_->get_path_to_current_session_features_folder().string()},
-                                              describer_types, filter))
-    {
-        throw std::runtime_error("Invalid regions");
-    }
-
 
     for (auto describer_type : describer_types) {
-        matcher->Match(d_->rng, regions_per_view, d_->matched_image_pairs, describer_type,
+        matcher->Match(d_->rng, d_->regions_per_view, d_->matched_image_pairs, describer_type,
                        d_->pairwise_putative_matches);
     }
 
     aliceVision::matching::filterMatchesByMin2DMotion(d_->pairwise_putative_matches,
-                                                      regions_per_view,
+                                                      d_->regions_per_view,
                                                       min_required_2d_motion);
 
     if (d_->pairwise_putative_matches.empty()) {
@@ -661,7 +657,7 @@ void SharedAppManager::match_features()
             robustModelEstimation(
                 d_->pairwise_geometric_matches,
                 &d_->sfm_data,
-                regions_per_view,
+                d_->regions_per_view,
                 GeometricFilterMatrix_F_AC(geometric_error_max, max_iteration_count,
                                            geometric_estimator),
                 d_->pairwise_putative_matches,
@@ -674,7 +670,7 @@ void SharedAppManager::match_features()
             robustModelEstimation(
                 d_->pairwise_geometric_matches,
                 &d_->sfm_data,
-                regions_per_view,
+                d_->regions_per_view,
                 GeometricFilterMatrix_F_AC(geometric_error_max, max_iteration_count,
                                            geometric_estimator, true),
                 d_->pairwise_putative_matches,
@@ -686,7 +682,7 @@ void SharedAppManager::match_features()
             robustModelEstimation(
                 d_->pairwise_geometric_matches,
                 &d_->sfm_data,
-                regions_per_view,
+                d_->regions_per_view,
                 GeometricFilterMatrix_E_AC(geometric_error_max, max_iteration_count),
                 d_->pairwise_putative_matches,
                 d_->rng,
@@ -701,7 +697,7 @@ void SharedAppManager::match_features()
             robustModelEstimation(
                 d_->pairwise_geometric_matches,
                 &d_->sfm_data,
-                regions_per_view,
+                d_->regions_per_view,
                 GeometricFilterMatrix_H_AC(geometric_error_max, max_iteration_count),
                 d_->pairwise_putative_matches,
                 d_->rng, guided_matching,
@@ -712,7 +708,7 @@ void SharedAppManager::match_features()
             robustModelEstimation(
                 d_->pairwise_geometric_matches,
                 &d_->sfm_data,
-                regions_per_view,
+                d_->regions_per_view,
                 GeometricFilterMatrix_HGrowing(geometric_error_max, max_iteration_count),
                 d_->pairwise_putative_matches,
                 d_->rng,
@@ -725,7 +721,7 @@ void SharedAppManager::match_features()
 
     aliceVision::matching::matchesGridFilteringForAllPairs(d_->pairwise_geometric_matches,
                                                            d_->sfm_data,
-                                                           regions_per_view, use_grid_sort,
+                                                           d_->regions_per_view, use_grid_sort,
                                                            num_matches_to_keep,
                                                            d_->pairwise_final_matches);
 
@@ -752,10 +748,7 @@ void SharedAppManager::compute_structure_from_motion()
 
     auto describer_types = get_describer_types();
 
-    auto features_per_view = load_features_per_view(
-                d_->sfm_data, d_->get_path_to_current_session_features_folder().string());
-
-    aliceVision::matching::PairwiseMatches pairwise_matches = d_->pairwise_final_matches;
+    aliceVision::matching::PairwiseMatches& pairwise_matches = d_->pairwise_final_matches;
 
     // TODO: investigate whether to set initial pair
 
@@ -765,7 +758,7 @@ void SharedAppManager::compute_structure_from_motion()
                 (d_->get_path_to_current_session_sfm_folder() / "sfm_log.html").string());
 
     sfm_engine.initRandomSeed(d_->random_seed);
-    sfm_engine.setFeatures(&features_per_view);
+    sfm_engine.setFeatures(&d_->features_per_view);
     sfm_engine.setMatches(&pairwise_matches);
 
     if (!sfm_engine.process()) {

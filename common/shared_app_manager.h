@@ -72,6 +72,7 @@ private:
 
     void serial_detect();
     void match_images();
+    void load_per_image_data();
     void match_features();
     void compute_structure_from_motion();
     void compute_edge_structure_from_motion();
