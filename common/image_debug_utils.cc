@@ -148,7 +148,8 @@ void write_feature_match_debug_image(
         aliceVision::IndexT view_a_id,
         aliceVision::IndexT view_b_id,
         const aliceVision::matching::MatchesPerDescType& matches_by_type,
-        const aliceVision::feature::FeaturesPerView& features_per_view)
+        const aliceVision::feature::FeaturesPerView& features_per_view,
+        const aliceVision::sfmData::Landmarks& landmarks)
 {
     cv::Mat output(std::max(image_a.size().height, image_b.size().height),
                    image_a.size().width + image_b.size().width, image_a.type());
@@ -159,6 +160,8 @@ void write_feature_match_debug_image(
     image_b.copyTo(output(cv::Rect(cv::Point(offset_x, 0), image_b.size())));
 
     int color_counter = 0;
+
+    std::map<aliceVision::IndexT, cv::Scalar> feature_to_color;
 
     for (const auto& [descriptor_type, matches] : matches_by_type) {
         const auto& features_a = features_per_view.getFeatures(view_a_id, descriptor_type);
@@ -176,6 +179,32 @@ void write_feature_match_debug_image(
             cv::circle(output, pos_a, 3, color, cv::FILLED);
             cv::line(output, pos_a, pos_b, color, 1);
             cv::circle(output, pos_b, 3, color, cv::FILLED);
+
+            feature_to_color[match._i] = color;
+            feature_to_color[match._j] = color;
+        }
+    }
+
+    for (const auto& [id, landmark] : landmarks) {
+        for (const auto& observation : landmark.observations) {
+            if (observation.first != view_a_id && observation.first != view_b_id) {
+                continue;
+            }
+
+            auto pos_feat = cv::Point(observation.second.x.x(), observation.second.x.y());
+            if (observation.first == view_b_id) {
+                pos_feat.x += offset_x;
+            }
+
+            cv::Scalar color{0, 0, 0};
+            auto color_it = feature_to_color.find(observation.second.id_feat);
+            if (color_it != feature_to_color.end()) {
+                color = color_it->second;
+            }
+            cv::circle(output, pos_feat, 8, color, 2);
+            auto text = std::to_string(id) + "_" + std::to_string(landmark.observations.size());
+            cv::putText(output, text, pos_feat + cv::Point(8, 0), cv::FONT_HERSHEY_SIMPLEX,
+                        0.5, color, 2);
         }
     }
 

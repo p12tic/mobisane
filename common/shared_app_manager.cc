@@ -434,7 +434,8 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
                                             submitted_data_b->image,
                                             view_a_id, view_b_id,
                                             match.second,
-                                            features_per_view);
+                                            features_per_view,
+                                            d_->sfm_data.getLandmarks());
         }
     }));
 

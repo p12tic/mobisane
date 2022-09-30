@@ -20,6 +20,7 @@
 
 #include <aliceVision/feature/FeaturesPerView.hpp>
 #include <aliceVision/matching/IndMatch.hpp>
+#include <aliceVision/sfmData/SfMData.hpp>
 #include <opencv2/core/mat.hpp>
 
 namespace sanescan {
@@ -53,6 +54,7 @@ void write_feature_match_debug_image(
         aliceVision::IndexT view_a_id,
         aliceVision::IndexT view_b_id,
         const aliceVision::matching::MatchesPerDescType& matches_by_type,
-        const aliceVision::feature::FeaturesPerView& features_per_view);
+        const aliceVision::feature::FeaturesPerView& features_per_view,
+        const aliceVision::sfmData::Landmarks& landmarks);
 
 } // namespace sanescan
