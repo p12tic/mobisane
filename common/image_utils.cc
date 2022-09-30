@@ -143,12 +143,7 @@ void convert_yuv420_any_to_cv_mat_bgr(const std::uint8_t* y_ptr,
             throw std::invalid_argument("Unsupported number of channels");
     }
 
-
-    if (dst_mat.type() != dst_type || dst_mat.size.p[1] != dst_width || dst_mat.size.p[0] != dst_height ||
-        dst_mat.size.dims() != 2)
-    {
-        dst_mat = cv::Mat(dst_height, dst_width, dst_type);
-    }
+    dst_mat.create(dst_height, dst_width, dst_type);
 
     std::uint8_t* out_row_ptr = dst_mat.data;
     std::uint32_t out_row_stride = dst_mat.step.p[0];
