@@ -86,10 +86,19 @@ def build_gmp(prefix, srcdir, builddir, settings):
     bsh(['make', 'install'])
 
 
+def build_mpfr(prefix, srcdir, builddir, settings):
+    bsh = sh_with_cwd(builddir)
+    sh(['./autogen.sh'], cwd=srcdir)
+    bsh([os.path.join(srcdir, 'configure'), f'--prefix={prefix}', f'--with-gmp={prefix}'])
+    bsh(['make', f'-j{settings.parallel}'])
+    bsh(['make', 'install'])
+
+
 known_dependencies = [
     ('zlib', build_zlib),
     ('libpng', build_libpng),
     ('gmp', build_gmp),
+    ('mpfr', build_mpfr),
 ]
 
 
