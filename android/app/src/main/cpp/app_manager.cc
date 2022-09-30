@@ -46,6 +46,21 @@ void AppManager::set_preview_surface(ANativeWindow* win)
     preview_win_ = ANativeWindowRef(win);
 }
 
+void AppManager::start_new_session(const std::string& dest_path)
+{
+    shared_manager_.start_new_session(dest_path);
+}
+
+bool AppManager::is_scene_analysis_finished() const
+{
+    return shared_manager_.is_scene_analysis_finished();
+}
+
+bool AppManager::is_success() const
+{
+    return shared_manager_.is_success();
+}
+
 void AppManager::start_scene_analysis()
 {
     shared_manager_.start_scene_analysis();

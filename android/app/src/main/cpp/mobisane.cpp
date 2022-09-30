@@ -32,6 +32,16 @@
 #include <vector>
 
 namespace {
+
+std::string read_string_from_jstring(JNIEnv* env, jstring jstr)
+{
+    jboolean is_copy;
+    auto cstr = env->GetStringUTFChars(jstr, &is_copy);
+    std::string str = cstr;
+    env->ReleaseStringUTFChars(jstr, cstr);
+    return str;
+}
+
 std::unique_ptr<sanescan::Camera> g_camera;
 std::unique_ptr<sanescan::AppManager> g_app_manager;
 } // namespace
@@ -141,16 +151,20 @@ JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_setPreviewSurfa
 }
 
 JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_notifyResourcesReady(
-        JNIEnv* env, jobject obj, jstring root_path)
+        JNIEnv* env, jobject obj, jstring jroot_path)
 {
-    jboolean is_copy;
-    auto path_str = env->GetStringUTFChars(root_path, &is_copy);
+    auto root_path = read_string_from_jstring(env, jroot_path);
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "notifyResourcesReady %s",
+                        root_path.c_str());
+    g_app_manager->resources_ready(root_path);
+}
 
-    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "notifyResourcesReady %s", path_str);
-
-    g_app_manager->resources_ready(path_str);
-
-    env->ReleaseStringUTFChars(root_path, path_str);
+JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_startNewSession(
+        JNIEnv* env, jobject obj, jstring jdest_path)
+{
+    std::string dest_path = read_string_from_jstring(env, jdest_path);
+    __android_log_print(ANDROID_LOG_DEBUG, "mobisane", "startNewSession %s", dest_path.c_str());
+    g_app_manager->start_new_session(dest_path);
 }
 
 JNIEXPORT void JNICALL Java_com_p12tic_mobisane_NativeAppManager_startAnalysis(
@@ -175,6 +189,18 @@ JNIEXPORT jdouble JNICALL Java_com_p12tic_mobisane_NativeAppManager_getCurrentPr
         return *current_progress;
     }
     return std::numeric_limits<double>::quiet_NaN();
+}
+
+JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeAppManager_isAnalysisFinished(
+        JNIEnv* env, jobject obj)
+{
+    return g_app_manager->is_scene_analysis_finished();
+}
+
+JNIEXPORT jboolean JNICALL Java_com_p12tic_mobisane_NativeAppManager_isAnalysisSuccess(
+        JNIEnv* env, jobject obj)
+{
+    return g_app_manager->is_success();
 }
 
 } // extern "C"

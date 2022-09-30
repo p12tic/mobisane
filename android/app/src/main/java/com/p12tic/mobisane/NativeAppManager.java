@@ -23,7 +23,11 @@ import android.view.Surface;
 public class NativeAppManager {
     public native void setPreviewSurface(Surface surface);
     public native void notifyResourcesReady(String rootPath);
+
+    public native void startNewSession(String destPath);
     public native void startAnalysis();
+    public native boolean isAnalysisFinished();
+    public native boolean isAnalysisSuccess();
 
     public native String getCurrentStatus();
 

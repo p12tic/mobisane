@@ -19,14 +19,18 @@
 package com.p12tic.mobisane;
 
 import android.Manifest;
+import android.app.Activity;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Matrix;
 import android.graphics.SurfaceTexture;
+import android.net.Uri;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.util.Size;
@@ -34,7 +38,9 @@ import android.view.Menu;
 import android.view.Surface;
 
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.ShareCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.p12tic.mobisane.databinding.ActivityMainBinding;
@@ -45,6 +51,10 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity
         implements ActivityCompat.OnRequestPermissionsResultCallback {
@@ -62,6 +72,9 @@ public class MainActivity extends AppCompatActivity
 
     private boolean initialized = false;
     private boolean gotCameraPermission = false;
+    private boolean isRunningAnalysis = false;
+    private String destinationScanPath;
+
     private TextureView cameraView;
     private TextureView overlayView;
     private Surface cameraViewSurface = null;
@@ -98,6 +111,7 @@ public class MainActivity extends AppCompatActivity
                 setupTextureView();
                 initialized = true;
                 maybeSetupCamera();
+                prepareForNewSession();
             } else {
                 infoTextLabel.setText("Resource loading failure... Please enable network");
             }
@@ -148,6 +162,7 @@ public class MainActivity extends AppCompatActivity
             public void onSurfaceTextureUpdated(@NonNull SurfaceTexture surfaceTexture) { }
         });
 
+        Activity self = this;
         FloatingActionButton takePhotoButton = (FloatingActionButton) findViewById(R.id.takePhoto);
         takePhotoButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -187,6 +202,7 @@ public class MainActivity extends AppCompatActivity
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_analyze) {
             numberOfPendingImages = 0;
+            isRunningAnalysis = true; // the status will be handled by the status refreshing code
             nativeAppManager.startAnalysis();
             updateMenuItemStatuses();
             return true;
@@ -387,11 +403,43 @@ public class MainActivity extends AppCompatActivity
                 } else {
                     infoTextLabel.setText(status);
                 }
+
+                if (isRunningAnalysis && nativeAppManager.isAnalysisFinished()) {
+                    isRunningAnalysis = false;
+                    if (nativeAppManager.isAnalysisSuccess()) {
+                        String scanPath = destinationScanPath;
+                        prepareForNewSession();
+                        invokePdfViewer(scanPath);
+                    }
+                }
             }
         }, PROGRESS_REFRESH_INTERVAL_MS);
     }
 
     private void disableProgressReporting() {
         handler.removeCallbacks(progressRefreshRunnable);
+    }
+
+    private void prepareForNewSession() {
+        File destDirectory = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_DOCUMENTS);
+        String filename = new SimpleDateFormat("'scanned-'yyyy-MM-dd_hh-mm-ss'.pdf'").format(new Date());
+        destinationScanPath = destDirectory + "/" + filename;
+        nativeAppManager.startNewSession(destinationScanPath);
+    }
+
+    private void invokePdfViewer(String pdfPath) {
+        File file = new File(pdfPath);
+        Uri uri = FileProvider.getUriForFile(this, getPackageName(), file);
+
+        Intent intent = ShareCompat.IntentBuilder.from(this)
+                .setStream(uri) // uri from FileProvider
+                .setType("application/pdf")
+                .getIntent()
+                .setAction(Intent.ACTION_VIEW) //Change if needed
+                .setDataAndType(uri, "application/pdf")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+        startActivity(Intent.createChooser(intent, "Select application to open scanned file"));
     }
 }
