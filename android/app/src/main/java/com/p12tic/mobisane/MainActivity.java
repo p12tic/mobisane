@@ -82,6 +82,8 @@ public class MainActivity extends AppCompatActivity
     private TextView infoTextLabel;
     private ProgressBar progressBar;
 
+    private double progressBarOverride = Double.NaN;
+
     private Menu menu;
     private MenuItem analyzeImages;
 
@@ -101,10 +103,13 @@ public class MainActivity extends AppCompatActivity
         infoTextLabel = (TextView) findViewById(R.id.textView);
         infoTextLabel.setText("Loading resources...");
         progressBar = (ProgressBar) findViewById(R.id.progressBar);
-        progressBar.setAlpha(0);
+        setProgressBarProgress(0);
 
-        new ResourceDownloadAsyncTask(getApplicationContext(), (result) -> {
+        new ResourceDownloadAsyncTask(getApplicationContext(), (progress) -> {
+            setProgressBarProgress(progress);
+        }, (result) -> {
             if (result == ResourceDownloadAsyncTask.SUCCESS)  {
+                setProgressBarProgress(Double.NaN);
                 infoTextLabel.setText("");
                 nativeAppManager.notifyResourcesReady(
                         getApplicationContext().getFilesDir().getAbsolutePath());
@@ -380,6 +385,15 @@ public class MainActivity extends AppCompatActivity
         }
     }
 
+    private void setProgressBarProgress(double progress) {
+        if (Double.isNaN(progress)) {
+            progressBar.setAlpha(0);
+        } else {
+            progressBar.setAlpha(1);
+            progressBar.setMax(100);
+            progressBar.setProgress((int) (progress * 100));
+        }
+    }
 
     private void enableProgressReporting() {
         handler.postDelayed(progressRefreshRunnable = new Runnable() {
@@ -389,14 +403,7 @@ public class MainActivity extends AppCompatActivity
                 if (!initialized) {
                     return;
                 }
-                double progress = nativeAppManager.getCurrentProgress();
-                if (Double.isNaN(progress)) {
-                    progressBar.setAlpha(0);
-                } else {
-                    progressBar.setAlpha(1);
-                    progressBar.setMax(100);
-                    progressBar.setProgress((int)(progress * 100));
-                }
+                setProgressBarProgress(nativeAppManager.getCurrentProgress());
                 String status = nativeAppManager.getCurrentStatus();
                 if (status.isEmpty()) {
                     infoTextLabel.setText("");

@@ -35,14 +35,17 @@ public class ResourceDownloadAsyncTask extends AsyncTask<String, Integer, Intege
 
     private Context context;
     private Consumer<Integer> onComplete;
+    private Consumer<Double> onProgress;
 
     public static final int SUCCESS = 0;
     public static final int CANCELLED = 1;
     public static final int FAILURE = 2;
     public static final int FAILURE_NO_NETWORK = 3;
 
-    public ResourceDownloadAsyncTask(Context context, Consumer<Integer> onComplete) {
+    public ResourceDownloadAsyncTask(Context context, Consumer<Double> onProgress,
+                                     Consumer<Integer> onComplete) {
         this.context = context;
+        this.onProgress = onProgress;
         this.onComplete = onComplete;
     }
 
@@ -50,7 +53,8 @@ public class ResourceDownloadAsyncTask extends AsyncTask<String, Integer, Intege
         return context.getFilesDir().getAbsolutePath();
     }
 
-    private int downloadFile(String dstPath, String urlString) {
+    private int downloadFile(String dstPath, String urlString,
+                             int currTotalBytesAllDownloads, int expectedTotalBytesAllDownloads) {
 
         InputStream input = null;
         OutputStream output = null;
@@ -86,6 +90,8 @@ public class ResourceDownloadAsyncTask extends AsyncTask<String, Integer, Intege
                     return CANCELLED;
                 }
                 output.write(data, 0, count);
+                currTotalBytesAllDownloads += count;
+                onProgress.accept((double)currTotalBytesAllDownloads / expectedTotalBytesAllDownloads);
             }
         } catch (Exception e) {
             Log.println(Log.ERROR, "mobisane", "Got exception: " + e);
@@ -115,14 +121,15 @@ public class ResourceDownloadAsyncTask extends AsyncTask<String, Integer, Intege
         OutputStream output = null;
         HttpURLConnection connection = null;
         try {
+            // HACK: getContentLength() doesn't work properly, so we hardcode the number of download bytes for now
             int result;
             result = downloadFile("cameraSensors.db",
-                    "https://raw.githubusercontent.com/alicevision/AliceVision/develop/src/aliceVision/sensorDB/cameraSensors.db");
+                    "https://raw.githubusercontent.com/alicevision/AliceVision/develop/src/aliceVision/sensorDB/cameraSensors.db", 0, 359897+23466654);
             if (result != SUCCESS) {
                 return result;
             }
             result = downloadFile("eng.traineddata",
-                    "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata");
+                    "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata", 359897, 359897+23466654);
             return result;
         } catch (Exception e) {
             Log.println(Log.ERROR, "mobisane", "Got exception: " + e);
