@@ -1231,6 +1231,7 @@ void SharedAppManager::detect_text()
     OcrOptions options;
     options.language = "eng";
     options.tessdata_path = d_->tessdata_root;
+    options.blur_detection_coef = -1;
     if ((d_->options & COLLECT_DEBUG_INFO) != 0) {
         options.debug_keep_adjusted_image_no_lines = true;
     }
