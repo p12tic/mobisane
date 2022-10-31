@@ -35,6 +35,7 @@
 #include "image_debug_utils.h"
 #include "image_utils.h"
 #include "parallel_alicevision.h"
+#include "parallel_tesseract.h"
 #include "sfm_refpoints.h"
 #include "time_logger.h"
 #include "vulkan_render_unfolded.h"
@@ -66,6 +67,7 @@
 #include <aliceVision/vfs/FilesystemManager.hpp>
 #include <aliceVision/vfs/FilesystemTreeInMemory.hpp>
 #include <taskflow/algorithm/for_each.hpp>
+#include <tesseract/baseapi.h>
 #include <filesystem>
 #include <random>
 
@@ -1228,6 +1230,8 @@ void SharedAppManager::detect_text()
 {
     TimeLogger time_logger{"detect_text()"};
 
+    TesseractParallelismBackendTaskflow parallelism_backend{d_->executor};
+
     OcrOptions options;
     options.language = "eng";
     options.tessdata_path = d_->tessdata_root;
@@ -1237,6 +1241,8 @@ void SharedAppManager::detect_text()
     }
 
     OcrPipelineRun run{d_->unfolded_image, options, options, {}};
+    run.get_tesseract_api().SetParallelismBackend(&parallelism_backend);
+
     run.execute();
     d_->ocr_results = run.results();
     if (!d_->ocr_results.success) {

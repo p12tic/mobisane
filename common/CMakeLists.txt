@@ -16,7 +16,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 set(SOURCES
-    parallel_alicevision.cc
     bounds_detection_params.cc
     bounds_detection_pipeline.cc
     edge_calculator_precise.cc
@@ -30,6 +29,8 @@ set(SOURCES
     image_utils.cc
     edge_sfm.cc
     edge_utils.cc
+    parallel_alicevision.cc
+    parallel_tesseract.cc
     segment_calculator_precise.cc
     sfm_refpoints.cc
     shared_app_manager.cc
@@ -82,7 +83,6 @@ set(SOURCES
 )
 
 set(PUBLIC_HEADERS
-    parallel_alicevision.h
     bounds_detection_params.h
     bounds_detection_pipeline.h
     edge_calculator_precise.h
@@ -96,6 +96,8 @@ set(PUBLIC_HEADERS
     image_utils.h
     longest_line_recognizer.h
     mean_flood_fill.h
+    parallel_alicevision.h
+    parallel_tesseract.h
     segment_calculator_precise.h
     sfm_refpoints.h
     shared_app_manager.h
