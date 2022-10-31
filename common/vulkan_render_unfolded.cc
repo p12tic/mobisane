@@ -45,6 +45,8 @@
 #endif
 
 #include "vulkan_render_unfolded.h"
+#include "algorithm.h"
+#include "geometry_utils.h"
 #include "vulkan_utils.h"
 #include "vkutils/VulkanBuffer.h"
 #include "vkutils/VulkanDevice.h"
@@ -59,15 +61,14 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
+#include <cmath>
 #include <unordered_map>
-
-#include <glm/gtx/string_cast.hpp>
 
 namespace sanescan {
 
 namespace {
 
-Mat3 create_transform_to_render_pos(float scale_x, float scale_y,
+Mat3 create_transform_to_render_pos(float scale_x, float scale_y, bool invert_y,
                                     float translate_x, float translate_y,
                                     float rect_angle_rad)
 {
@@ -77,6 +78,11 @@ Mat3 create_transform_to_render_pos(float scale_x, float scale_y,
     mat_tr << 1, 0, translate_x,
               0, 1, translate_y,
               0, 0, 1;
+
+    Mat3 mat_reflect;
+    mat_reflect << 1, 0, 0,
+               0, (invert_y ? -1 : 1), 0,
+               0, 0, 1;
 
     Mat3 mat_scale;
     mat_scale << scale_x, 0, 0,
@@ -88,7 +94,61 @@ Mat3 create_transform_to_render_pos(float scale_x, float scale_y,
                -std::sin(angle), std::cos(angle), 0,
                0, 0, 1;
 
-    return mat_scale * mat_rot * mat_tr;
+    return mat_scale * mat_reflect * mat_rot * mat_tr;
+}
+
+bool should_mirror(const aliceVision::sfmData::Landmarks& landmarks,
+                   aliceVision::IndexT view_id)
+{
+    // The unfolding step produces mirrored meshes sometimes. Later steps will not be able to
+    // recover from this problem, thus the image is mirrored if needed during the rendering step.
+
+    // FIXME: this just picks 3 landmarks to determine rotation. Thus the algorithm is very
+    // susceptible to invalid landmark locations
+
+    std::vector<std::pair<aliceVision::IndexT, Vec2>> landmark_positions;
+    landmark_positions.reserve(landmarks.size());
+    for (const auto& [id, landmark] : landmarks) {
+        landmark_positions.push_back({id, Vec2(landmark.X.x(), landmark.X.y())});
+    }
+
+    auto [min_i, max_i] = minmax_element_i_by_value(landmark_positions.begin(),
+                                                    landmark_positions.end(),
+                                                    [](const auto& p) { return p.second.y(); });
+    auto l1_pos = landmark_positions[min_i];
+    auto l2_pos = landmark_positions[max_i];
+
+    Vec2 p1 = l1_pos.second;
+    Vec2 p2 = l2_pos.second;
+
+    Vec3 line = line_through_points(p1, p2);
+
+    // Find point farthest away from this line as the third landmark for the triangle.
+    auto maxdistance_i = max_element_by_value(landmark_positions.begin(),
+                                              landmark_positions.end(),
+                                              [&](const auto& p)
+    {
+        double p_x = p.second.x();
+        double p_y = p.second.y();
+
+        // Proper computation should divide by std::hypot(line_a, line_b), but this is a constant
+        // factor which does not affect the result of max_element_by_value.
+        return std::fabs(line.x() * p_x + line.y() * p_y + line.z());
+    });
+
+    auto l3_pos = landmark_positions[maxdistance_i];
+    Vec2 p3 = l3_pos.second;
+
+    // Compute the area of the triangle as given by the unfolded landmark positions and also the
+    // area of the triangle as given by the input observation positions. If the signs of the
+    // triangles are the same, no flipping is needed. Otherwise the coordinates need to be flipped.
+    auto area_landmark = signed_triangle_area(p1, p2, p3);
+    auto area_observations =
+            signed_triangle_area(landmarks.at(l1_pos.first).observations.at(view_id).x,
+                                 landmarks.at(l2_pos.first).observations.at(view_id).x,
+                                 landmarks.at(l3_pos.first).observations.at(view_id).x);
+
+    return (area_landmark < 0) != (area_observations < 0);
 }
 
 } // namespace
@@ -144,12 +204,17 @@ RenderingUnfoldedInfo
 
     float scale_x = 2.0f / rotated_rect.size.width;
     float scale_y = 2.0f / rotated_rect.size.height;
+
+    // Check if output should be mirrored
+    bool should_mirror_dest_pos = should_mirror(unfolded_landmarks, view_ids.front());
+
     // Calculate transform between source unfolded to destination coordinates and apply it.
     auto unfolded_to_dest_transform =
             create_transform_to_render_pos(scale_x, scale_y,
+                                           should_mirror_dest_pos,
                                            -rotated_rect.center.x,
                                            -rotated_rect.center.y,
-                                           deg_to_rad(rotated_rect.angle + 180));
+                                           deg_to_rad(rotated_rect.angle));
 
     res.landmark_positions_in_dest.resize(unfolded_landmarks.size());
     for (const auto& [id, landmark] : unfolded_landmarks) {
