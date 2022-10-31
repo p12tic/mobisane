@@ -667,7 +667,10 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_inexact.ply",
                    d_->sfm_landmarks_inexact, {});
+    });
 
+    taskflow.emplace([&]()
+    {
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_filtered_hz.ply",
                    d_->sfm_landmarks_filtered_horiz, {});
 
@@ -676,7 +679,10 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         write_mesh_debug_2d_image(debug_folder_path, "sfm_mesh_horiz_2d.png",
                                   d_->sfm_landmarks_filtered_horiz, d_->mesh_triangles_filtered);
+    });
 
+    taskflow.emplace([&]()
+    {
         write_mesh_debug_2d_image(debug_folder_path, "sfm_mesh_unfolded_hz.png",
                                   d_->sfm_landmarks_unfolded, d_->mesh_triangles_filtered);
 
@@ -685,6 +691,12 @@ void SharedAppManager::print_debug_images(const std::string& debug_folder_path)
 
         export_ply(std::filesystem::path(debug_folder_path) / "sfm_only_points_unfolded_hz_mesh.ply",
                    d_->sfm_landmarks_unfolded, d_->mesh_triangles_filtered);
+    });
+
+    taskflow.emplace([&]()
+    {
+        write_debug_image(debug_folder_path, "ocr_no_lines.png",
+                          d_->ocr_results.adjusted_image_no_lines);
     });
 
     taskflow.emplace([&]()
@@ -1219,6 +1231,10 @@ void SharedAppManager::detect_text()
     OcrOptions options;
     options.language = "eng";
     options.tessdata_path = d_->tessdata_root;
+    if ((d_->options & COLLECT_DEBUG_INFO) != 0) {
+        options.debug_keep_adjusted_image_no_lines = true;
+    }
+
     OcrPipelineRun run{d_->unfolded_image, options, options, {}};
     run.execute();
     d_->ocr_results = run.results();
