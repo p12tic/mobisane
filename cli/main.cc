@@ -235,6 +235,7 @@ input_path and output_path options can be passed either as positional or named a
                                 sanescan::SharedAppManager::PRESERVE_INTERMEDIATE_DATA |
                                 sanescan::SharedAppManager::COLLECT_DEBUG_INFO));
     app_manager.set_bounds_detection_params(bounds_params);
+    app_manager.start_new_session("result.pdf");
 
     try {
         for (const auto& input_path : input_paths) {
