@@ -55,6 +55,7 @@
 #include <sanescanocr/ocr/ocr_pipeline_run.h>
 #include <sanescanocr/ocr/pdf.h>
 #include <sanescanocr/ocr/tesseract_data_utils.h>
+#include <sanescanocr/util/math.h>
 #include <aliceVision/image/io.hpp>
 #include <aliceVision/matching/io.hpp>
 #include <aliceVision/matchingImageCollection/ImagePairListIO.hpp>
@@ -1236,6 +1237,15 @@ void SharedAppManager::detect_text()
     options.language = "eng";
     options.tessdata_path = d_->tessdata_root;
     options.blur_detection_coef = -1;
+
+    options.fix_page_orientation = true;
+    options.fix_page_orientation_max_angle_diff = deg_to_rad(30);
+    options.fix_page_orientation_min_text_fraction = 0.8;
+
+    options.fix_text_rotation_min_text_fraction = 0.8;
+    options.fix_text_rotation = true;
+    options.fix_text_rotation_max_angle_diff = deg_to_rad(30);
+
     if ((d_->options & COLLECT_DEBUG_INFO) != 0) {
         options.debug_keep_adjusted_image_no_lines = true;
     }
