@@ -542,6 +542,9 @@ void edge_directional_deriv_to_color(const cv::Mat& derivatives, cv::Mat& colors
 template<class Value>
 void draw_polyline_impl(cv::Mat& mask, const std::vector<cv::Point>& points, Value value)
 {
+    int size_x = mask.size().width;
+    int size_y = mask.size().height;
+
     for (std::size_t i = 0; i < points.size() - 1; ++i) {
         const auto& p1 = points[i];
         const auto& p2 = points[i + 1];
@@ -564,6 +567,9 @@ void draw_polyline_impl(cv::Mat& mask, const std::vector<cv::Point>& points, Val
             float slope = static_cast<float>(y2 - y1) / (x2 - x1);
             for (int x = x1; x <= x2; ++x) {
                 int y = y1 + (x - x1) * slope;
+                if (y < 0 || y >= size_y) {
+                    continue;
+                }
                 mask.at<Value>(y, x) = value;
             }
         } else {
@@ -575,6 +581,9 @@ void draw_polyline_impl(cv::Mat& mask, const std::vector<cv::Point>& points, Val
             float slope = static_cast<float>(x2 - x1) / (y2 - y1);
             for (int y = y1; y <= y2; ++y) {
                 int x = x1 + (y - y1) * slope;
+                if (x < 0 || x >= size_x) {
+                    continue;
+                }
                 mask.at<Value>(y, x) = value;
             }
         }
