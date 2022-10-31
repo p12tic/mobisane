@@ -105,6 +105,8 @@ def cmake_flags_from_settings(settings):
         f'-DBUILD_SHARED_LIBS={is_shared}',
         f'-DCMAKE_FIND_ROOT_PATH={settings.prefix}',
         f'-DCMAKE_SYSTEM_PREFIX_PATH={settings.prefix}',
+        # Seems CMake build of many projects is broken for some reason as rpth is set to empty string
+        f'-DCMAKE_INSTALL_RPATH={settings.prefix}/lib',
     ]
 
     if settings.has_ccache:
@@ -417,8 +419,6 @@ def build_libtiff(srcdir, builddir, settings):
     bsh([
         'cmake',
         '-GNinja',
-        # Seems libtiff CMake build is broken for some reason as rpth is set to empty string
-        f'-DCMAKE_INSTALL_RPATH={settings.prefix}/lib',
         '-Dlibdeflate=OFF',
         '-Djpeg12=OFF',
         '-Djbig=OFF',
