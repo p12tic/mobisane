@@ -294,18 +294,17 @@ SharedAppManager::~SharedAppManager() = default;
 void SharedAppManager::init(const std::string& root_resource_path)
 {
     static bool first_init = true;
-    if (!first_init) {
-        return;
+    if (first_init) {
+        first_init = false;
+        g_alicevision_parallelism_backend = std::make_unique<ParallelismBackendTaskflow>(d_->executor);
+        aliceVision::system::setCurrentParallelistBackend(*g_alicevision_parallelism_backend);
+        vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
+                                            std::make_unique<vfs::FilesystemTreeInMemory>());
+
+        vfs::create_directories(d_->vfs_project_path);
+        vfs::current_path(d_->vfs_project_path);
     }
 
-    first_init = false;
-    g_alicevision_parallelism_backend = std::make_unique<ParallelismBackendTaskflow>(d_->executor);
-    aliceVision::system::setCurrentParallelistBackend(*g_alicevision_parallelism_backend);
-    vfs::getManager().installTreeAtRoot(d_->vfs_root_name,
-                                        std::make_unique<vfs::FilesystemTreeInMemory>());
-
-    vfs::create_directories(d_->vfs_project_path);
-    vfs::current_path(d_->vfs_project_path);
     d_->root_resource_path = root_resource_path;
 
     std::string sensor_db_path;
