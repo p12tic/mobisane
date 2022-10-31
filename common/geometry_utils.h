@@ -31,6 +31,13 @@ struct MeshTriangle
     std::array<aliceVision::IndexT, 3> indices;
 };
 
+inline double signed_triangle_area(const Vec2& p1, const Vec2& p2, const Vec2& p3)
+{
+    return 0.5 * ((p2.x() - p1.x()) * (p3.y() - p2.y()) -
+                  (p3.x() - p2.x()) * (p2.y() - p1.y()));
+}
+
+
 std::pair<Vec3, Vec3> fit_plane_to_points(const std::vector<Vec3>& points);
 
 Mat3 skew_symmetric_matrix(const Vec3& vec);

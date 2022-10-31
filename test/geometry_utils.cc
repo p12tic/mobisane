@@ -59,4 +59,19 @@ TEST(CreateRotationMatrix, degrees_90)
               (Mat3() << 0, -1, 0,  1, 0, 0,  0, 0, 1).finished());
 }
 
+TEST(SignedTriangleArea, positive)
+{
+
+    ASSERT_NEAR(signed_triangle_area({1.0, 1.0}, {2.0, 1.0}, {1.0, 2.0}), 0.5, 0.0001);
+    ASSERT_NEAR(signed_triangle_area({1.0, 2.0}, {1.0, 1.0}, {2.0, 1.0}), 0.5, 0.0001);
+    ASSERT_NEAR(signed_triangle_area({2.0, 1.0}, {1.0, 2.0}, {1.0, 1.0}), 0.5, 0.0001);
+}
+
+TEST(SignedTriangleArea, negative)
+{
+    ASSERT_NEAR(signed_triangle_area({1.0, 1.0}, {1.0, 2.0}, {2.0, 1.0}), -0.5, 0.0001);
+    ASSERT_NEAR(signed_triangle_area({2.0, 1.0}, {1.0, 1.0}, {1.0, 2.0}), -0.5, 0.0001);
+    ASSERT_NEAR(signed_triangle_area({1.0, 2.0}, {2.0, 1.0}, {1.0, 1.0}), -0.5, 0.0001);
+}
+
 } // namespace sanescan
