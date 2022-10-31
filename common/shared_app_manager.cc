@@ -366,7 +366,10 @@ void SharedAppManager::start_new_session(const std::string& dest_path)
     d_->curr_session_id++;
     d_->dest_path = dest_path;
     d_->is_success = false;
-    d_->curr_status = Idle;
+    if (d_->curr_status != Idle && d_->curr_status != Completed) {
+        throw std::runtime_error("Previous session has not been completed");
+    }
+    d_->curr_status = PerImageAnalysis;
     d_->next_image_id = 0;
     // FIXME: delete paths in vfs
     d_->features_per_view = {};
@@ -394,6 +397,10 @@ void SharedAppManager::start_new_session(const std::string& dest_path)
 
 void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 {
+    if (d_->curr_status != PerImageAnalysis) {
+        throw std::runtime_error("start_new_session() has not been called for this session");
+    }
+
     auto image_id = d_->next_image_id++;
     TimeLogger time_logger{"submit_photo():sync submit", image_id};
 
@@ -535,6 +542,10 @@ void SharedAppManager::submit_photo(const cv::Mat& rgb_image)
 void SharedAppManager::start_scene_analysis()
 {
     std::lock_guard lock{d_->task_status_mutex};
+    if (d_->curr_status != PerImageAnalysis) {
+        throw std::invalid_argument("Images have not been submitted or the current session has "
+                                    "not finished");
+    }
     d_->curr_status = SceneAnalysis;
     if (d_->serial_detection_requested) {
         throw std::invalid_argument("Detection task is already queued");
