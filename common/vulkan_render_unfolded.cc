@@ -891,7 +891,6 @@ public:
         std::vector<Vertex> vertices;
         vertices.reserve(info.landmark_positions_in_dest.size());
 
-        int count = 0;
         for (std::size_t i = 0; i < info.landmark_positions_in_dest.size(); ++i) {
             // FIXME: currently only the first image is used
             std::size_t obs_index = 0;
@@ -902,12 +901,6 @@ public:
                                  static_cast<float>(res_pos(1)), 0.0f},
                                 {static_cast<float>(uv_pos(0)) / info.images_size.width,
                                  static_cast<float>(uv_pos(1)) / info.images_size.height}});
-
-            if (count++ < 10) {
-                std::cout << "VERT " << res_pos(0) << " " << res_pos(1) << " " <<
-                             static_cast<float>(uv_pos(0)) / info.images_size.width << " " <<
-                             static_cast<float>(uv_pos(1)) / info.images_size.height << std::endl;
-            }
         }
 
         // Setup indices
