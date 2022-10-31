@@ -177,6 +177,9 @@ add_library(mobisanecommon ${SOURCES})
 
 # Disable openmp support
 target_compile_definitions(mobisanecommon PRIVATE -DEIGEN_DONT_PARALLELIZE=1)
+# Disable <execution> usage in boost. Some implementations use system tbb which then may conflict
+# with what version is in 3rdparty/tbb
+target_compile_definitions(mobisanecommon PRIVATE -DBOOST_NO_CXX17_HDR_EXECUTION=1)
 
 if(MOBISANE_ENABLE_VULKAN_VALIDATION)
     target_compile_definitions(mobisanecommon PRIVATE -DMOBISANE_ENABLE_VULKAN_VALIDATION=1)
