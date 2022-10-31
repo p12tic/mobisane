@@ -25,6 +25,7 @@ import platform
 import shutil
 import subprocess
 import sys
+import textwrap
 
 import attr
 
@@ -861,6 +862,24 @@ def build_podofo(srcdir, builddir, settings):
             '-DPODOFO_BUILD_SHARED=OFF',
             '-DPODOFO_BUILD_STATIC=ON',
         ]
+
+        # Podofo does not provide pkg-config file when building static library
+        os.makedirs(os.path.join(os.path.join(settings.prefix, 'lib/pkgconfig')),
+                    exist_ok=True)
+        with open(os.path.join(settings.prefix, 'lib/pkgconfig/libpodofo.pc'), 'w') as f:
+            f.write(textwrap.dedent(f'''
+            prefix={settings.prefix}
+            exec_prefix=${{prefix}}
+            libdir=${{exec_prefix}}/lib
+            includedir=${{prefix}}/include/podofo
+
+            Name: PoDoFo
+            Description: A C++ library to work with the PDF file format
+            Version:
+            Libs: -L${{libdir}} -lpodofo
+            Cflags: -I${{includedir}}
+            '''))
+
 
     bsh = sh_with_cwd(builddir)
     bsh([
