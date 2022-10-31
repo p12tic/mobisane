@@ -71,7 +71,7 @@ known_dependencies = [
     ('bzip2', 'https://gitlab.com/bzip2/bzip2', '2d8393924b9f3e014000c7420c7da7c3ddb74e2c'),
     ('leptonica', 'https://github.com/danbloomberg/leptonica', '1598abc30054bc3db70b2e8302bbcb5f95c20bb8'),
     ('libexpat', 'https://github.com/libexpat/libexpat', 'R_2_4_8'),
-    ('sanescan', 'https://gitlab.com/sane-project/frontend/sanescan', '8a115d969e22111c42b47249ddf19cbf007bf989'),
+    ('sanescan', 'https://gitlab.com/sane-project/frontend/sanescan', '9851e232c72b025c6334280c689bc2e2552fc258'),
 ]
 
 
