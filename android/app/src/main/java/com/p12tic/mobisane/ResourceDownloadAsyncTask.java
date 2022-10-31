@@ -29,6 +29,8 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class ResourceDownloadAsyncTask extends AsyncTask<String, Integer, Integer> {
@@ -114,23 +116,59 @@ public class ResourceDownloadAsyncTask extends AsyncTask<String, Integer, Intege
         return SUCCESS;
     }
 
+    protected class DownloadConfig {
+        public String filename;
+        public String url;
+        public int size;
+        public DownloadConfig(String filename, String url, int size) {
+            this.filename = filename;
+            this.url = url;
+            this.size = size;
+        }
+    }
     @Override
     protected Integer doInBackground(String... unused) {
 
         InputStream input = null;
         OutputStream output = null;
         HttpURLConnection connection = null;
+
+        List<DownloadConfig> downloadConfigs = new ArrayList<DownloadConfig>();
+        downloadConfigs.add(new DownloadConfig(
+                "cameraSensors.db",
+                "https://raw.githubusercontent.com/alicevision/AliceVision/develop/src/aliceVision/sensorDB/cameraSensors.db",
+                359897
+        ));
+        downloadConfigs.add(new DownloadConfig(
+                "eng.traineddata",
+                "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata",
+                23466654
+        ));
+        downloadConfigs.add(new DownloadConfig(
+                "osd.traineddata",
+                "https://github.com/tesseract-ocr/tessdata/raw/main/osd.traineddata",
+                10562874
+        ));
+
+        int expectedTotalBytesAllDownloads = 0;
+        for (DownloadConfig config : downloadConfigs) {
+            expectedTotalBytesAllDownloads += config.size;
+        }
+
         try {
             // HACK: getContentLength() doesn't work properly, so we hardcode the number of download bytes for now
-            int result;
-            result = downloadFile("cameraSensors.db",
-                    "https://raw.githubusercontent.com/alicevision/AliceVision/develop/src/aliceVision/sensorDB/cameraSensors.db", 0, 359897+23466654);
-            if (result != SUCCESS) {
-                return result;
+            int currTotalBytesAllDownloads = 0;
+            for (DownloadConfig config : downloadConfigs) {
+                int result;
+                result = downloadFile(config.filename, config.url, currTotalBytesAllDownloads,
+                        expectedTotalBytesAllDownloads);
+
+                if (result != SUCCESS) {
+                    return result;
+                }
+                currTotalBytesAllDownloads += config.size;
             }
-            result = downloadFile("eng.traineddata",
-                    "https://github.com/tesseract-ocr/tessdata/raw/main/eng.traineddata", 359897, 359897+23466654);
-            return result;
+            return SUCCESS;
         } catch (Exception e) {
             Log.println(Log.ERROR, "mobisane", "Got exception: " + e);
         }
