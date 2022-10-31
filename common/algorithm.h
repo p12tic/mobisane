@@ -33,6 +33,27 @@ std::size_t max_element_i(It begin, It end)
 }
 
 template<class It, class F>
+std::size_t max_element_by_value(It begin, It end, F&& callable)
+{
+    if (begin == end) {
+        throw std::invalid_argument("At least one element required");
+    }
+
+    auto max_value = callable(*begin++);
+    std::size_t max_index = 0;
+
+    for (std::size_t i = 1; begin != end; begin++, i++) {
+        auto value = callable(*begin);
+        if (value > max_value) {
+            max_value = value;
+            max_index = i;
+        }
+    }
+    return max_index;
+}
+
+
+template<class It, class F>
 std::pair<std::size_t, std::size_t>
         minmax_element_i_by_value(It begin, It end, F&& callable)
 {
