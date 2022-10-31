@@ -124,6 +124,10 @@ sanescan::SharedAppManager& get_app_manager()
                 @"eng.traineddata",
             },
             {
+                @"https://github.com/tesseract-ocr/tessdata/raw/main/osd.traineddata",
+                @"osd.traineddata",
+            },
+            {
                 @"https://raw.githubusercontent.com/alicevision/AliceVision/develop/src/aliceVision/sensorDB/cameraSensors.db",
                 @"cameraSensors.db",
             }
