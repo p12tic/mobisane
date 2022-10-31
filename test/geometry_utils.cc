@@ -74,4 +74,34 @@ TEST(SignedTriangleArea, negative)
     ASSERT_NEAR(signed_triangle_area({1.0, 2.0}, {2.0, 1.0}, {1.0, 1.0}), -0.5, 0.0001);
 }
 
+TEST(LineThroughPoints, simple)
+{
+    std::vector<Vec2> points = {
+        {1.0, 1.0},
+        {2.0, 1.0},
+        {1.0, 2.0},
+        {1.0, -1.0},
+        {2.0, -1.0},
+        {1.0, -2.0},
+        {-1.0, 1.0},
+        {-2.0, 1.0},
+        {-1.0, 2.0},
+        {-1.0, -1.0},
+        {-2.0, -1.0},
+        {-1.0, -2.0},
+    };
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        for (std::size_t j = 0; j < points.size(); ++j) {
+            if (i == j) {
+                continue;
+            }
+            auto line = line_through_points(points[i], points[j]);
+            ASSERT_NEAR(line.dot(Vec3(points[i].x(), points[i].y(), 1.0)), 0.0, 0.001);
+            ASSERT_NEAR(line.dot(Vec3(points[j].x(), points[j].y(), 1.0)), 0.0, 0.001);
+            Vec2 middle = (points[i] + points[j]) / 2.0;
+            ASSERT_NEAR(line.dot(Vec3(middle.x(), middle.y(), 1.0)), 0.0, 0.001);
+        }
+    }
+}
+
 } // namespace sanescan

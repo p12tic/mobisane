@@ -37,6 +37,14 @@ inline double signed_triangle_area(const Vec2& p1, const Vec2& p2, const Vec2& p
                   (p3.x() - p2.x()) * (p2.y() - p1.y()));
 }
 
+/// Returns general line equation that passes through p1 and p2
+inline Vec3 line_through_points(const Vec2& p1, const Vec2& p2)
+{
+    return Vec3(p2.y() - p1.y(),
+                p1.x() - p2.x(),
+                p2.x() * p1.y() - p1.x() * p2.y());
+}
+
 
 std::pair<Vec3, Vec3> fit_plane_to_points(const std::vector<Vec3>& points);
 
