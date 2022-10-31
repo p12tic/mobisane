@@ -529,6 +529,11 @@ def build_ceres(srcdir, builddir, settings):
         extra_flags += [
             '-DEigen3_DIR=' + os.path.join(settings.prefix, 'share/eigen3/cmake')
         ]
+    if settings.target_platform == TargetPlatform.LINUX:
+        # ceres does not support OpenBLAS and tries to pick system lapack.
+        extra_flags += [
+            "-DLAPACK=OFF"
+        ]
 
     bsh = sh_with_cwd(builddir)
     bsh([
