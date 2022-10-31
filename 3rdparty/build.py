@@ -992,7 +992,6 @@ def build_glm(srcdir, builddir, settings):
         'cmake',
         '-GNinja',
         '-DBUILD_TESTING=OFF',
-        '-DCMAKE_CXX_FLAGS=-Wno-error=float-equal -Wno-error=implicit-int-float-conversion',
         srcdir] + cmake_flags_from_settings(settings) + extra_flags
     )
     bsh(['ninja'])
