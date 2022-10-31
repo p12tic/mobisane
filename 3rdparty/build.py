@@ -845,6 +845,18 @@ def build_fontconfig(srcdir, builddir, settings):
 
 
 def build_podofo(srcdir, builddir, settings):
+    extra_flags = []
+    if settings.libtype == LibType.SHARED:
+        extra_flags += [
+            '-DPODOFO_BUILD_SHARED=ON',
+            '-DPODOFO_BUILD_STATIC=OFF',
+        ]
+    else:
+        extra_flags += [
+            '-DPODOFO_BUILD_SHARED=OFF',
+            '-DPODOFO_BUILD_STATIC=ON',
+        ]
+
     bsh = sh_with_cwd(builddir)
     bsh([
         'cmake',
@@ -857,7 +869,7 @@ def build_podofo(srcdir, builddir, settings):
         '-DCMAKE_DISABLE_FIND_PACKAGE_OpenSSL=ON',
         '-DCMAKE_DISABLE_FIND_PACKAGE_UNISTRING=ON',
         srcdir,
-        ] + cmake_flags_from_settings(settings)
+        ] + extra_flags + cmake_flags_from_settings(settings)
     )
     bsh(['ninja'])
     bsh(['ninja', 'install'])
